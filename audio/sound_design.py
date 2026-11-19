@@ -1,12 +1,15 @@
-"""Estacao 2 (v3): sintetiza cama sonora + SFX de suspense e masteriza audio/mix_final.mp3.
+"""Estacao 2 (v4): biblioteca hibrida de SFX reais (assets/sfx/) + sintese acustica HD e master -14 LUFS.
 
 Uso (na raiz do repositorio, apos audio/gerar_narracao.py):
     python3 audio/sound_design.py
 
-100% Python padrao (acelerado por numpy quando disponivel) + ffmpeg, sem downloads.
-Antes de mixar, executa a trava blindada contra audio velho (pipeline/historico.py):
-confere video_id, titulo, roteiro_sha256 e CTA final 'COMENTE EU QUERO'.
-Suporta Video 03 ('O Pix de 1 Centavo'), Video 02 ('Rota recalculada') e Video 01 legado.
+Recursos V4 (skills biblioteca-sfx-reais + audio-sound-design-suspense + video-director):
+- Trava blindada contra audio velho via pipeline/historico.py (video_id, titulo, roteiro_sha256, CTA).
+- Carrega automaticamente SFX reais (.wav/.flac/.mp3/.ogg) de assets/sfx/ quando existirem,
+  aplicando fade-in (5ms), fade-out (15ms) e ganho configurado em assets/sfx/catalogo.json.
+- Fallback procedural acustico de alta fidelidade (filtros espectrais, impulsos stick-slip,
+  formantes vocais e reflexoes precoces de sala) caso o arquivo real nao esteja presente.
+- Suporta Video 04 ('A Baba Eletronica'), Video 03 ('O Pix de 1 Centavo'), Video 02 e Video 01.
 """
 
 from __future__ import annotations
@@ -35,12 +38,15 @@ if str(RAIZ) not in sys.path:
 from pipeline.historico import validar_artefatos_audio  # noqa: E402
 
 PASTA_AUDIO = RAIZ / "audio"
+PASTA_SFX = RAIZ / "assets" / "sfx"
+CATALOGO_SFX_JSON = PASTA_SFX / "catalogo.json"
 VOZ_LIMPA_MP3 = PASTA_AUDIO / "voz_limpa.mp3"
 EVENTOS_JSON = PASTA_AUDIO / "eventos.json"
 MIX_FINAL_MP3 = PASTA_AUDIO / "mix_final.mp3"
 NARRACAO_MP3 = PASTA_AUDIO / "narracao.mp3"
 
 SR = 44100
+EXTENSOES_SFX = (".wav", ".flac", ".mp3", ".ogg")
 
 
 def medir_duracao_ffprobe(caminho: Path) -> float:
@@ -101,24 +107,298 @@ def _misturar_trecho(esq, dir_, inicio_s: float, s_esq, s_dir, ganho: float = 1.
     if comp <= 0:
         return
     if np is not None:
-        esq[dst_ini : dst_ini + comp] += s_esq[src_ini : src_ini + comp] * ganho
-        dir_[dst_ini : dst_ini + comp] += s_dir[src_ini : src_ini + comp] * ganho
+        esq[dst_ini : dst_ini + comp] += np.asarray(s_esq[src_ini : src_ini + comp], dtype=np.float64) * ganho
+        dir_[dst_ini : dst_ini + comp] += np.asarray(s_dir[src_ini : src_ini + comp], dtype=np.float64) * ganho
     else:
         for k in range(comp):
             esq[dst_ini + k] += s_esq[src_ini + k] * ganho
             dir_[dst_ini + k] += s_dir[src_ini + k] * ganho
 
 
+# ============================================================
+# CARREGADOR HIBRIDO DE SFX REAIS (assets/sfx/) + CATALOGO
+# ============================================================
+
+def _carregar_ganhos_catalogo() -> dict[str, float]:
+    ganhos: dict[str, float] = {}
+    if not CATALOGO_SFX_JSON.is_file():
+        return ganhos
+    try:
+        dados = json.loads(CATALOGO_SFX_JSON.read_text(encoding="utf-8"))
+        for item in dados.get("efeitos", []):
+            nome = str(item.get("nome", "")).strip()
+            if nome and item.get("ganho_db") is not None:
+                ganhos[nome] = 10.0 ** (float(item["ganho_db"]) / 20.0)
+    except Exception:
+        pass
+    return ganhos
+
+
+def _localizar_sfx_real(nome: str) -> Path | None:
+    if not PASTA_SFX.is_dir():
+        return None
+    for ext in EXTENSOES_SFX:
+        cand = PASTA_SFX / f"{nome}{ext}"
+        if cand.is_file() and cand.stat().st_size > 0:
+            return cand
+    return None
+
+
+def _aplicar_fades_e_corte(esq, dir_, duracao_max: float | None = None, ganho_cat: float = 1.0):
+    n = len(esq)
+    if duracao_max is not None and duracao_max > 0.05:
+        n_lim = min(n, int(round(duracao_max * SR)))
+        esq = esq[:n_lim]
+        dir_ = dir_[:n_lim]
+        n = n_lim
+    if n == 0:
+        return esq, dir_
+
+    fade_in = min(n // 4, int(round(0.005 * SR)))
+    fade_out = min(n // 3, int(round(0.015 * SR)))
+    if np is not None:
+        esq = np.asarray(esq, dtype=np.float64).copy() * ganho_cat
+        dir_ = np.asarray(dir_, dtype=np.float64).copy() * ganho_cat
+        if fade_in > 1:
+            rampa = np.linspace(0.0, 1.0, fade_in, dtype=np.float64)
+            esq[:fade_in] *= rampa
+            dir_[:fade_in] *= rampa
+        if fade_out > 1:
+            rampa = np.linspace(1.0, 0.0, fade_out, dtype=np.float64)
+            esq[-fade_out:] *= rampa
+            dir_[-fade_out:] *= rampa
+        return np.clip(esq, -0.98, 0.98), np.clip(dir_, -0.98, 0.98)
+
+    esq_out = array("d", (v * ganho_cat for v in esq))
+    dir_out = array("d", (v * ganho_cat for v in dir_))
+    for i in range(fade_in):
+        f = i / max(1, fade_in - 1)
+        esq_out[i] *= f
+        dir_out[i] *= f
+    for i in range(fade_out):
+        f = 1.0 - (i / max(1, fade_out - 1))
+        idx = n - fade_out + i
+        esq_out[idx] *= f
+        dir_out[idx] *= f
+    return esq_out, dir_out
+
+
+def carregar_sfx_real(nome: str, duracao_max: float | None = None, ganhos_cat: dict[str, float] | None = None):
+    """Carrega um arquivo real (.wav/.flac/.mp3/.ogg) de assets/sfx/ em stereo 44.1kHz float64."""
+    caminho = _localizar_sfx_real(nome)
+    if caminho is None:
+        return None, None
+
+    bruto_pcm: bytes | None = None
+    if caminho.suffix.lower() == ".wav":
+        try:
+            with wave.open(str(caminho), "rb") as wf:
+                if wf.getframerate() == SR and wf.getnchannels() == 2 and wf.getsampwidth() == 2:
+                    bruto_pcm = wf.readframes(wf.getnframes())
+        except Exception:
+            bruto_pcm = None
+
+    if bruto_pcm is None:
+        cmd = [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(caminho),
+            "-ar",
+            str(SR),
+            "-ac",
+            "2",
+            "-f",
+            "s16le",
+            "pipe:1",
+        ]
+        res = subprocess.run(cmd, capture_output=True, check=True)
+        bruto_pcm = res.stdout
+
+    if not bruto_pcm:
+        return None, None
+
+    if np is not None:
+        inter = np.frombuffer(bruto_pcm, dtype=np.int16).astype(np.float64) / 32768.0
+        n_frames = inter.size // 2
+        esq = inter[0 : n_frames * 2 : 2]
+        dir_ = inter[1 : n_frames * 2 : 2]
+    else:
+        amostras = array("h")
+        amostras.frombytes(bruto_pcm)
+        n_frames = len(amostras) // 2
+        esq = array("d", (amostras[2 * i] / 32768.0 for i in range(n_frames)))
+        dir_ = array("d", (amostras[2 * i + 1] / 32768.0 for i in range(n_frames)))
+
+    ganho_cat = (ganhos_cat or {}).get(nome, 1.0)
+    esq, dir_ = _aplicar_fades_e_corte(esq, dir_, duracao_max=duracao_max, ganho_cat=ganho_cat)
+    return (esq, dir_), caminho.name
+
+
+def obter_sfx(
+    nome: str,
+    gerador_fallback,
+    duracao_max: float | None = None,
+    ganhos_cat: dict[str, float] | None = None,
+    relatorio: dict[str, str] | None = None,
+):
+    """Usa arquivo real em assets/sfx/ quando existir; senao executa o fallback acustico HD."""
+    par, arq_nome = carregar_sfx_real(nome, duracao_max=duracao_max, ganhos_cat=ganhos_cat)
+    if par is not None and arq_nome is not None:
+        if relatorio is not None:
+            relatorio[nome] = f"REAL ({arq_nome})"
+        return par
+    if relatorio is not None and nome not in relatorio:
+        relatorio[nome] = "fallback procedural HD"
+    return gerador_fallback()
+
+
+# ============================================================
+# NUCLEO DSP ORGANICO (FILTROS ESPECTRAIS, PINK NOISE, SALA)
+# ============================================================
+
+def _ruido_rosa_np(n: int, seed: int):
+    rng = np.random.default_rng(seed)
+    branco = rng.standard_normal(n)
+    spec = np.fft.rfft(branco)
+    freqs = np.fft.rfftfreq(n, 1.0 / SR)
+    escala = 1.0 / np.maximum(freqs, 25.0) ** 0.5
+    escala[0] = 0.0
+    rosa = np.fft.irfft(spec * escala, n=n)
+    pico = float(np.max(np.abs(rosa))) or 1.0
+    return rosa / pico
+
+
+def _filtrar_banda_np(sinal, f_lo: float, f_hi: float, ordem: float = 2.0):
+    n = len(sinal)
+    spec = np.fft.rfft(sinal)
+    freqs = np.fft.rfftfreq(n, 1.0 / SR)
+    resp = np.ones_like(freqs)
+    if f_lo > 0.0:
+        resp *= 1.0 / np.sqrt(1.0 + (f_lo / np.maximum(freqs, 1e-3)) ** (2.0 * ordem))
+    if f_hi > 0.0:
+        resp *= 1.0 / np.sqrt(1.0 + (freqs / f_hi) ** (2.0 * ordem))
+    resp[0] = 0.0
+    return np.fft.irfft(spec * resp, n=n)
+
+
+def _ressonador_np(sinal, fc: float, q: float):
+    """Filtro ressonador passa-banda espectral (simula cavidades de madeira, tubo vocal ou metal)."""
+    n = len(sinal)
+    spec = np.fft.rfft(sinal)
+    freqs = np.fft.rfftfreq(n, 1.0 / SR)
+    bw = max(12.0, fc / max(0.5, q))
+    delta = (freqs - fc) / (bw * 0.5)
+    resp = 1.0 / np.sqrt(1.0 + delta * delta)
+    resp[0] = 0.0
+    return np.fft.irfft(spec * resp, n=n)
+
+
+def _aplicar_sala_curta(mono, taps_ms_ganho: list[tuple[float, float, float]]):
+    """Adiciona reflexoes precoces assimetricas em estereo (realismo de quarto/corredor)."""
+    n = len(mono)
+    esq, dir_ = _criar_buffer_estereo(n)
+    if np is not None:
+        m = np.asarray(mono, dtype=np.float64)
+        esq[:] = m
+        dir_[:] = m
+        for atraso_ms, gl, gr in taps_ms_ganho:
+            d = int(round((atraso_ms / 1000.0) * SR))
+            if 0 < d < n:
+                esq[d:] += m[:-d] * gl
+                dir_[d:] += m[:-d] * gr
+        return esq, dir_
+    for i in range(n):
+        esq[i] = mono[i]
+        dir_[i] = mono[i]
+    for atraso_ms, gl, gr in taps_ms_ganho:
+        d = int(round((atraso_ms / 1000.0) * SR))
+        for i in range(d, n):
+            esq[i] += mono[i - d] * gl
+            dir_[i] += mono[i - d] * gr
+    return esq, dir_
+
+
+def _normalizar_pico_estereo(esq, dir_, alvo: float = 0.88):
+    if np is not None:
+        pico = max(float(np.max(np.abs(esq))), float(np.max(np.abs(dir_))), 1e-6)
+        escala = min(alvo / pico, 6.0)
+        return np.clip(esq * escala, -0.96, 0.96), np.clip(dir_ * escala, -0.96, 0.96)
+    pico = max(max((abs(v) for v in esq), default=1e-6), max((abs(v) for v in dir_), default=1e-6), 1e-6)
+    escala = min(alvo / pico, 6.0)
+    for i in range(len(esq)):
+        esq[i] = max(-0.96, min(0.96, esq[i] * escala))
+        dir_[i] = max(-0.96, min(0.96, dir_[i] * escala))
+    return esq, dir_
+
+
+# ============================================================
+# DETECCAO DE VIDEO ATIVO E CURVA DE CAMA SONORA (DRONE)
+# ============================================================
+
+def _eh_video_04(ev: dict) -> bool:
+    return ("berco_vazio" in ev) or ("passos_corredor" in ev) or (int(ev.get("video_id", 1)) == 4)
+
+
 def _eh_video_03(ev: dict) -> bool:
-    return ("pix_1" in ev) or ("guarda_roupa" in ev) or (int(ev.get("video_id", 1)) == 3)
+    return (not _eh_video_04(ev)) and (("pix_1" in ev) or ("guarda_roupa" in ev) or (int(ev.get("video_id", 1)) == 3))
 
 
 def _eh_video_02(ev: dict) -> bool:
-    return (not _eh_video_03(ev)) and (("gps_rota" in ev) or ("caminhao" in ev) or (int(ev.get("video_id", 1)) == 2))
+    return (not _eh_video_04(ev)) and (not _eh_video_03(ev)) and (
+        ("gps_rota" in ev) or ("caminhao" in ev) or (int(ev.get("video_id", 1)) == 2)
+    )
 
 
 def _envelope_drone_em_t(t: float, ev: dict) -> float:
-    """Curva de tensao do drone com corte subito no plot_twist."""
+    """Curva de tensao do drone com alivio falso e corte subito no plot_twist."""
+    if _eh_video_04(ev):
+        suss = float(ev.get("sussurro", 4.0))
+        suss_d = float(ev.get("sussurro_duracao", 1.2))
+        berco = float(ev.get("berco_vazio", 7.2))
+        cor = float(ev.get("coracao_dispara", 9.0))
+        passos = float(ev.get("passos_corredor", 13.0))
+        passos_d = float(ev.get("passos_corredor_duracao", 1.3))
+        bebe = float(ev.get("bebe_dormindo", 19.0))
+        cam_v = float(ev.get("camera_vazio", 25.5))
+        twist = float(ev.get("plot_twist", 28.8))
+        imp = float(ev.get("impacto_twist", 31.2))
+        imp_d = float(ev.get("impacto_twist_duracao", 1.4))
+        cta = float(ev.get("cta", 36.0))
+
+        # Corte seco no plot_twist ate o final do impacto (silencio gelado para o impacto brilhar)
+        if twist + 0.04 <= t < imp + imp_d:
+            return 0.0
+        # Blecaute quase mudo ("A luz do quarto apaga sozinha.")
+        if imp + imp_d <= t < cta:
+            return 0.04
+        # Cama limpa e controlada na CTA
+        if t >= cta:
+            return 0.11 * min(1.0, (t - cta) / 0.25)
+
+        corte_twist = 1.0 if t < twist else max(0.0, 1.0 - (t - twist) / 0.04)
+        if t < 0.35:
+            base = 0.12 * (t / 0.35)
+        elif t < berco:
+            base = 0.14
+        elif t < cor:
+            base = 0.24
+        elif t < bebe:
+            base = 0.34
+        elif t < cam_v:
+            # Alivio temporario quando o bebe esta dormindo tranquilo no berco
+            base = 0.06
+        else:
+            k = (t - cam_v) / max(0.1, twist - cam_v)
+            base = 0.15 + 0.27 * (k ** 1.3)
+
+        if suss - 0.08 <= t <= suss + suss_d + 0.08:
+            base *= 0.22
+        if passos - 0.08 <= t <= passos + passos_d + 0.08:
+            base *= 0.28
+        return base * corte_twist
+
     if _eh_video_03(ev):
         cong = float(ev.get("congela", 8.0))
         pix2 = float(ev.get("pix_2", 12.0))
@@ -131,13 +411,10 @@ def _envelope_drone_em_t(t: float, ev: dict) -> float:
         gr_d = float(ev.get("guarda_roupa_duracao", 1.6))
         cta = float(ev.get("cta", 40.0))
 
-        # Corte subito no plot_twist e silencio gelado durante o rangido do guarda-roupa
         if twist + 0.045 <= t < gr + gr_d:
             return 0.0
-        # Respiracao grave muito fina durante "No escuro do quarto..."
         if gr + gr_d <= t < cta:
             return 0.08
-        # Cama limpa e discreta na CTA
         if t >= cta:
             return 0.11 * min(1.0, (t - cta) / 0.25)
 
@@ -235,8 +512,8 @@ def _envelope_drone_em_t(t: float, ev: dict) -> float:
     return base * corte_twist
 
 
-def sintetizar_cama_drone(duracao: float, ev: dict):
-    """Sintetiza cama continua de suspense (sub-bass + batimento sombrio + ar grave filtrado)."""
+def sintetizar_cama_drone(duracao: float, ev: dict, ganhos_cat: dict[str, float] | None = None, relatorio: dict[str, str] | None = None):
+    """Cama continua de suspense: usa assets/sfx/drone_suspense.* em loop se existir, senao drone organico HD."""
     n = int(round(duracao * SR))
     esq, dir_ = _criar_buffer_estereo(n)
 
@@ -246,6 +523,33 @@ def sintetizar_cama_drone(duracao: float, ev: dict):
         for i in range(n // passo + 2)
     ]
 
+    par_real, arq_real = carregar_sfx_real("drone_suspense", ganhos_cat=ganhos_cat)
+    if par_real is not None and arq_real is not None and len(par_real[0]) > SR // 2:
+        if relatorio is not None:
+            relatorio["drone_suspense"] = f"REAL ({arq_real})"
+        src_l, src_r = par_real
+        m = len(src_l)
+        if np is not None:
+            idx_f = np.arange(n, dtype=np.float64) / passo
+            idx_i = np.floor(idx_f).astype(np.int64)
+            frac = idx_f - idx_i
+            p_arr = np.array(pontos, dtype=np.float64)
+            env = p_arr[idx_i] * (1.0 - frac) + p_arr[idx_i + 1] * frac
+            reps = (n // m) + 2
+            esq[:] = np.tile(src_l, reps)[:n] * env
+            dir_[:] = np.tile(src_r, reps)[:n] * env
+            return esq, dir_
+        for i in range(n):
+            bi = i // passo
+            frac = (i - bi * passo) / passo
+            env = pontos[bi] * (1.0 - frac) + pontos[bi + 1] * frac
+            esq[i] = src_l[i % m] * env
+            dir_[i] = src_r[i % m] * env
+        return esq, dir_
+
+    if relatorio is not None:
+        relatorio["drone_suspense"] = "fallback procedural HD"
+
     if np is not None:
         t = np.arange(n, dtype=np.float64) / SR
         idx_f = np.arange(n, dtype=np.float64) / passo
@@ -254,28 +558,22 @@ def sintetizar_cama_drone(duracao: float, ev: dict):
         p_arr = np.array(pontos, dtype=np.float64)
         env = p_arr[idx_i] * (1.0 - frac) + p_arr[idx_i + 1] * frac
 
-        lfo = 0.82 + 0.18 * np.sin(2.0 * np.pi * 0.25 * t)
-        f0 = 44.0 if _eh_video_03(ev) else 49.0
-        sub_l = 0.54 * np.sin(2.0 * np.pi * f0 * t) + 0.24 * np.sin(2.0 * np.pi * (f0 * 1.5) * t + 0.4)
-        sub_r = 0.54 * np.sin(2.0 * np.pi * (f0 + 0.35) * t + 0.7) + 0.24 * np.sin(2.0 * np.pi * (f0 * 1.495) * t)
-        harm = 0.10 * np.sin(2.0 * np.pi * 110.0 * t + 0.8 * np.sin(2.0 * np.pi * 0.19 * t))
+        lfo = 0.84 + 0.16 * np.sin(2.0 * np.pi * 0.22 * t)
+        f0 = 41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0)
+        # Sub organico quente + ar grave filtrado por FFT (sem zumbido eletronico)
+        sub_l = 0.56 * np.sin(2.0 * np.pi * f0 * t) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.498) * t + 0.4)
+        sub_r = 0.56 * np.sin(2.0 * np.pi * (f0 + 0.31) * t + 0.7) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.494) * t)
+        ar_l = _filtrar_banda_np(_ruido_rosa_np(n, 441), 35.0, 210.0, ordem=2.0) * 0.42
+        ar_r = _filtrar_banda_np(_ruido_rosa_np(n, 442), 35.0, 210.0, ordem=2.0) * 0.42
 
-        rng = np.random.default_rng(43)
-        ruido = rng.uniform(-1.0, 1.0, n)
-        k_lp = 95
-        cs = np.cumsum(np.insert(ruido, 0, 0.0))
-        ar = (cs[k_lp:] - cs[:-k_lp]) / k_lp
-        ar = np.pad(ar, (0, n - len(ar))) * 1.4
-
-        esq[:] = env * lfo * (sub_l + harm + 0.28 * ar)
-        dir_[:] = env * lfo * (sub_r + harm * 0.92 - 0.24 * ar)
+        esq[:] = env * lfo * (sub_l + ar_l)
+        dir_[:] = env * lfo * (sub_r + ar_r)
         return esq, dir_
 
     rng = random.Random(43)
     lp = 0.0
-    alpha = 0.025
     two_pi = 2.0 * math.pi
-    f0 = 44.0 if _eh_video_03(ev) else 49.0
+    f0 = 41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0)
     for i in range(n):
         t = i / SR
         bi = i // passo
@@ -283,20 +581,341 @@ def sintetizar_cama_drone(duracao: float, ev: dict):
         env = pontos[bi] * (1.0 - frac) + pontos[bi + 1] * frac
         if env <= 1e-6:
             continue
-        lfo = 0.82 + 0.18 * math.sin(two_pi * 0.25 * t)
-        lp += alpha * (rng.uniform(-1.0, 1.0) - lp)
-        harm = 0.10 * math.sin(two_pi * 110.0 * t + 0.8 * math.sin(two_pi * 0.19 * t))
-        sub_l = 0.54 * math.sin(two_pi * f0 * t) + 0.24 * math.sin(two_pi * (f0 * 1.5) * t + 0.4)
-        sub_r = 0.54 * math.sin(two_pi * (f0 + 0.35) * t + 0.7) + 0.24 * math.sin(two_pi * (f0 * 1.495) * t)
-        esq[i] = env * lfo * (sub_l + harm + 0.8 * lp)
-        dir_[i] = env * lfo * (sub_r + harm * 0.92 - 0.7 * lp)
+        lfo = 0.84 + 0.16 * math.sin(two_pi * 0.22 * t)
+        lp += 0.018 * (rng.uniform(-1.0, 1.0) - lp)
+        sub_l = 0.56 * math.sin(two_pi * f0 * t) + 0.20 * math.sin(two_pi * (f0 * 1.498) * t + 0.4)
+        sub_r = 0.56 * math.sin(two_pi * (f0 + 0.31) * t + 0.7) + 0.20 * math.sin(two_pi * (f0 * 1.494) * t)
+        esq[i] = env * lfo * (sub_l + 0.72 * lp)
+        dir_[i] = env * lfo * (sub_r - 0.65 * lp)
+    return esq, dir_
+
+
+# ============================================================
+# SFX PROCEDURAIS HD DE CINEMA (VIDEO 04 + FALLBACKS REFORMULADOS)
+# ============================================================
+
+def sfx_sussurro_hd(duracao: float = 1.20):
+    """Sussurro humano soproso atraves de alto-falante de baba eletronica (formantes vocais sem pitch sintetico)."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        sopro = _ruido_rosa_np(n, 4041)
+
+        # Tres silabas sussurradas irregulares ("shhh... tii... shhh...")
+        sil1 = np.exp(-((t - 0.22) / 0.13) ** 2) * (0.75 + 0.25 * np.sin(2.0 * np.pi * 11.0 * t))
+        sil2 = np.exp(-((t - 0.56) / 0.16) ** 2) * (0.70 + 0.30 * np.sin(2.0 * np.pi * 8.5 * t + 0.6))
+        sil3 = np.exp(-((t - 0.94) / 0.15) ** 2) * (0.80 + 0.20 * np.sin(2.0 * np.pi * 13.0 * t + 1.1))
+        env_fala = np.clip(sil1 * 0.95 + sil2 * 1.0 + sil3 * 0.85, 0.0, 1.15)
+
+        # Formantes vocais de sussurro nao-vozeado (F1, F2, F3 + fricativa sibilante)
+        f1 = _ressonador_np(sopro * env_fala, 640.0, 4.2) * 0.55
+        f2 = _ressonador_np(sopro * env_fala, 1720.0, 5.5) * 0.92
+        f3 = _ressonador_np(sopro * env_fala, 2860.0, 6.2) * 0.65
+        sib = _filtrar_banda_np(sopro * (sil1 + sil3 * 0.8), 3400.0, 5800.0, ordem=2.0) * 0.36
+
+        # Curva de alto-falante pequeno de baba eletronica + chiado leve de radio
+        voz_radio = _filtrar_banda_np(f1 + f2 + f3 + sib, 380.0, 3900.0, ordem=2.0)
+        estatica = _filtrar_banda_np(_ruido_rosa_np(n, 4042), 850.0, 4600.0, ordem=1.5) * 0.085
+        # Micro-estalo de transmissao ao abrir/fechar squelch da baba eletronica
+        squelch = (np.exp(-t / 0.012) + np.exp(-np.maximum(0.0, duracao - t) / 0.015)) * estatica * 2.4
+
+        env_global = np.minimum(1.0, t / 0.018) * np.minimum(1.0, (duracao - t) / 0.045)
+        mono = np.tanh((voz_radio * 2.2 + estatica + squelch) * 1.15) * env_global
+        esq, dir_ = _aplicar_sala_curta(mono, [(19.0, 0.16, 0.22), (43.0, 0.09, 0.12)])
+        # Levemente deslocado para o lado da mesa de cabeceira
+        esq *= 0.88
+        dir_ *= 1.02
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.84)
+
+    esq, dir_ = _criar_buffer_estereo(n)
+    rng = random.Random(4041)
+    lp1 = lp2 = 0.0
+    for i in range(n):
+        t = i / SR
+        r = rng.uniform(-1.0, 1.0)
+        lp1 += 0.38 * (r - lp1)
+        lp2 += 0.12 * (r - lp2)
+        bp = lp1 - lp2
+        e1 = math.exp(-((t - 0.22) / 0.13) ** 2)
+        e2 = math.exp(-((t - 0.56) / 0.16) ** 2)
+        e3 = math.exp(-((t - 0.94) / 0.15) ** 2)
+        val = bp * (0.10 + 0.85 * (e1 + e2 + e3)) * min(1.0, t / 0.02) * min(1.0, (duracao - t) / 0.04)
+        esq[i] = max(-0.9, min(0.9, val * 0.9))
+        dir_[i] = max(-0.9, min(0.9, val))
+    return esq, dir_
+
+
+def sfx_passos_corredor_hd(duracao: float = 1.30):
+    """4 passos lentos e pesados em corredor escuro de madeira com panorama esquerda -> direita."""
+    n = int(round(duracao * SR))
+    esq, dir_ = _criar_buffer_estereo(n)
+    passos = [
+        (0.06, 0.72, 0.20, 74.0, 910.0),
+        (0.39, 0.84, 0.42, 68.0, 820.0),
+        (0.73, 0.95, 0.66, 72.0, 980.0),
+        (1.04, 1.02, 0.84, 64.0, 760.0),
+    ]
+    if np is not None:
+        base_noise = _ruido_rosa_np(n, 4043)
+        ruido_sola = _filtrar_banda_np(base_noise, 180.0, 950.0, ordem=2.0)
+        ruido_tabua = _filtrar_banda_np(_ruido_rosa_np(n, 4044), 680.0, 1950.0, ordem=2.0)
+        t_all = np.arange(n, dtype=np.float64) / SR
+        for t0, gain, pan, f_thump, f_tab in passos:
+            dt = t_all - t0
+            mask = (dt >= 0.0) & (dt <= 0.24)
+            if not np.any(mask):
+                continue
+            d = dt[mask]
+            # Calcanhar grave abafado + impacto da sola + micro-rangido da tabua de madeira
+            f_inst = f_thump * (1.0 + 0.55 * np.exp(-d / 0.014))
+            thump = np.sin(2.0 * np.pi * f_inst * d) * np.exp(-d / 0.036) * 0.95
+            sola = ruido_sola[mask] * np.exp(-d / 0.022) * 1.15
+            # Micro-rangido organico na transferencia de peso (0.04s apos o impacto)
+            d_creak = d - 0.045
+            creak_env = np.where((d_creak >= 0.0) & (d_creak <= 0.09), np.sin(np.pi * np.clip(d_creak / 0.09, 0.0, 1.0)), 0.0)
+            tabua = ruido_tabua[mask] * creak_env * (0.45 + 0.35 * np.sin(2.0 * np.pi * 42.0 * d)) * 0.55
+            passo_s = np.tanh((thump + sola + tabua) * 1.25) * np.minimum(1.0, d / 0.004) * gain
+            esq[mask] += passo_s * math.cos(pan * math.pi * 0.5)
+            dir_[mask] += passo_s * math.sin(pan * math.pi * 0.5)
+
+        # Reflexoes precoces de corredor estreito
+        esq_r, dir_r = _aplicar_sala_curta(0.5 * (esq + dir_), [(26.0, 0.22, 0.14), (58.0, 0.11, 0.16), (92.0, 0.07, 0.07)])
+        esq = esq * 0.78 + esq_r * 0.32
+        dir_ = dir_ * 0.78 + dir_r * 0.32
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.88)
+
+    rng = random.Random(4043)
+    lp = 0.0
+    for i in range(n):
+        t = i / SR
+        lp += 0.18 * (rng.uniform(-1.0, 1.0) - lp)
+        for t0, gain, pan, f_thump, _ in passos:
+            d = t - t0
+            if 0.0 <= d <= 0.22:
+                s = (math.sin(2.0 * math.pi * f_thump * d) * math.exp(-d / 0.036) + lp * math.exp(-d / 0.022)) * gain
+                esq[i] += s * (1.0 - pan * 0.5)
+                dir_[i] += s * (0.5 + pan * 0.5)
+    return _normalizar_pico_estereo(esq, dir_, alvo=0.86)
+
+
+def sfx_heartbeat_hd(duracao: float = 2.20):
+    """Batimento cardiaco profundo e organico (lub-dub acelerando, filtrado abaixo de 115 Hz)."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        mono = np.zeros(n, dtype=np.float64)
+        # 4 batimentos acelerando de 0.58s para 0.44s de intervalo
+        ciclos = [(0.05, 0.78), (0.63, 0.88), (1.15, 0.96), (1.62, 1.05)]
+        for t0, amp in ciclos:
+            # Lub (primeiro pulso, 54 Hz -> 36 Hz)
+            d1 = t - t0
+            m1 = (d1 >= 0.0) & (d1 <= 0.18)
+            if np.any(m1):
+                dd = d1[m1]
+                f = 36.0 + 24.0 * np.exp(-dd * 22.0)
+                mono[m1] += np.sin(2.0 * np.pi * f * dd) * np.minimum(1.0, dd / 0.012) * np.exp(-dd / 0.048) * amp
+            # Dub (segundo pulso 0.18s depois, 46 Hz -> 32 Hz)
+            d2 = t - (t0 + 0.18)
+            m2 = (d2 >= 0.0) & (d2 <= 0.16)
+            if np.any(m2):
+                dd = d2[m2]
+                f = 32.0 + 18.0 * np.exp(-dd * 26.0)
+                mono[m2] += np.sin(2.0 * np.pi * f * dd) * np.minimum(1.0, dd / 0.010) * np.exp(-dd / 0.042) * (amp * 0.78)
+        mono = _filtrar_banda_np(mono, 24.0, 125.0, ordem=2.0)
+        mono = np.tanh(mono * 1.4)
+        env = np.minimum(1.0, t / 0.015) * np.minimum(1.0, (duracao - t) / 0.08)
+        mono *= env
+        return _normalizar_pico_estereo(mono.copy(), mono * 0.98, alvo=0.82)
+
+    esq, dir_ = _criar_buffer_estereo(n)
+    for i in range(n):
+        t = i / SR
+        v = 0.0
+        for t0, amp in [(0.05, 0.78), (0.63, 0.88), (1.15, 0.96), (1.62, 1.05)]:
+            for off, freq, sc in [(0.0, 48.0, 1.0), (0.18, 40.0, 0.78)]:
+                d = t - (t0 + off)
+                if 0.0 <= d <= 0.16:
+                    v += math.sin(2.0 * math.pi * freq * d) * min(1.0, d / 0.012) * math.exp(-d / 0.045) * amp * sc
+        esq[i] = math.tanh(v * 1.3) * 0.8
+        dir_[i] = esq[i]
+    return esq, dir_
+
+
+def sfx_porta_impacto_hd(duracao: float = 0.90):
+    """Macaneta girando + porta de madeira aberta com forca batendo no batente + clique de interruptor."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rosa = _ruido_rosa_np(n, 4045)
+        madeira_mid = _filtrar_banda_np(rosa, 180.0, 1150.0, ordem=2.0)
+        estalo_hi = _filtrar_banda_np(_ruido_rosa_np(n, 4046), 1600.0, 6200.0, ordem=2.0)
+        mono = np.zeros(n, dtype=np.float64)
+
+        # 1. Macaneta metalica destravando (t=0.02s)
+        d0 = t - 0.02
+        m0 = (d0 >= 0.0) & (d0 <= 0.09)
+        mono[m0] += estalo_hi[m0] * np.exp(-d0[m0] / 0.014) * 0.55
+
+        # 2. Impacto pesado da porta aberta com forca (t=0.14s)
+        d1 = t - 0.14
+        m1 = (d1 >= 0.0) & (d1 <= 0.48)
+        dd = d1[m1]
+        sub_p = np.sin(2.0 * np.pi * (58.0 + 75.0 * np.exp(-dd / 0.018)) * dd) * np.exp(-dd / 0.085) * 0.95
+        mad_p = madeira_mid[m1] * np.exp(-dd / 0.055) * 1.25
+        mono[m1] += (sub_p + mad_p) * np.minimum(1.0, dd / 0.004)
+
+        # 3. Clique seco de interruptor de luz acendendo (t=0.62s)
+        d2 = t - 0.62
+        m2 = (d2 >= 0.0) & (d2 <= 0.06)
+        dc = d2[m2]
+        clique = estalo_hi[m2] * (np.exp(-dc / 0.004) + 0.65 * np.exp(-np.maximum(0.0, dc - 0.012) / 0.005) * (dc >= 0.012))
+        mono[m2] += clique * 0.95
+
+        mono = np.tanh(mono * 1.25)
+        esq, dir_ = _aplicar_sala_curta(mono, [(21.0, 0.22, 0.18), (48.0, 0.12, 0.15)])
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.90)
+
+    return sfx_batida_porta(intensidade=1.05, desvio_pitch=0.92, seed=4045)
+
+
+def sfx_glitch_tv_hd(duracao: float = 0.55):
+    """Rajada realista de interferencia/chuvisco em baba eletronica de visao noturna."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rng = np.random.default_rng(4047)
+        branco = rng.standard_normal(n)
+        estatica = _filtrar_banda_np(branco, 950.0, 6200.0, ordem=2.0)
+        # Dropouts irregulares de sinal sem fio (blocos de 18ms)
+        bloco = max(1, int(0.018 * SR))
+        n_b = (n // bloco) + 1
+        gate = np.repeat((rng.random(n_b) > 0.28).astype(np.float64), bloco)[:n]
+        hum = 0.08 * np.sin(2.0 * np.pi * 60.0 * t) + 0.05 * np.sin(2.0 * np.pi * 120.0 * t)
+        env = np.minimum(1.0, t / 0.012) * np.minimum(1.0, (duracao - t) / 0.045) * (0.45 + 0.55 * gate)
+        mono = np.tanh((estatica * 0.85 + hum) * env * 1.3)
+        return _normalizar_pico_estereo(mono * 0.94, mono * 1.0, alvo=0.68)
+
+    esq, dir_ = _criar_buffer_estereo(n)
+    rng = random.Random(4047)
+    for i in range(n):
+        t = i / SR
+        env = min(1.0, t / 0.015) * min(1.0, (duracao - t) / 0.04)
+        v = rng.uniform(-0.55, 0.55) * env
+        esq[i] = v
+        dir_[i] = v * 0.95
+    return esq, dir_
+
+
+def sfx_interruptor_apaga_hd():
+    """Estalo seco de interruptor desligando + queda sub-grave de blecaute total."""
+    dur = 0.42
+    n = int(round(dur * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        hi = _filtrar_banda_np(_ruido_rosa_np(n, 4048), 1800.0, 6500.0, ordem=2.0)
+        clique = hi * (np.exp(-t / 0.004) + 0.7 * np.exp(-np.maximum(0.0, t - 0.014) / 0.005) * (t >= 0.014)) * 1.4
+        f_drop = 32.0 + 72.0 * np.exp(-t * 14.0)
+        drop = np.sin(2.0 * np.pi * f_drop * t) * np.minimum(1.0, t / 0.006) * np.exp(-t / 0.14) * 0.88
+        mono = np.tanh((clique + drop) * 1.25) * np.minimum(1.0, (dur - t) / 0.03)
+        return _normalizar_pico_estereo(mono.copy(), mono * 0.96, alvo=0.88)
+    return sfx_apagao_farol(0.8)
+
+
+def sfx_impacto_twist_hd(duracao: float = 1.40):
+    """Impacto cinematografico de terror: succao reversa curta + sub-bass boom + ressonancia sombria."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        t_hit = 0.085
+        rosa = _ruido_rosa_np(n, 4049)
+
+        # 1. Breve succao reversa de ar imediatamente antes do impacto (0..0.085s)
+        ar_rev = _filtrar_banda_np(rosa, 220.0, 2600.0, ordem=2.0)
+        env_rev = np.where(t < t_hit, (t / t_hit) ** 2.6, 0.0)
+        rev = ar_rev * env_rev * 0.72
+
+        # 2. Sub-bass boom profundo com queda de frequencia natural (t >= t_hit)
+        dt = np.maximum(0.0, t - t_hit)
+        ativo = (t >= t_hit).astype(np.float64)
+        fase = np.cumsum(2.0 * np.pi * (31.0 + 66.0 * np.exp(-dt * 7.5)) / SR)
+        sub = np.sin(fase) * np.minimum(1.0, dt / 0.005) * np.exp(-dt * 2.05) * ativo * 1.15
+
+        # 3. Impacto de corpo grave + estalo metalico sombrio filtrado (zero senoide fina)
+        corpo = _filtrar_banda_np(rosa, 90.0, 480.0, ordem=2.0) * np.exp(-dt / 0.095) * ativo * 1.35
+        metal = _ressonador_np(rosa, 520.0, 8.0) * 0.45 + _ressonador_np(rosa, 745.0, 9.0) * 0.35
+        metal *= np.exp(-dt * 2.8) * ativo * 0.52
+
+        cauda = np.minimum(1.0, (duracao - t) / 0.09)
+        mono = np.tanh((rev + sub + corpo + metal) * 1.25) * cauda
+        esq, dir_ = _aplicar_sala_curta(mono, [(29.0, 0.24, 0.18), (67.0, 0.14, 0.19)])
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.92)
+
+    return sfx_sub_boom(duracao)
+
+
+def sfx_guarda_roupa(duracao: float = 1.60):
+    """Rangido organico de madeira/dobradica (impulsos stick-slip + ressonadores de caixa de madeira, zero synth)."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rng = np.random.default_rng(3141)
+
+        # Gera trem de impulsos stick-slip irregulares (friccao fisica de dobradica/madeira seca)
+        impulsos = np.zeros(n, dtype=np.float64)
+        pos = int(0.06 * SR)
+        fim = int((duracao - 0.10) * SR)
+        while pos < fim:
+            p = pos / float(n)
+            # Cadencia acelera e desacelera como uma porta pesada cedendo aos solucos
+            taxa_hz = 28.0 + 48.0 * (math.sin(math.pi * p) ** 1.3) + 14.0 * math.sin(2.0 * math.pi * 2.7 * (pos / SR))
+            jitter = rng.uniform(0.72, 1.32)
+            # Breve pausa natural de atrito no meio do movimento
+            if 0.46 < p < 0.54:
+                pos += int(0.045 * SR)
+                continue
+            amp = rng.uniform(0.45, 1.0) * (0.6 + 0.4 * math.sin(math.pi * p))
+            impulsos[pos] += amp if rng.random() > 0.2 else -amp * 0.7
+            passo_i = max(int(SR / 115.0), int((SR / max(18.0, taxa_hz)) * jitter))
+            pos += passo_i
+
+        # Ressonancias acusticas de caixa de madeira oca (3 formantes fisicos sem oscilador senoidal)
+        r1 = _ressonador_np(impulsos, 245.0, 7.5) * 1.15
+        r2 = _ressonador_np(impulsos, 585.0, 9.0) * 0.95
+        r3 = _ressonador_np(impulsos, 1240.0, 8.0) * 0.55
+
+        # Atrito seco de fibra de madeira/metal em alta frequencia
+        atrito = _filtrar_banda_np(_ruido_rosa_np(n, 3142), 1800.0, 4200.0, ordem=2.0) * 0.24
+        corpo_grav = _filtrar_banda_np(_ruido_rosa_np(n, 3143), 55.0, 165.0, ordem=2.0) * 0.34
+
+        env = np.minimum(1.0, t / 0.14) * np.minimum(1.0, (duracao - t) / 0.20)
+        mono = np.tanh((r1 + r2 + r3 + atrito + corpo_grav) * 1.8) * env
+        esq, dir_ = _aplicar_sala_curta(mono, [(18.0, 0.14, 0.24), (44.0, 0.08, 0.14)])
+        # Guarda-roupa levemente a direita da cena
+        esq *= 0.78
+        dir_ *= 1.04
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.86)
+
+    # Fallback stdlib sem senoide limpa: ruido filtrado por pulsos irregulares
+    esq, dir_ = _criar_buffer_estereo(n)
+    rng = random.Random(3141)
+    lp1 = lp2 = 0.0
+    for i in range(n):
+        t = i / SR
+        p = t / duracao
+        env = min(1.0, t / 0.14) * min(1.0, (duracao - t) / 0.20)
+        r = rng.uniform(-1.0, 1.0)
+        lp1 += 0.22 * (r - lp1)
+        lp2 += 0.04 * (r - lp2)
+        pulso = 1.0 if ((i % max(220, int(680 - 300 * math.sin(math.pi * p)))) < 55) else 0.15
+        val = (lp1 - lp2) * pulso * env * 1.4
+        esq[i] = max(-0.9, min(0.9, val * 0.78))
+        dir_[i] = max(-0.9, min(0.9, val * 1.02))
     return esq, dir_
 
 
 # ---------------- SFX VIDEO 03 ("O Pix de 1 Centavo") ----------------
 
 def sfx_vibracao_celular(duracao: float = 0.46, intensidade: float = 1.0):
-    """Vibracao realista de smartphone sobre cama/superficie (dois pulsos hapticos)."""
     n = int(round(duracao * SR))
     esq, dir_ = _criar_buffer_estereo(n)
     two_pi = 2.0 * math.pi
@@ -322,16 +941,15 @@ def sfx_vibracao_celular(duracao: float = 0.46, intensidade: float = 1.0):
 
 
 def sfx_pix_notificacao(nivel: int = 1):
-    """Notificacao estilo app bancario brasileiro (limpa no Pix 1, cada vez mais sombria ate o Pix 4)."""
     dur = 0.42
     n = int(round(dur * SR))
     esq, dir_ = _criar_buffer_estereo(n)
     two_pi = 2.0 * math.pi
     pares = {
-        1: (1046.5, 1318.5),  # Do6 -> Mi6 (alegre/limpo)
-        2: (987.8, 1174.7),   # Si5 -> Re6 (estranho)
-        3: (880.0, 830.6),    # La5 -> Sol#5 (tenso descendente)
-        4: (784.0, 554.4),    # Sol5 -> Do#5 (tritono de terror)
+        1: (1046.5, 1318.5),
+        2: (987.8, 1174.7),
+        3: (880.0, 830.6),
+        4: (784.0, 554.4),
     }
     f1, f2 = pares.get(nivel, (1046.5, 1318.5))
     for i in range(n):
@@ -356,7 +974,6 @@ def sfx_pix_notificacao(nivel: int = 1):
 
 
 def sfx_tranca_porta():
-    """Duplo clique metalico seco de chave/tranca girando na porta do quarto."""
     dur = 0.48
     n = int(round(dur * SR))
     esq, dir_ = _criar_buffer_estereo(n)
@@ -387,14 +1004,11 @@ def sfx_tranca_porta():
 
 
 def sfx_trava_janela(duracao: float = 1.40):
-    """Janela batendo fechada + estalo metalico da trava + cortina pesada correndo no varao."""
     n = int(round(duracao * SR))
     esq, dir_ = _criar_buffer_estereo(n)
     rng = random.Random(313)
     two_pi = 2.0 * math.pi
-    lp = 0.0
-    lp2 = 0.0
-    prev = 0.0
+    lp = lp2 = prev = 0.0
 
     for i in range(n):
         t = i / SR
@@ -404,14 +1018,12 @@ def sfx_trava_janela(duracao: float = 1.40):
         prev = lp
         lp2 += 0.09 * (ruido - lp2)
 
-        # 1. Folha da janela batendo fechada em t=0.12s
         batida = 0.0
         if 0.12 <= t <= 0.45:
             dt = t - 0.12
             f_b = 98.0 + 90.0 * math.exp(-dt * 18.0)
             batida = (math.sin(two_pi * f_b * dt) * 0.85 + hp * 0.75) * math.exp(-dt * 13.0) * 0.90
 
-        # 2. Trava metalica clicando firme em t=0.50s
         trava = 0.0
         if 0.50 <= t <= 0.74:
             dt = t - 0.50
@@ -421,7 +1033,6 @@ def sfx_trava_janela(duracao: float = 1.40):
                 + 0.60 * hp
             ) * math.exp(-dt * 34.0) * 0.82
 
-        # 3. Cortina pesada correndo de 0.76s ate 1.34s (panning esquerda -> direita)
         cortina = 0.0
         pan_c = 0.5
         if 0.74 <= t <= 1.36:
@@ -434,49 +1045,6 @@ def sfx_trava_janela(duracao: float = 1.40):
         base = math.tanh((batida + trava) * 1.2) * 0.85
         esq[i] = max(-0.96, min(0.96, base * 0.96 + cortina * (1.0 - pan_c * 0.5)))
         dir_[i] = max(-0.96, min(0.96, base + cortina * (0.5 + pan_c * 0.5)))
-    return esq, dir_
-
-
-def sfx_guarda_roupa(duracao: float = 1.60):
-    """Rangido lento e arrepiante de porta de guarda-roupa abrindo no silencio do quarto."""
-    n = int(round(duracao * SR))
-    esq, dir_ = _criar_buffer_estereo(n)
-    rng = random.Random(314)
-    two_pi = 2.0 * math.pi
-    fase1 = 0.0
-    fase2 = 0.0
-    fase_sub = 0.0
-    lp = 0.0
-
-    for i in range(n):
-        t = i / SR
-        p = t / duracao
-        # Envelope cresce devagar, da dois solucos de dobradica enferrujada e morre no silencio
-        env = min(1.0, t / 0.14) * min(1.0, (duracao - t) / 0.20)
-        # Modulacao stick-slip (friccao irregular de dobradica de madeira/metal)
-        stick_rate = 11.0 + 15.0 * (p ** 1.4) + 5.0 * math.sin(two_pi * 2.1 * t)
-        stick = 0.38 + 0.62 * max(0.0, math.sin(two_pi * stick_rate * t))
-
-        f_creak = 330.0 + 290.0 * math.sin(math.pi * (p ** 0.85)) + 42.0 * math.sin(two_pi * 6.5 * t)
-        f_harm = f_creak * 2.04
-        fase1 += two_pi * f_creak / SR
-        fase2 += two_pi * f_harm / SR
-        fase_sub += two_pi * (78.0 - 18.0 * p) / SR
-
-        creak = (
-            0.48 * math.sin(fase1)
-            + 0.34 * math.sin(fase2)
-            + 0.22 * math.tanh(2.4 * math.sin(fase1 * 1.5))
-        ) * stick
-
-        # Ressonancia de madeira oca + ar tenso no escuro
-        lp += 0.06 * (rng.uniform(-1.0, 1.0) - lp)
-        madeira = 0.28 * math.sin(fase_sub) + 0.42 * lp
-
-        val = math.tanh((creak * 0.72 + madeira * 0.55) * 1.35) * env * 0.84
-        # Levemente deslocado para a direita (onde esta o guarda-roupa na cena)
-        esq[i] = val * 0.76
-        dir_[i] = val * 1.04
     return esq, dir_
 
 
@@ -534,19 +1102,30 @@ def sfx_alerta_emergencia():
 
 
 def sfx_whoosh_sombrio(duracao: float = 0.85):
+    """Whoosh cinematografico de ar grave filtrado (ruido rosa em varredura, sem tom sintetico)."""
     n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        p = t / duracao
+        env = np.maximum(0.0, np.sin(np.pi * p)) ** 1.35
+        rosa = _ruido_rosa_np(n, 2021)
+        ar_grav = _filtrar_banda_np(rosa, 55.0, 320.0, ordem=2.0)
+        ar_mid = _filtrar_banda_np(rosa, 260.0, 1400.0, ordem=2.0) * np.maximum(0.0, np.sin(np.pi * p)) ** 2.2
+        sub = np.sin(np.cumsum(2.0 * np.pi * (95.0 - 52.0 * p) / SR)) * 0.35
+        mono = np.tanh((ar_grav * 0.95 + ar_mid * 0.62 + sub) * env * 1.3)
+        esq = mono * (1.0 - 0.35 * p)
+        dir_ = mono * (0.65 + 0.35 * p)
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.80)
+
     esq, dir_ = _criar_buffer_estereo(n)
     rng = random.Random(202)
-    two_pi = 2.0 * math.pi
     lp = 0.0
-    fase = 0.0
     for i in range(n):
         t = i / SR
         p = t / duracao
-        env = math.sin(math.pi * p) ** 1.4
+        env = max(0.0, math.sin(math.pi * p)) ** 1.4
         lp += (0.04 + 0.18 * (1.0 - p)) * (rng.uniform(-1.0, 1.0) - lp)
-        fase += two_pi * (135.0 * (1.0 - 0.65 * p)) / SR
-        val = env * (0.45 * math.sin(fase) + 0.85 * lp) * 0.65
+        val = env * lp * 0.95
         esq[i] = val * (1.0 - 0.25 * p)
         dir_[i] = val * (0.75 + 0.25 * p)
     return esq, dir_
@@ -667,29 +1246,50 @@ def sfx_batida_porta(intensidade: float = 1.0, desvio_pitch: float = 1.0, seed: 
 
 
 def sfx_riser(duracao: float):
+    """Riser de tensao organico com ruido filtrado crescente e pulso grave (sem sirene eletronica)."""
     dur = max(0.5, duracao)
     n = int(round(dur * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        p = t / dur
+        env = (p ** 2.2) * np.minimum(1.0, (dur - t) / 0.025)
+        rosa = _ruido_rosa_np(n, 3031)
+        low_b = _filtrar_banda_np(rosa, 65.0, 320.0, ordem=2.0) * (1.0 - 0.3 * p)
+        mid_b = _filtrar_banda_np(rosa, 320.0, 1600.0, ordem=2.0) * (p ** 1.1)
+        hi_b = _filtrar_banda_np(rosa, 1500.0, 4800.0, ordem=2.0) * (p ** 2.4) * 0.72
+        sub = np.sin(np.cumsum(2.0 * np.pi * (46.0 + 36.0 * (p ** 1.8)) / SR)) * 0.42
+        pulso = 0.78 + 0.22 * np.sin(2.0 * np.pi * (2.2 + 5.5 * p) * t)
+        mono = np.tanh((low_b + mid_b + hi_b + sub) * env * pulso * 1.45)
+        return _normalizar_pico_estereo(mono * 0.96, mono * 1.0, alvo=0.76)
+
     esq, dir_ = _criar_buffer_estereo(n)
     rng = random.Random(303)
     two_pi = 2.0 * math.pi
-    f1 = f2 = lp = 0.0
+    lp = 0.0
+    f1 = 0.0
     for i in range(n):
         t = i / SR
         p = t / dur
         env = (p ** 2.1) * min(1.0, (dur - t) / 0.025)
-        freq = 80.0 * (5.2 ** p)
-        f1 += two_pi * freq / SR
-        f2 += two_pi * (freq * 1.498) / SR
-        lp += (0.03 + 0.32 * (p ** 2)) * (rng.uniform(-1.0, 1.0) - lp)
-        s = env * (0.72 + 0.28 * math.sin(two_pi * (2.0 + 7.0 * p) * t)) * (0.42 * math.sin(f1) + 0.28 * math.sin(f2) + 0.55 * lp)
-        esq[i] = s * 0.70
-        dir_[i] = s * 0.74
+        f1 += two_pi * (48.0 + 36.0 * p) / SR
+        lp += (0.04 + 0.28 * (p ** 2)) * (rng.uniform(-1.0, 1.0) - lp)
+        s = env * (0.40 * math.sin(f1) + 0.85 * lp)
+        esq[i] = s * 0.74
+        dir_[i] = s * 0.78
     return esq, dir_
 
 
 def sfx_sub_boom(duracao_max: float):
     dur = max(0.5, min(2.0, duracao_max))
     n = int(round(dur * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        fase = np.cumsum(2.0 * np.pi * (32.0 + 68.0 * np.exp(-t * 5.8)) / SR)
+        sub = np.exp(-t * 1.75) * np.sin(fase) * 0.98
+        punch = _filtrar_banda_np(_ruido_rosa_np(n, 9091), 70.0, 340.0, ordem=2.0) * np.exp(-t / 0.065) * 0.92
+        val = np.tanh((sub + punch) * 1.25) * np.minimum(1.0, t / 0.006) * np.minimum(1.0, (dur - t) / 0.055)
+        return _normalizar_pico_estereo(val.copy(), val * 0.98, alvo=0.88)
+
     esq, dir_ = _criar_buffer_estereo(n)
     rng = random.Random(909)
     two_pi = 2.0 * math.pi
@@ -699,7 +1299,7 @@ def sfx_sub_boom(duracao_max: float):
         fase += two_pi * (33.0 + 68.0 * math.exp(-t * 5.2)) / SR
         lp += 0.08 * (rng.uniform(-1.0, 1.0) - lp)
         val = math.tanh(
-            (math.exp(-t * 1.65) * math.sin(fase) * 0.95 + math.exp(-t / 0.06) * math.sin(two_pi * 168.0 * t) * 0.45 + math.exp(-t * 2.6) * lp * 0.45) * 1.25
+            (math.exp(-t * 1.65) * math.sin(fase) * 0.95 + math.exp(-t * 2.6) * lp * 0.45) * 1.25
         ) * min(1.0, t / 0.006) * min(1.0, (dur - t) / 0.055) * 0.86
         esq[i] = val
         dir_[i] = val * 0.97
@@ -721,77 +1321,147 @@ def sfx_cta_pop():
     return esq, dir_
 
 
-def sintetizar_sfx(duracao: float, ev: dict):
+# ============================================================
+# COMPOSICAO DE SFX SINCRONIZADA COM eventos.json
+# ============================================================
+
+def sintetizar_sfx(
+    duracao: float,
+    ev: dict,
+    ganhos_cat: dict[str, float] | None = None,
+    relatorio: dict[str, str] | None = None,
+):
     n = int(round(duracao * SR))
     esq, dir_ = _criar_buffer_estereo(n)
 
+    def pegar(nome: str, fn_fb, dur_max: float | None = None):
+        return obter_sfx(nome, fn_fb, duracao_max=dur_max, ganhos_cat=ganhos_cat, relatorio=relatorio)
+
+    if _eh_video_04(ev):
+        # 1. Interferencia sutil quando a baba eletronica chama atencao
+        if "baba_som" in ev:
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.42), dur_max=0.48)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["baba_som"]) - 0.04), gl, gr, 0.54)
+
+        # 2. Bloco SFX puro [SFX:sussurro:1.2]: sussurro vindo da baba eletronica
+        if "sussurro" in ev:
+            dur_s = float(ev.get("sussurro_duracao", 1.2))
+            sl, sr = pegar("sussurro", lambda: sfx_sussurro_hd(dur_s), dur_max=dur_s + 0.06)
+            _misturar_trecho(esq, dir_, float(ev["sussurro"]), sl, sr, 0.98)
+
+        # 3. Katana Hit 1 ("VAZIO"): sub_boom seco + micro glitch na tela
+        if "berco_vazio" in ev:
+            t_v = max(0.0, float(ev["berco_vazio"]) - 0.03)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.95), dur_max=1.05)
+            _misturar_trecho(esq, dir_, t_v, bl, br, 0.82)
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.32), dur_max=0.35)
+            _misturar_trecho(esq, dir_, t_v, gl, gr, 0.44)
+
+        # 4. "O coracao dispara": heartbeat acelerando
+        if "coracao_dispara" in ev:
+            t_c = float(ev["coracao_dispara"])
+            t_p = float(ev.get("passos_corredor", t_c + 2.4))
+            dur_hb = max(1.1, min(2.4, t_p - t_c))
+            hl, hr = pegar("heartbeat", lambda: sfx_heartbeat_hd(dur_hb), dur_max=dur_hb)
+            _misturar_trecho(esq, dir_, t_c, hl, hr, 0.86)
+
+        # 5. Katana Hit 2 ("SOMBRA"): whoosh sombrio na sombra cruzando o corredor
+        if "sombra_corredor" in ev:
+            wl, wr = pegar("whoosh", lambda: sfx_whoosh_sombrio(0.75), dur_max=0.85)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["sombra_corredor"]) - 0.05), wl, wr, 0.86)
+
+        # 6. Bloco SFX puro [SFX:passos_corredor:1.3]: passos no corredor escuro + leve glitch
+        if "passos_corredor" in ev:
+            dur_p = float(ev.get("passos_corredor_duracao", 1.3))
+            pl, pr = pegar("passos_corredor", lambda: sfx_passos_corredor_hd(dur_p), dur_max=dur_p + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["passos_corredor"]), pl, pr, 1.0)
+
+        # 7. Abre a porta com forca e acende a luz
+        if "abre_porta" in ev:
+            pl, pr = pegar("porta_impacto", lambda: sfx_porta_impacto_hd(0.90), dur_max=0.95)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["abre_porta"]) - 0.04), pl, pr, 0.92)
+
+        # 8. Retorno para a tela -> riser crescente ate "atras da porta" + glitch
+        if "camera_vazio" in ev and "plot_twist" in ev:
+            t_cv = float(ev["camera_vazio"])
+            t_tw = float(ev["plot_twist"])
+            dur_r = (t_tw - 0.02) - t_cv
+            if dur_r >= 0.5:
+                rl, rr = pegar("riser", lambda: sfx_riser(dur_r), dur_max=dur_r)
+                _misturar_trecho(esq, dir_, t_cv, rl, rr, 0.72)
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.36), dur_max=0.40)
+            _misturar_trecho(esq, dir_, t_cv, gl, gr, 0.50)
+
+        # 9. Katana Hit 3 ("ATRAS DA PORTA"): impacto sub no instante da revelacao
+        if "plot_twist" in ev:
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(1.15), dur_max=1.25)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["plot_twist"]) - 0.02), bl, br, 0.88)
+
+        # 10. Bloco SFX puro [SFX:impacto_twist:1.4]: terror cinematografico no silencio do drone
+        if "impacto_twist" in ev:
+            dur_it = float(ev.get("impacto_twist_duracao", 1.4))
+            il, ir = pegar("impacto_twist", lambda: sfx_impacto_twist_hd(dur_it), dur_max=dur_it + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["impacto_twist"]), il, ir, 1.0)
+
+        # 11. Katana Hit 4 ("APAGA"): estalo seco do interruptor + queda de blecaute
+        if "apaga_hit" in ev:
+            al, ar = sfx_interruptor_apaga_hd()
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["apaga_hit"]) - 0.02), al, ar, 0.92)
+
+        # 12. Pop limpo na CTA "Comente EU QUERO"
+        if "cta_acao" in ev:
+            cl, cr = pegar("cta_pop", sfx_cta_pop, dur_max=0.25)
+            _misturar_trecho(esq, dir_, float(ev["cta_acao"]), cl, cr, 0.72)
+
+        return esq, dir_
+
     if _eh_video_03(ev):
-        # 1. Celular vibrando na cama + Pix 1 (chime bancario limpo)
         if "vibra_cama" in ev:
             vl, vr = sfx_vibracao_celular(0.46, 0.90)
             _misturar_trecho(esq, dir_, max(0.0, float(ev["vibra_cama"]) - 0.04), vl, vr, 0.82)
         if "pix_1" in ev:
             pl, pr = sfx_pix_notificacao(1)
             _misturar_trecho(esq, dir_, max(0.0, float(ev["pix_1"]) - 0.04), pl, pr, 0.82)
-
-        # 2. Sub-hit seco ao ler "Nao acende a luz"
         if "nao_acende" in ev:
-            bl, br = sfx_sub_boom(0.85)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.85), dur_max=0.95)
             _misturar_trecho(esq, dir_, max(0.0, float(ev["nao_acende"]) - 0.05), bl, br, 0.62)
-
-        # 3. Pix 2 (vibracao + chime sombrio)
         if "pix_2" in ev:
             vl, vr = sfx_vibracao_celular(0.42, 0.95)
             pl, pr = sfx_pix_notificacao(2)
             t2 = max(0.0, float(ev["pix_2"]) - 0.05)
             _misturar_trecho(esq, dir_, t2, vl, vr, 0.72)
             _misturar_trecho(esq, dir_, t2 + 0.10, pl, pr, 0.82)
-
-        # 4. Marina tranca a porta do quarto
         if "tranca_porta" in ev:
             tl, tr = sfx_tranca_porta()
             _misturar_trecho(esq, dir_, float(ev["tranca_porta"]) + 0.15, tl, tr, 0.86)
-
-        # 5. Pix 3 (pulso vermelho: vibracao forte + chime tenso + sub hit)
         if "pix_3" in ev:
             vl, vr = sfx_vibracao_celular(0.44, 1.05)
             pl, pr = sfx_pix_notificacao(3)
             t3 = max(0.0, float(ev["pix_3"]) - 0.04)
             _misturar_trecho(esq, dir_, t3, vl, vr, 0.80)
             _misturar_trecho(esq, dir_, t3 + 0.08, pl, pr, 0.88)
-
-        # 6. Bloco SFX puro: trava da janela + cortina fechando (1.4s)
         if "trava_janela" in ev:
             dur_j = float(ev.get("trava_janela_duracao", 1.4))
             jl, jr = sfx_trava_janela(dur_j)
             _misturar_trecho(esq, dir_, float(ev["trava_janela"]), jl, jr, 1.0)
-
-        # 7. Pix 4 (ultima vibracao + alerta de tritono)
         if "hora_0314" in ev:
             vl, vr = sfx_vibracao_celular(0.50, 1.15)
             _misturar_trecho(esq, dir_, max(0.0, float(ev["hora_0314"]) + 0.10), vl, vr, 0.88)
         if "pix_4" in ev:
             pl, pr = sfx_pix_notificacao(4)
             _misturar_trecho(esq, dir_, max(0.0, float(ev["pix_4"]) - 0.04), pl, pr, 0.90)
-
-        # 8. Plot Twist ("Eu nao estava la fora") -> sub-bass boom + corte seco do drone
         if "plot_twist" in ev:
             t_tw = float(ev["plot_twist"])
             t_gr = float(ev.get("guarda_roupa", t_tw + 1.5))
-            bm_l, bm_r = sfx_sub_boom(max(0.65, min(1.5, t_gr - t_tw + 0.05)))
+            bm_l, bm_r = pegar("sub_boom", lambda: sfx_sub_boom(max(0.65, min(1.5, t_gr - t_tw + 0.05))), dur_max=1.5)
             _misturar_trecho(esq, dir_, t_tw, bm_l, bm_r, 0.94)
-
-        # 9. Bloco SFX puro: porta do guarda-roupa rangendo e abrindo devagar (1.6s)
         if "guarda_roupa" in ev:
             dur_g = float(ev.get("guarda_roupa_duracao", 1.6))
-            gl, gr_ = sfx_guarda_roupa(dur_g)
+            gl, gr_ = pegar("guarda_roupa", lambda: sfx_guarda_roupa(dur_g), dur_max=dur_g + 0.06)
             _misturar_trecho(esq, dir_, float(ev["guarda_roupa"]), gl, gr_, 1.0)
-
-        # 10. Pop limpo na CTA "Comente EU QUERO"
         if "cta_acao" in ev:
-            cl, cr = sfx_cta_pop()
+            cl, cr = pegar("cta_pop", sfx_cta_pop, dur_max=0.25)
             _misturar_trecho(esq, dir_, float(ev["cta_acao"]), cl, cr, 0.72)
-
         return esq, dir_
 
     if _eh_video_02(ev):
@@ -801,7 +1471,7 @@ def sintetizar_sfx(duracao: float, ev: dict):
         if "gps_rota" in ev:
             _misturar_trecho(esq, dir_, max(0.0, float(ev["gps_rota"]) - 0.04), ping_l, ping_r, 0.85)
         if "rua_escura" in ev:
-            wl, wr = sfx_whoosh_sombrio(0.90)
+            wl, wr = pegar("whoosh", lambda: sfx_whoosh_sombrio(0.90), dur_max=0.95)
             _misturar_trecho(esq, dir_, float(ev["rua_escura"]), wl, wr, 0.72)
         if "retrovisor" in ev:
             t_ret = float(ev["retrovisor"])
@@ -822,17 +1492,17 @@ def sintetizar_sfx(duracao: float, ev: dict):
         if "sussurro" in ev and "plot_twist" in ev:
             dur_r = (float(ev["plot_twist"]) - 0.03) - float(ev["sussurro"])
             if dur_r >= 0.45:
-                rl, rr = sfx_riser(dur_r)
+                rl, rr = pegar("riser", lambda: sfx_riser(dur_r), dur_max=dur_r)
                 _misturar_trecho(esq, dir_, float(ev["sussurro"]), rl, rr, 0.65)
         if "plot_twist" in ev:
             t_tw = float(ev["plot_twist"])
             t_cta = float(ev.get("cta", t_tw + 2.2))
-            bm_l, bm_r = sfx_sub_boom(max(0.6, min(1.8, (t_cta - t_tw) * 0.75)))
+            bm_l, bm_r = pegar("sub_boom", lambda: sfx_sub_boom(max(0.6, min(1.8, (t_cta - t_tw) * 0.75))), dur_max=1.8)
             _misturar_trecho(esq, dir_, t_tw, bm_l, bm_r, 0.90)
             pi_l, pi_r = sfx_ping_gps(invertido=True)
             _misturar_trecho(esq, dir_, t_tw + 0.06, pi_l, pi_r, 0.65)
         if "cta_acao" in ev:
-            pl, pr = sfx_cta_pop()
+            pl, pr = pegar("cta_pop", sfx_cta_pop, dur_max=0.25)
             _misturar_trecho(esq, dir_, float(ev["cta_acao"]), pl, pr, 0.72)
         return esq, dir_
 
@@ -855,9 +1525,9 @@ def sintetizar_sfx(duracao: float, ev: dict):
         inicio_riser = max(t_foto, t_big - 2.4)
         dur_riser = (t_big - 0.03) - inicio_riser
         if dur_riser >= 0.4:
-            rl, rr = sfx_riser(dur_riser)
+            rl, rr = pegar("riser", lambda: sfx_riser(dur_riser), dur_max=dur_riser)
             _misturar_trecho(esq, dir_, inicio_riser, rl, rr, 0.72)
-        bm_l, bm_r = sfx_sub_boom(max(0.55, (t_twist + 0.04) - t_big))
+        bm_l, bm_r = pegar("sub_boom", lambda: sfx_sub_boom(max(0.55, (t_twist + 0.04) - t_big)), dur_max=1.8)
         _misturar_trecho(esq, dir_, t_big, bm_l, bm_r, 0.92)
     return esq, dir_
 
@@ -967,38 +1637,47 @@ def main() -> None:
     if not VOZ_LIMPA_MP3.is_file():
         raise SystemExit(f"Arquivo nao encontrado: {VOZ_LIMPA_MP3}. Rode audio/gerar_narracao.py primeiro.")
 
-    # Trava blindada contra audio velho / cache de outro video / ausencia da CTA
     validacao = validar_artefatos_audio(PASTA_AUDIO)
     eventos = validacao["eventos"]
     carimbo = validacao["carimbo"]
     duracao = max(medir_duracao_ffprobe(VOZ_LIMPA_MP3), float(eventos.get("duracao_total", 0.0)))
     backend = "numpy" if np is not None else "stdlib"
     perfil = (
-        "Video 03 (O Pix de 1 Centavo)"
-        if _eh_video_03(eventos)
-        else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+        "Video 04 (A Baba Eletronica)"
+        if _eh_video_04(eventos)
+        else (
+            "Video 03 (O Pix de 1 Centavo)"
+            if _eh_video_03(eventos)
+            else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+        )
     )
     print(
         f"Integridade OK (Video {carimbo['video_id']:02d}, sha256={carimbo['roteiro_sha256'][:12]}). "
-        f"Sintetizando cama sonora e SFX [{perfil}] ({duracao:.3f}s, backend={backend})..."
+        f"Montando cama sonora e SFX [{perfil}] ({duracao:.3f}s, backend={backend})..."
     )
 
-    with tempfile.TemporaryDirectory(prefix="sfx-v3-") as tmp:
+    ganhos_cat = _carregar_ganhos_catalogo()
+    relatorio_sfx: dict[str, str] = {}
+
+    with tempfile.TemporaryDirectory(prefix="sfx-v4-") as tmp:
         tmp_dir = Path(tmp)
         drone_wav = tmp_dir / "cama_drone.wav"
         sfx_wav = tmp_dir / "sfx_eventos.wav"
         pre_mix_wav = tmp_dir / "mix_pre.wav"
 
-        d_l, d_r = sintetizar_cama_drone(duracao, eventos)
+        d_l, d_r = sintetizar_cama_drone(duracao, eventos, ganhos_cat=ganhos_cat, relatorio=relatorio_sfx)
         _gravar_wav_estereo(drone_wav, d_l, d_r)
 
-        s_l, s_r = sintetizar_sfx(duracao, eventos)
+        s_l, s_r = sintetizar_sfx(duracao, eventos, ganhos_cat=ganhos_cat, relatorio=relatorio_sfx)
         _gravar_wav_estereo(sfx_wav, s_l, s_r)
 
         final_stats = mixar_e_masterizar(VOZ_LIMPA_MP3, drone_wav, sfx_wav, pre_mix_wav, MIX_FINAL_MP3)
 
     shutil.copy2(MIX_FINAL_MP3, NARRACAO_MP3)
     dur_final = medir_duracao_ffprobe(MIX_FINAL_MP3)
+    if relatorio_sfx:
+        resumo_fontes = ", ".join(f"{k}={v}" for k, v in sorted(relatorio_sfx.items()))
+        print(f"Fontes de SFX usadas: {resumo_fontes}")
     print(
         f"Masterizado {MIX_FINAL_MP3.name} (e copiado para {NARRACAO_MP3.name}): "
         f"{dur_final:.3f}s | {final_stats['input_i']} LUFS | TP {final_stats['input_tp']} dBTP"

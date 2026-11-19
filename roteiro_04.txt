@@ -1,0 +1,61 @@
+ROTEIRO 04: "A BABA ELETRONICA"
+Formato: YouTube Shorts 9:16 (1080x1920) | Micro-Suspense psicologico no Brasil
+Duracao alvo: 38 a 44 segundos | Motor: V4 (Katana + Parte 1 + SFX Reais)
+Personagem: Tiago (camiseta azul-petroleo #0EA5A4 flat em capsula, cabelo curto escuro)
+Selo fixo: "PARTE 1" na zona segura superior esquerda (x=64, y=165), oculto na CTA.
+Regra visual: mudanca de plano, zoom dinamico ou elemento visual a cada 1,0s a 1,7s; hits Katana em "VAZIO", "SOMBRA", "ATRAS DA PORTA" e "APAGA".
+
+Estrutura de cada bloco:
+[Tempo em Segundos] | [Texto Exato da Narracao] | [Direcao visual e relogio] | [Eventos e pausas]
+
+============================================================
+
+BLOCO 1: GANCHO E SUSSURRO (02:40)
+[00 - 04] | Duas e quarenta da manhã. O Tiago acorda com um sussurro vindo da babá eletrônica. | Quarto escuro (#0A0F1D / #130926), selo PARTE 1 fixo em (64, 165); Tiago acorda assustado na cama ao lado do monitor da baba eletronica brilhando em verde visao noturna (02:40). | gancho, acorda_sussurro@acorda, baba_som@sussurro
+[04 - 05] | [SFX:sussurro:1.2] | Bloco SFX puro: macro no alto-falante e tela chiando da baba eletronica (visao noturna verde/cinza + chuvisco + ondas de audio do sussurro). | sussurro
+
+------------------------------------------------------------
+
+BLOCO 2: BERCO VAZIO (KATANA HIT 1: "VAZIO")
+[05 - 09] | Ele olha a tela. O berço do filho de dois anos está vazio. | Tiago pega o monitor; corte para tela de visao noturna em destaque (DOF atras): berco vazio no quarto do bebe + KATANA HIT "VAZIO" com flash curto e punch-in. | olha_tela, berco_vazio@vazio, pausa=0.18
+
+------------------------------------------------------------
+
+BLOCO 3: CORACAO DISPARA E SOMBRA NO CORREDOR (KATANA HIT 2: "SOMBRA")
+[09 - 13] | O coração dispara. Na tela, uma sombra cruza o corredor escuro. | Rosto tenso de Tiago com batimento cardiaco; corte para a camera da baba eletronica captando silhueta alta cruzando o corredor escuro + KATANA HIT "SOMBRA". | coracao_dispara, sombra_corredor@sombra
+[13 - 15] | [SFX:passos_corredor:1.3] | Bloco SFX puro: camera noturna acompanhando a sombra e passos no corredor escuro com interferencia/glitch no sinal. | passos_corredor
+
+------------------------------------------------------------
+
+BLOCO 4: CORRIDA ATE O QUARTO E LUZ ACENDENDO
+[15 - 19] | Ele corre até o quarto do bebê, abre a porta com força e acende a luz. | Corpo inteiro com pes firmes no piso: Tiago corre pelo corredor escuro, empurra a porta com impacto e aciona o interruptor iluminando o quarto em ambar quente. | corre_quarto, abre_porta@abre, acende_luz@acende
+[19 - 22] | O filho está dormindo tranquilo no berço. | Quarto real iluminado e quente: bebe dormindo em paz no berco com cobertor claro e respiracao calma. | bebe_dormindo
+
+------------------------------------------------------------
+
+BLOCO 5: ALIVIO E RETORNO PARA A TELA
+[22 - 26] | Tiago respira aliviado e olha de volta pra tela na sua mão. | Piscada -> expressao de alivio de Tiago soltando o ar; camera desce para o monitor da baba eletronica ainda aceso na sua mao. | alivio, olha_volta@volta, pausa=0.22
+
+------------------------------------------------------------
+
+BLOCO 6: VIRADA DE TERROR (KATANA HIT 3: "ATRAS DA PORTA") + IMPACTO
+[26 - 32] | Na câmera, o quarto ainda aparece vazio... e alguém está parado atrás da porta, olhando direto pra lente. | Contraste brutal: na tela verde da baba eletronica o berco ainda esta vazio; silhueta escura parada atras da porta encara a lente com olhos infravermelhos + KATANA HIT "ATRAS DA PORTA". | camera_vazio, alguem_parado@alguem, atras_porta@atras, plot_twist@atras, olha_lente@lente, pausa=0.34
+[32 - 33] | [SFX:impacto_twist:1.4] | Bloco SFX puro: drone corta seco; modulo bigFace de Tiago em choque extremo sobre pulso vermelho (#3B0A0A) + olhos brilhando na camera atras dele. | impacto_twist
+
+------------------------------------------------------------
+
+BLOCO 7: BLECAUTE TOTAL (KATANA HIT 4: "APAGA")
+[33 - 36] | A luz do quarto apaga sozinha. | KATANA HIT "APAGA" com flash branco/vermelho/preto -> blecaute total no quarto; apenas o brilho verde da baba eletronica e dois olhos na escuridao atras de Tiago. | luz_apaga, apaga_hit@apaga, pausa=0.14
+
+------------------------------------------------------------
+
+BLOCO 8: CTA FINAL (ULTIMOS ~3,5s - SELO PARTE 1 E RELOGIO OCULTOS)
+[36 - 40] | Quer aprender a fazer vídeos assim no automático? Comente EU QUERO. | Cartao final CTA V4 sem selo PARTE 1 e sem relogio, texto ajustado com drawFittedText e pilula amarela ampla "COMENTE EU QUERO" sem estourar bordas. | cta, cta_acao@comente, pausa=0.40
+
+============================================================
+
+NOTAS TECNICAS
+- Selo permanente: "PARTE 1" (x=64, y=165) ativo em toda a historia e oculto na CTA.
+- Relogio unico: 02:40 exibido uma unica vez por quadro (no visor da baba eletronica nos closes de camera ou no topo central nas cenas fora do monitor; oculto na CTA).
+- Zero onomatopeias faladas: sussurro, passos no corredor e impacto do twist entram em [SFX:sussurro:1.2], [SFX:passos_corredor:1.3] e [SFX:impacto_twist:1.4].
+- Integridade: validado por video_id=4, roteiro_sha256 e CTA final obrigatoria "COMENTE EU QUERO".

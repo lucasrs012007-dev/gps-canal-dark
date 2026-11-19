@@ -1,7 +1,7 @@
 {
-  "versao": 3,
+  "versao": 4,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 3,
+  "video_atual": 4,
   "videos": [
     {
       "id": 1,
@@ -57,9 +57,31 @@
         "banco"
       ],
       "roteiro": "roteiro_03.txt",
+      "player_backup": "arquivo/video_03/player.html",
       "saida": "output/short_03.mp4",
+      "status": "arquivado",
+      "motor": "v3",
+      "commit": "45d27f8"
+    },
+    {
+      "id": 4,
+      "slug": "a-baba-eletronica",
+      "titulo": "A Baba Eletronica",
+      "tema": "Pai acorda de madrugada com sussurro na baba eletronica que mostra o berco do filho vazio e um vulto atras da porta olhando para a lente",
+      "palavras_chave": [
+        "baba eletronica",
+        "tiago",
+        "berco vazio",
+        "sussurro",
+        "visao noturna",
+        "bebe",
+        "camera"
+      ],
+      "roteiro": "roteiro_04.txt",
+      "saida": "output/short_04.mp4",
       "status": "em_producao",
-      "motor": "v3"
+      "motor": "v4",
+      "parte_label": "PARTE 1"
     }
   ]
 }

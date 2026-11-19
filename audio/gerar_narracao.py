@@ -711,6 +711,7 @@ def main() -> None:
         "video_id": int(video_ativo["id"]),
         "slug": str(video_ativo["slug"]),
         "titulo": str(video_ativo["titulo"]),
+        "parte_label": str(video_ativo.get("parte_label", "PARTE 1")),
         "roteiro": roteiro_path.name,
         "roteiro_sha256": roteiro_sha256,
     }
@@ -898,6 +899,15 @@ def main() -> None:
             "hora_0313", "pix_2", "desc_2", "tranca_porta", "corredor_breu",
             "pix_3", "fecha_janela", "trava_janela", "hora_0314", "pix_4",
             "msg_final", "plot_twist", "guarda_roupa", "abre_devagar",
+            "cta", "cta_acao", "duracao_total",
+        ],
+        "roteiro_04.txt": [
+            "gancho", "acorda_sussurro", "baba_som", "sussurro",
+            "olha_tela", "berco_vazio", "coracao_dispara", "sombra_corredor",
+            "passos_corredor", "corre_quarto", "abre_porta", "acende_luz",
+            "bebe_dormindo", "alivio", "olha_volta", "camera_vazio",
+            "alguem_parado", "atras_porta", "olha_lente", "plot_twist",
+            "impacto_twist", "luz_apaga", "apaga_hit",
             "cta", "cta_acao", "duracao_total",
         ],
     }
