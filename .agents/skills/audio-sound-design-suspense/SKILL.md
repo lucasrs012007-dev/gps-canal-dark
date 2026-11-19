@@ -7,8 +7,9 @@ description: Regras obrigatorias de narracao, ritmo, sound design procedural e m
 
 Skill permanente para construcao de narracao cinematografica, sincronia matematica de eventos/legendas e mixagem procedural para YouTube Shorts de micro-suspense.
 
-## 1. Ritmo cinematografico sem pausas mortas
+## 1. Prosodia conversacional e ritmo cinematografico sem pausas mortas
 
+- **Regra de prosodia fluida**: escreva e leia as frases com fluidez conversacional, evitando pontos finais picotados demais que deixam a sintese robotica (ex.: unir micro-frases como `"Caio ri."` + `"Acha que e teste..."` em `"Caio ri, achando que e teste do governo."`, mantendo pontos curtos apenas em pausas dramaticas intencionais como `"Silencio."` e `"E o rosto dele."`).
 - Sintetize a narracao **frase por frase** (nunca um bloco corrido unico sujeito a pausas aleatorias do TTS).
 - Em cada frase gerada, remova silencios mortos nas pontas com `ffmpeg` (`silenceremove` no inicio e no fim) e converta para WAV PCM uniforme (`44100 Hz`, 16-bit, estereo) antes da concatenacao para evitar deriva acumulada de quadros MP3.
 - Meca a duracao real de cada frase limpa e monte a faixa `audio/voz_limpa.mp3` usando pausas exatas:
@@ -24,7 +25,7 @@ Skill permanente para construcao de narracao cinematografica, sincronia matemati
 
 ## 3. Motor de voz: ElevenLabs prioritario + fallback edge-tts grave
 
-- **Prioridade 1 (ElevenLabs)**: quando `ELEVENLABS_API_KEY` estiver definida no ambiente, sintetize via API ElevenLabs com modelo `eleven_multilingual_v2`, voz configuravel por `ELEVENLABS_VOICE_ID` (padrao: voz masculina grave/narrativa) e parametros voltados a suspense controlado.
+- **Prioridade 1 (ElevenLabs)**: motor principal sempre que `ELEVENLABS_API_KEY` estiver definida no ambiente. Use o modelo `eleven_multilingual_v2`, voz configuravel por `ELEVENLABS_VOICE_ID` (padrao: voz masculina grave/narrativa) e `voice_settings` ajustados para interpretacao dramatica com emocao e variacao de tom: `stability=0.42`, `similarity_boost=0.80`, `style=0.35`, `use_speaker_boost=true`.
 - **Prioridade 2 (Fallback gratuito `edge-tts`)**: quando nao houver chave ElevenLabs, use `edge-tts` com `pt-BR-AntonioNeural`, `pitch="-6Hz"` e `rate="+6%"` para obter timbre mais grave, contido e distante do ritmo de telejornal.
 - **Modo automatizado (`--mock`)**: disponivel apenas para testes locais em ambientes sem acesso a WebSocket/API, gerando tons curtos para validar concatenacao, `eventos.json`, `timestamps.json` e mixagem.
 

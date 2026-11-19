@@ -1,7 +1,7 @@
 """Estação 4: renderiza player.html (1080x1920, 30 fps) para output/short_01.mp4.
 
 Uso (na raiz do repositório):
-    python3 render/renderizar.py           # render completo (45s ou duração do áudio + 0.3s)
+    python3 render/renderizar.py           # render completo (audio/mix_final.mp3 ou narracao.mp3 + 0.3s)
     python3 render/renderizar.py --teste   # render rápido de 2s para validação
     python3 render/renderizar.py --legendas
 
@@ -29,6 +29,7 @@ import urllib.request
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+AUDIO_MIX = RAIZ / "audio" / "mix_final.mp3"
 AUDIO_MP3 = RAIZ / "audio" / "narracao.mp3"
 SAIDA_PADRAO = RAIZ / "output" / "short_01.mp4"
 LARGURA = 1080
@@ -289,7 +290,7 @@ def avaliar_js(cdp: ClienteCDP, expressao: str):
     return res.get("result", {}).get("value")
 
 
-def montar_comando_ffmpeg(saida: Path, fps: int, tem_audio: bool, duracao: float) -> list[str]:
+def montar_comando_ffmpeg(saida: Path, fps: int, audio_alvo: Path | None, duracao: float) -> list[str]:
     cmd = [
         "ffmpeg",
         "-y",
@@ -304,8 +305,8 @@ def montar_comando_ffmpeg(saida: Path, fps: int, tem_audio: bool, duracao: float
         "-i",
         "pipe:0",
     ]
-    if tem_audio:
-        cmd.extend(["-i", str(AUDIO_MP3), "-map", "0:v:0", "-map", "1:a:0", "-af", "apad"])
+    if audio_alvo is not None:
+        cmd.extend(["-i", str(audio_alvo), "-map", "0:v:0", "-map", "1:a:0", "-af", "apad"])
     else:
         cmd.extend(
             [
@@ -334,7 +335,7 @@ def montar_comando_ffmpeg(saida: Path, fps: int, tem_audio: bool, duracao: float
             "-c:a",
             "aac",
             "-b:a",
-            "192k" if tem_audio else "128k",
+            "192k" if audio_alvo is not None else "128k",
             "-ar",
             "44100",
             "-ac",
@@ -348,6 +349,14 @@ def montar_comando_ffmpeg(saida: Path, fps: int, tem_audio: bool, duracao: float
         ]
     )
     return cmd
+
+
+def selecionar_audio() -> Path | None:
+    """Prioriza audio/mix_final.mp3 (voz + sound design), com fallback para audio/narracao.mp3."""
+    for candidato in (AUDIO_MIX, AUDIO_MP3):
+        if candidato.is_file() and candidato.stat().st_size > 0:
+            return candidato
+    return None
 
 
 def main() -> None:
@@ -365,10 +374,10 @@ def main() -> None:
         raise SystemExit("player.html não encontrado na raiz do repositório.")
 
     navegador = encontrar_navegador(args.navegador)
-    tem_audio = AUDIO_MP3.is_file() and AUDIO_MP3.stat().st_size > 0
-    if tem_audio:
-        duracao_real = duracao_audio_ffprobe(AUDIO_MP3) + FOLGA_AUDIO
-        modo = f"com áudio ({AUDIO_MP3.name}, {duracao_real:.2f}s incluindo folga de {FOLGA_AUDIO}s)"
+    audio_alvo = selecionar_audio()
+    if audio_alvo is not None:
+        duracao_real = duracao_audio_ffprobe(audio_alvo) + FOLGA_AUDIO
+        modo = f"com áudio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {FOLGA_AUDIO}s)"
     else:
         duracao_real = DURACAO_PREVIA
         modo = f"mudo / Modo Prévia ({DURACAO_PREVIA:.0f}s)"
@@ -416,6 +425,10 @@ def main() -> None:
         if not pronto:
             raise RuntimeError("player.html não ficou pronto dentro do tempo limite.")
 
+        status_player = avaliar_js(cdp, "(document.getElementById('status')?.textContent || '').trim()")
+        if status_player:
+            print(f"Player: {status_player}", flush=True)
+
         if args.legendas:
             avaliar_js(cdp, "document.getElementById('cc').click()")
 
@@ -424,7 +437,7 @@ def main() -> None:
         if dims != [LARGURA, ALTURA]:
             raise RuntimeError(f"Canvas com resolução inesperada: {dims} (esperado {[LARGURA, ALTURA]}).")
 
-        cmd_ff = montar_comando_ffmpeg(saida, args.fps, tem_audio, duracao)
+        cmd_ff = montar_comando_ffmpeg(saida, args.fps, audio_alvo, duracao)
         ff = subprocess.Popen(cmd_ff, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         assert ff.stdin is not None
 

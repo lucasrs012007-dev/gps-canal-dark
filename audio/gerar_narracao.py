@@ -51,7 +51,7 @@ ELEVENLABS_VOZ_PADRAO = "pNInz6obpgDQGcFmaJgB"  # Adam (masculina grave/narrativ
 PAUSA_PADRAO = 0.18
 PAUSA_DRAMATICA = 0.45
 DURACAO_BATIDAS_PORTA = 2.10
-CAUDA_FINAL = 0.50
+CAUDA_FINAL = 1.40
 
 TAXA_AMOSTRAGEM = 44100
 CANAIS = 2
@@ -71,13 +71,39 @@ def normalizar_chave(texto: str) -> str:
     return re.sub(r"\s+", " ", sem_acento).strip().lower()
 
 
+def suavizar_prosodia(trecho: str) -> str:
+    """Une micro-frases picotadas demais para leitura conversacional fluida sem alterar a historia."""
+    ajustes = [
+        (
+            "Sete da noite. Todo celular do Brasil apita ao mesmo tempo.",
+            "Sete da noite, todo celular do Brasil apita ao mesmo tempo.",
+        ),
+        (
+            "Caio ri. Acha que é teste do governo.",
+            "Caio ri, achando que é teste do governo.",
+        ),
+        (
+            "Nove da noite. Caio chega em casa.",
+            "Nove da noite, Caio chega em casa.",
+        ),
+        (
+            "Meia-noite. A luz cai no bairro inteiro.",
+            "Meia-noite, a luz cai no bairro inteiro.",
+        ),
+    ]
+    out = trecho
+    for orig, fluido in ajustes:
+        out = out.replace(orig, fluido)
+    return out
+
+
 def extrair_itens_roteiro(caminho: Path) -> list[dict]:
-    """Extrai frases individuais na ordem do roteiro, trocando batidas por silencio de 2.1s."""
+    """Extrai frases fluidas na ordem do roteiro, trocando batidas por silencio de 2.1s."""
     blocos = []
     for linha in caminho.read_text(encoding="utf-8").splitlines():
         if LINHA_BLOCO.match(linha):
             colunas = [c.strip() for c in linha.split("|")]
-            blocos.append(colunas[1])
+            blocos.append(suavizar_prosodia(colunas[1]))
     if not blocos:
         raise SystemExit(f"Nenhum bloco de narracao encontrado em {caminho}.")
 
@@ -124,18 +150,26 @@ def mapear_evento_da_frase(texto: str) -> str | None:
     chave = normalizar_chave(texto)
     if chave.startswith("alerta de emergencia"):
         return "alerta_1"
+    if chave.startswith("caio ri"):
+        return "caio_ri"
     if chave.startswith("nove da noite"):
         return "hora_21"
     if chave.startswith("segundo alerta"):
         return "alerta_2"
+    if chave.startswith("a mae para de responder"):
+        return "chat_mae"
     if chave.startswith("meia-noite") or chave.startswith("meia noite"):
         return "hora_00"
     if chave.startswith("a luz cai"):
         return "apagao_00"
+    if chave.startswith("so as telas"):
+        return "janelas_telas"
     if chave.startswith("terceiro alerta"):
         return "alerta_3"
     if chave.startswith("tres da manha"):
         return "hora_03"
+    if chave.startswith("do outro lado da porta"):
+        return "respiracao"
     if chave.startswith("uma voz sussurra"):
         return "sussurro"
     if chave.startswith("silencio"):
@@ -252,9 +286,9 @@ def sintetizar_elevenlabs(texto: str, destino_mp3: Path, api_key: str, voice_id:
             "text": texto,
             "model_id": ELEVENLABS_MODELO,
             "voice_settings": {
-                "stability": 0.55,
-                "similarity_boost": 0.78,
-                "style": 0.25,
+                "stability": 0.42,
+                "similarity_boost": 0.80,
+                "style": 0.35,
                 "use_speaker_boost": True,
             },
         }
@@ -441,7 +475,7 @@ def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
     for idx, p in enumerate(palavras_frase):
         atual.append(p)
         restantes = len(palavras_frase) - idx - 1
-        if p["palavra"].endswith((":", ",")) and len(atual) >= 2 and restantes >= 2:
+        if p["palavra"].endswith((":", ",")) and (len(atual) >= 2 or "-" in p["palavra"]) and restantes >= 2:
             clausulas.append(atual)
             atual = []
     if atual:
@@ -598,6 +632,21 @@ def main() -> None:
                 eventos[evento_nome] = round(t_ini, 3)
 
             palavras_frase = alinhar_palavras_na_frase(texto, t_ini, dur_frase, raw_words)
+
+            # Marcos intra-frase precisos (quando duas micro-frases foram unidas pela prosodia).
+            chave_f = normalizar_chave(texto)
+            if "apita" in chave_f and "mapa_apito" not in eventos:
+                for p in palavras_frase:
+                    if normalizar_chave(p["palavra"]).startswith("apita"):
+                        eventos["mapa_apito"] = p["inicio"]
+                        break
+            if "a luz cai" in chave_f and "apagao_00" not in eventos:
+                for idx_p, p in enumerate(palavras_frase):
+                    if normalizar_chave(p["palavra"]).startswith("luz"):
+                        t_ap = palavras_frase[idx_p - 1]["inicio"] if idx_p > 0 else p["inicio"]
+                        eventos["apagao_00"] = t_ap
+                        break
+
             grupos_frase = quebrar_em_grupos_legenda(palavras_frase)
 
             for grp in grupos_frase:
@@ -683,7 +732,16 @@ def main() -> None:
         raise RuntimeError(f"Eventos obrigatorios ausentes: {faltando}")
 
     eventos_ordenados = {k: eventos[k] for k in obrigatorios}
-    for extra in ("hora_00", "batidas_porta_duracao", "batidas_tempos"):
+    for extra in (
+        "mapa_apito",
+        "caio_ri",
+        "chat_mae",
+        "hora_00",
+        "janelas_telas",
+        "respiracao",
+        "batidas_porta_duracao",
+        "batidas_tempos",
+    ):
         if extra in eventos:
             eventos_ordenados[extra] = eventos[extra]
     eventos_ordenados["frases"] = frases_log
