@@ -1,7 +1,7 @@
 {
   "versao": 3,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 2,
+  "video_atual": 3,
   "videos": [
     {
       "id": 1,
@@ -37,7 +37,27 @@
         "rafael"
       ],
       "roteiro": "roteiro_02.txt",
+      "player_backup": "arquivo/video_02/player.html",
       "saida": "output/short_02.mp4",
+      "status": "arquivado",
+      "motor": "v3",
+      "commit": "212a741"
+    },
+    {
+      "id": 3,
+      "slug": "o-pix-de-um-centavo",
+      "titulo": "O Pix de 1 Centavo",
+      "tema": "Notificacoes de Pix de um centavo de madrugada com mensagens que revelam um invasor dentro do guarda-roupa",
+      "palavras_chave": [
+        "pix",
+        "um centavo",
+        "marina",
+        "janela",
+        "guarda-roupa",
+        "banco"
+      ],
+      "roteiro": "roteiro_03.txt",
+      "saida": "output/short_03.mp4",
       "status": "em_producao",
       "motor": "v3"
     }

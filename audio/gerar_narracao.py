@@ -1,7 +1,7 @@
 """Estacao 2 (v3): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
 
 Uso (na raiz do repositorio):
-    python3 audio/gerar_narracao.py          # ElevenLabs (via ambiente/.env) ou edge-tts
+    python3 audio/gerar_narracao.py          # ElevenLabs (via ambiente/.env) com fallback automatico edge-tts
     python3 audio/gerar_narracao.py --mock   # teste automatizado local sem rede
 
 Regras aplicadas (skill audio-sound-design-suspense):
@@ -9,12 +9,10 @@ Regras aplicadas (skill audio-sound-design-suspense):
   e validar a regra permanente 'Sempre Video Novo'.
 - Carrega automaticamente o arquivo .env local (ignorado pelo Git) quando ELEVENLABS_API_KEY
   nao estiver definida no ambiente. Nunca imprime nem grava chaves em disco.
-- Remove onomatopeias de acao e substitui blocos [SFX:nome:duracao] por silencio exato.
-- Sintetiza frase por frase, corta silencios mortos nas pontas via ffmpeg silenceremove,
-  mede a duracao real via ffprobe e concatena em PCM WAV antes de codificar voz_limpa.mp3
-  para evitar deriva acumulada de quadros MP3.
-- Gera timestamps.json (grupos de no maximo 3 palavras, sem misturar frases) e
-  eventos.json com os segundos exatos de cada marco da historia.
+- Se ElevenLabs retornar HTTP 401/403 (ex.: detected_unusual_activity em IP de nuvem do Colab),
+  captura o erro, imprime o motivo exato e cai automaticamente para edge-tts sem derrubar o fluxo.
+- Grava carimbo de integridade (video_id, titulo, roteiro_sha256) em timestamps.json e eventos.json
+  e valida a presenca da CTA obrigatoria ("COMENTE EU QUERO").
 """
 
 from __future__ import annotations
@@ -41,7 +39,12 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-from pipeline.historico import caminho_roteiro_atual, obter_video_atual  # noqa: E402
+from pipeline.historico import (  # noqa: E402
+    calcular_sha256_arquivo,
+    caminho_roteiro_atual,
+    obter_video_atual,
+    validar_artefatos_audio,
+)
 
 PASTA_AUDIO = RAIZ / "audio"
 VOZ_LIMPA_MP3 = PASTA_AUDIO / "voz_limpa.mp3"
@@ -59,8 +62,8 @@ ELEVENLABS_MODELO = "eleven_multilingual_v2"
 ELEVENLABS_VOZ_PADRAO = "pNInz6obpgDQGcFmaJgB"  # Adam (masculina grave/narrativa)
 
 # Ritmo cinematografico (segundos)
-PAUSA_PADRAO = 0.18
-PAUSA_DRAMATICA = 0.45
+PAUSA_PADRAO = 0.16
+PAUSA_DRAMATICA = 0.42
 DURACAO_BATIDAS_PORTA = 2.10
 CAUDA_FINAL = 0.45
 
@@ -69,11 +72,15 @@ CANAIS = 2
 TICKS_POR_SEGUNDO = 10_000_000
 
 LINHA_BLOCO = re.compile(r"^\[\s*\d+\s*-\s*\d+\s*\]\s*\|")
-PADRAO_SFX = re.compile(r"^\[\s*SFX\s*:\s*([a-zA-Z0-9_]+)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*\]$", re.IGNORECASE)
+PADRAO_SFX = re.compile(
+    r"^\[\s*SFX\s*:\s*([a-zA-Z0-9_]+)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*\]$",
+    re.IGNORECASE,
+)
 PADRAO_BATIDAS = re.compile(
     r"(?:^|\s)(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?(?=\s|$)",
     re.IGNORECASE,
 )
+SEPARADOR_FRASES = re.compile(r"(?<!\.\.)(?<=[\.\!\?])\s+")
 
 
 def carregar_env(caminho_env: Path = ARQUIVO_ENV) -> bool:
@@ -108,7 +115,7 @@ def normalizar_chave(texto: str) -> str:
 
 
 def suavizar_prosodia_legado(trecho: str) -> str:
-    """Ajuste legado para roteiro_01.txt (mantem fluidez sem alterar a historia)."""
+    """Ajuste legado para roteiro_01.txt."""
     ajustes = [
         (
             "Sete da noite. Todo celular do Brasil apita ao mesmo tempo.",
@@ -156,10 +163,7 @@ def _interpretar_coluna_eventos(espec: str) -> tuple[list[str], list[tuple[str, 
 
 
 def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
-    """Extrai falas e blocos silenciosos de SFX na ordem do roteiro.
-
-    Retorna (itens, usa_eventos_explicitos).
-    """
+    """Extrai falas e blocos silenciosos de SFX na ordem do roteiro."""
     linhas_bloco: list[list[str]] = []
     for linha in caminho.read_text(encoding="utf-8").splitlines():
         if LINHA_BLOCO.match(linha):
@@ -202,7 +206,7 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
         for p_idx, parte in enumerate(partes):
             trecho = parte.strip()
             if trecho:
-                frases = [f.strip() for f in re.split(r"(?<=[\.\!\?])\s+", trecho) if f.strip()]
+                frases = [f.strip() for f in SEPARADOR_FRASES.split(trecho) if f.strip()]
                 for frase in frases:
                     itens.append(
                         {
@@ -236,7 +240,6 @@ def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
     atual = itens[idx]
     if atual.get("pausa_antes") is not None:
         return float(atual["pausa_antes"])
-    # Apos bloco silencioso de SFX, a fala seguinte entra sem atraso extra.
     if anterior["tipo"] == "silencio":
         return 0.0
     if atual["tipo"] == "silencio":
@@ -305,7 +308,7 @@ def sintetizar_mock(texto: str, destino_wav: Path, indice: int) -> list[dict]:
     """Gera sinal vocal simulado com silencios nas pontas para validar o pipeline sem rede."""
     palavras = texto.split()
     peso_chars = sum(max(2, len(p)) for p in palavras)
-    dur_ativa = max(0.65, min(3.8, 0.28 + peso_chars * 0.056))
+    dur_ativa = max(0.55, min(3.4, 0.24 + peso_chars * 0.046))
     pad_ini = 0.14
     pad_fim = 0.18
     dur_total = pad_ini + dur_ativa + pad_fim
@@ -369,6 +372,30 @@ def alinhamento_elevenlabs_para_palavras(texto: str, alignment: dict | None) -> 
             {"palavra": "".join(buf), "inicio": float(ini), "duracao": max(0.02, float(fim - ini))}
         )
     return palavras_raw if len(palavras_raw) == len(texto.split()) else []
+
+
+def _extrair_motivo_http_error(exc: urllib.error.HTTPError) -> str:
+    """Extrai o motivo detalhado devolvido pela API ElevenLabs sem expor segredos."""
+    try:
+        corpo = exc.read().decode("utf-8", errors="replace").strip()
+    except Exception:
+        corpo = ""
+    if not corpo:
+        return str(exc.reason or f"HTTP {exc.code}")
+    try:
+        dados = json.loads(corpo)
+        detail = dados.get("detail")
+        if isinstance(detail, dict):
+            status = detail.get("status", "")
+            msg = detail.get("message", "")
+            if status and msg:
+                return f"{status}: {msg}"
+            return str(status or msg or detail)
+        if detail:
+            return str(detail)
+    except Exception:
+        pass
+    return corpo[:260]
 
 
 def sintetizar_elevenlabs(texto: str, destino_mp3: Path, api_key: str, voice_id: str) -> list[dict]:
@@ -530,7 +557,7 @@ def alinhar_palavras_na_frase(
     for tok in tokens:
         limpa = re.sub(r"[^\wÀ-ÿ]", "", tok)
         peso = max(2.0, float(len(limpa))) + 1.2
-        if tok.endswith((":", ",", ";")):
+        if tok.endswith((":", ",", ";", "...")):
             peso += 1.5
         pesos.append(peso)
     soma = sum(pesos)
@@ -650,6 +677,7 @@ def main() -> None:
     if not roteiro_path.is_file():
         raise SystemExit(f"Roteiro nao encontrado: {roteiro_path}")
 
+    roteiro_sha256 = calcular_sha256_arquivo(roteiro_path)
     PASTA_AUDIO.mkdir(exist_ok=True)
     itens, usa_eventos_explicitos = extrair_itens_roteiro(roteiro_path)
 
@@ -669,9 +697,9 @@ def main() -> None:
     origem_chave = " (.env local)" if (motor == "elevenlabs" and env_carregado) else ""
     print(
         f"Video {int(video_ativo['id']):02d}: {video_ativo['titulo']} | "
-        f"Roteiro: {roteiro_path.name}"
+        f"Roteiro: {roteiro_path.name} (sha256={roteiro_sha256[:12]})"
     )
-    print(f"Motor de voz: {motor} ({voz_usada}){origem_chave}")
+    print(f"Motor de voz inicial: {motor} ({voz_usada}){origem_chave}")
 
     texto_falado = " ".join(it["texto"] for it in itens if it["tipo"] == "fala")
     TEXTO_TXT.write_text(texto_falado + "\n", encoding="utf-8")
@@ -684,6 +712,7 @@ def main() -> None:
         "slug": str(video_ativo["slug"]),
         "titulo": str(video_ativo["titulo"]),
         "roteiro": roteiro_path.name,
+        "roteiro_sha256": roteiro_sha256,
     }
 
     with tempfile.TemporaryDirectory(prefix="voz-v3-") as tmp:
@@ -733,7 +762,21 @@ def main() -> None:
             if motor == "mock":
                 raw_words = sintetizar_mock(texto, raw_arq, idx)
             elif motor == "elevenlabs":
-                raw_words = sintetizar_elevenlabs(texto, raw_arq, api_key, voice_id)
+                try:
+                    raw_words = sintetizar_elevenlabs(texto, raw_arq, api_key, voice_id)
+                except urllib.error.HTTPError as exc:
+                    if exc.code in (401, 403, 429):
+                        motivo = _extrair_motivo_http_error(exc)
+                        print(
+                            f"AVISO ElevenLabs HTTP {exc.code} ({motivo}). "
+                            f"Alternando automaticamente para fallback edge-tts ({EDGE_VOZ})...",
+                            flush=True,
+                        )
+                        motor = "edge-tts"
+                        voz_usada = f"{EDGE_VOZ} (pitch={EDGE_PITCH}, rate={EDGE_RATE}) [fallback HTTP {exc.code}]"
+                        raw_words = sintetizar_edge(texto, raw_arq)
+                    else:
+                        raise
             else:
                 raw_words = sintetizar_edge(texto, raw_arq)
 
@@ -843,22 +886,32 @@ def main() -> None:
     eventos["duracao_total"] = duracao_total
     eventos["frases"] = frases_log
 
-    if roteiro_path.name == "roteiro_02.txt":
-        obrigatorios = [
+    obrigatorios_por_roteiro = {
+        "roteiro_02.txt": [
             "gancho", "hora_02", "gps_rota", "sem_destino", "rua_escura",
             "retrovisor", "destino_acidente", "hora_0206", "freio", "caminhao",
             "quase", "sussurro", "plot_twist", "proximo_acidente", "cta", "cta_acao",
             "duracao_total",
-        ]
-        faltando = [k for k in obrigatorios if k not in eventos]
+        ],
+        "roteiro_03.txt": [
+            "gancho", "vibra_cama", "pix_1", "marina_ri", "congela", "nao_acende",
+            "hora_0313", "pix_2", "desc_2", "tranca_porta", "corredor_breu",
+            "pix_3", "fecha_janela", "trava_janela", "hora_0314", "pix_4",
+            "msg_final", "plot_twist", "guarda_roupa", "abre_devagar",
+            "cta", "cta_acao", "duracao_total",
+        ],
+    }
+    if roteiro_path.name in obrigatorios_por_roteiro:
+        faltando = [k for k in obrigatorios_por_roteiro[roteiro_path.name] if k not in eventos]
         if faltando:
-            raise RuntimeError(f"Eventos obrigatorios ausentes para roteiro_02: {faltando}")
+            raise RuntimeError(f"Eventos obrigatorios ausentes para {roteiro_path.name}: {faltando}")
 
     dados_timestamps = {
         "video_id": int(video_ativo["id"]),
         "slug": str(video_ativo["slug"]),
         "titulo": str(video_ativo["titulo"]),
         "roteiro": roteiro_path.name,
+        "roteiro_sha256": roteiro_sha256,
         "audio": VOZ_LIMPA_MP3.name,
         "motor": motor,
         "voz": voz_usada,
@@ -878,8 +931,12 @@ def main() -> None:
         json.dumps(eventos, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
+    # Valida imediatamente os artefatos recem-gerados se estiver usando o roteiro ativo
+    if args.roteiro is None:
+        validar_artefatos_audio(PASTA_AUDIO)
+
     print(
-        f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | "
+        f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | motor final={motor} | "
         f"{len(palavras_todas)} palavras em {len(grupos_todos)} grupos de legenda"
     )
     if "cta" in eventos:

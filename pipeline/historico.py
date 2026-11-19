@@ -1,12 +1,16 @@
-"""Regra permanente 'Sempre Video Novo' e controle de numeracao do pipeline.
+"""Regra permanente 'Sempre Video Novo', numeracao automatica e trava blindada contra audio velho.
 
 Le `historico_videos.json` na raiz do repositorio para:
 1. Garantir que o video em producao tenha tema, slug e roteiro ineditos em relacao aos anteriores.
 2. Resolver automaticamente o arquivo de roteiro ativo e o caminho de saida livre
-   (`output/short_02.mp4`, `output/short_03.mp4`, ...), sem sobrescrever videos publicados.
+   (`output/short_03.mp4`, `output/short_04.mp4`, ...), sem sobrescrever videos publicados.
+3. Validar carimbo de integridade (`video_id`, `titulo`, `roteiro_sha256`) e presenca da CTA
+   obrigatoria ("COMENTE EU QUERO") em `audio/timestamps.json` e `audio/eventos.json` antes
+   do sound design e da renderizacao.
 
 Uso CLI (na raiz do repositorio):
     python3 pipeline/historico.py verificar
+    python3 pipeline/historico.py validar-audio
     python3 pipeline/historico.py saida
     python3 pipeline/historico.py roteiro
     python3 pipeline/historico.py status
@@ -15,6 +19,7 @@ Uso CLI (na raiz do repositorio):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import unicodedata
@@ -22,6 +27,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 ARQUIVO_HISTORICO = RAIZ / "historico_videos.json"
+CTA_OBRIGATORIA = "comente eu quero"
 
 STOPWORDS_TEMA = {
     "a", "as", "o", "os", "de", "da", "do", "das", "dos", "e", "em", "na", "no",
@@ -44,6 +50,12 @@ def tokens_tema(texto: str) -> set[str]:
         for tok in normalizar_texto(texto).split()
         if len(tok) >= 3 and tok not in STOPWORDS_TEMA
     }
+
+
+def calcular_sha256_arquivo(caminho: Path) -> str:
+    h = hashlib.sha256()
+    h.update(caminho.read_bytes())
+    return h.hexdigest()
 
 
 def carregar_historico(caminho: Path = ARQUIVO_HISTORICO) -> dict:
@@ -123,7 +135,6 @@ def validar_historico(dados: dict | None = None) -> dict:
             raise SystemExit(f"Caminho de saida duplicado no historico: {saida_reg}")
         saidas_vistas.add(saida_reg)
 
-    # Verifica unicidade de tema entre todos os pares registrados.
     for i in range(len(videos)):
         for j in range(i + 1, len(videos)):
             repetido, motivo = _similares(videos[i], videos[j])
@@ -173,11 +184,22 @@ def caminho_roteiro_atual() -> Path:
     return caminho
 
 
+def carimbo_roteiro_atual() -> dict:
+    atual = obter_video_atual(validar=True)
+    roteiro = caminho_roteiro_atual()
+    return {
+        "video_id": int(atual["id"]),
+        "slug": str(atual["slug"]),
+        "titulo": str(atual["titulo"]),
+        "roteiro": roteiro.name,
+        "roteiro_sha256": calcular_sha256_arquivo(roteiro),
+    }
+
+
 def caminho_saida_atual() -> Path:
     dados = carregar_historico()
     atual = validar_historico(dados)
     vid = int(atual["id"])
-    # Protecao extra: impede sobrescrever qualquer short marcado como publicado.
     saidas_publicadas = {
         str(v.get("saida", "")).strip()
         for v in dados["videos"]
@@ -190,13 +212,86 @@ def caminho_saida_atual() -> Path:
     return RAIZ / saida_rel
 
 
+def validar_artefatos_audio(
+    pasta_audio: Path | None = None,
+    exigir_cta: bool = True,
+) -> dict:
+    """Trava blindada contra audio velho: confere video_id, titulo, roteiro_sha256 e CTA final.
+
+    Aborta com SystemExit explicito se qualquer artefato em audio/ estiver ausente,
+    desatualizado ou pertencente a outro video.
+    """
+    pasta = pasta_audio or (RAIZ / "audio")
+    ts_path = pasta / "timestamps.json"
+    ev_path = pasta / "eventos.json"
+    esperado = carimbo_roteiro_atual()
+
+    dica = (
+        "Apague audio/mix_final.mp3, audio/voz_limpa.mp3, audio/narracao.mp3, "
+        "audio/timestamps.json e audio/eventos.json e rode novamente: "
+        "python3 audio/gerar_narracao.py && python3 audio/sound_design.py"
+    )
+
+    for arq in (ts_path, ev_path):
+        if not arq.is_file():
+            raise SystemExit(f"BLOQUEADO (integridade de audio): arquivo ausente {arq.name}. {dica}")
+
+    try:
+        ts_dados = json.loads(ts_path.read_text(encoding="utf-8"))
+        ev_dados = json.loads(ev_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"BLOQUEADO (integridade de audio): JSON corrompido ({exc}). {dica}")
+
+    erros: list[str] = []
+    for nome_arq, dados in (("timestamps.json", ts_dados), ("eventos.json", ev_dados)):
+        vid_arq = dados.get("video_id")
+        if vid_arq != esperado["video_id"]:
+            erros.append(
+                f"{nome_arq}: video_id={vid_arq!r} difere do video_atual={esperado['video_id']}"
+            )
+        tit_arq = dados.get("titulo")
+        if tit_arq != esperado["titulo"]:
+            erros.append(
+                f"{nome_arq}: titulo={tit_arq!r} difere do esperado={esperado['titulo']!r}"
+            )
+        hash_arq = dados.get("roteiro_sha256")
+        if not hash_arq or hash_arq != esperado["roteiro_sha256"]:
+            erros.append(
+                f"{nome_arq}: roteiro_sha256={(str(hash_arq)[:12] if hash_arq else None)!r} "
+                f"difere do hash atual {esperado['roteiro_sha256'][:12]!r} ({esperado['roteiro']})"
+            )
+
+    if exigir_cta:
+        palavras = ts_dados.get("palavras") or []
+        ultimas_palavras = " ".join(str(p.get("palavra", "")) for p in palavras[-14:])
+        cauda_texto = normalizar_texto(ultimas_palavras or str(ts_dados.get("texto", ""))[-120:])
+        if CTA_OBRIGATORIA not in cauda_texto:
+            erros.append(
+                "timestamps.json: CTA obrigatoria 'COMENTE EU QUERO' nao encontrada no final da narracao "
+                f"(trecho final lido: {ultimas_palavras!r})"
+            )
+
+    if erros:
+        detalhes = "\n  - ".join(erros)
+        raise SystemExit(
+            f"BLOQUEADO (trava contra audio velho / cache corrompido):\n  - {detalhes}\n"
+            f"Acao obrigatoria: {dica}"
+        )
+
+    return {
+        "carimbo": esperado,
+        "timestamps": ts_dados,
+        "eventos": ev_dados,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Valida e consulta historico_videos.json.")
     parser.add_argument(
         "acao",
         nargs="?",
         default="status",
-        choices=["status", "verificar", "saida", "roteiro", "proximo"],
+        choices=["status", "verificar", "validar-audio", "saida", "roteiro", "proximo"],
         help="Informacao ou validacao desejada.",
     )
     args = parser.parse_args()
@@ -208,7 +303,14 @@ def main() -> None:
         return
 
     atual = validar_historico(dados)
-    if args.acao == "saida":
+    if args.acao == "validar-audio":
+        res = validar_artefatos_audio()
+        c = res["carimbo"]
+        print(
+            f"Integridade de audio OK: Video {c['video_id']:02d} '{c['titulo']}' "
+            f"(sha256={c['roteiro_sha256'][:12]}, CTA 'COMENTE EU QUERO' confirmada)."
+        )
+    elif args.acao == "saida":
         print(caminho_saida_atual().relative_to(RAIZ).as_posix())
     elif args.acao == "roteiro":
         print(caminho_roteiro_atual().relative_to(RAIZ).as_posix())
@@ -221,7 +323,17 @@ def main() -> None:
             f"({atual['roteiro']} -> {atual['saida']})."
         )
     else:
-        print(json.dumps({"video_atual": atual, "proximo_livre": proximo_numero_livre(dados)}, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {
+                    "video_atual": atual,
+                    "carimbo": carimbo_roteiro_atual(),
+                    "proximo_livre": proximo_numero_livre(dados),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
 
 
 if __name__ == "__main__":

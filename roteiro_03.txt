@@ -1,0 +1,57 @@
+ROTEIRO 03: "O PIX DE 1 CENTAVO"
+Formato: YouTube Shorts 9:16 (1080x1920) | Micro-Suspense psicologico no Brasil
+Duracao alvo: 38 a 45 segundos | Motor: V3 (Dopamina Visual)
+Personagem: Marina (blusa rosa-magenta flat em capsula, cabelo escuro com coque lateral)
+Regra visual: mudanca de plano, zoom dinamico ou elemento visual a cada 1,0s a 1,8s; zero planos estaticos.
+
+Estrutura de cada bloco:
+[Tempo em Segundos] | [Texto Exato da Narracao] | [Direcao visual e relogio] | [Eventos e pausas]
+
+============================================================
+
+BLOCO 1: GANCHO (03:12)
+[00 - 03] | Três e doze da manhã. O celular da Marina vibra na cama. | Quarto escuro vibrante (#0A0F1D / #130926), relogio 03:12 no topo; celular vibrando no lencol com ondas ciano e screen shake sutil. | gancho, vibra_cama@vibra
+
+------------------------------------------------------------
+
+BLOCO 2: PRIMEIRO PIX E SUSTO INICIAL
+[03 - 05] | Você recebeu um Pix de um centavo. | Fundo desfocado (DOF rapido); close no celular com notificacao realista de app bancario brasileiro: "PIX RECEBIDO: R$ 0,01". | pix_1
+[05 - 07] | Ela abre o banco rindo. | Marina sentada na cama (blusa #E11D6C, expressao rindo 'smirk') iluminada pela tela ciano do celular. | marina_ri
+[07 - 11] | Mas congela ao ler a descrição: Não acende a luz. | Piscada -> expressao congelada ('fear'); close na tela do Pix destacando o campo Descricao em alerta: "NAO ACENDE A LUZ". | congela, nao_acende@nao, pausa=0.22
+
+------------------------------------------------------------
+
+BLOCO 3: SEGUNDO PIX (03:13) E TRANCA DA PORTA
+[11 - 16] | Um minuto depois, outro Pix de um centavo. Descrição: Eu sei que você está acordada. | Relogio vira para 03:13; segundo cartao Pix vibra forte com shake e destaque amarelo/vermelho na mensagem "EU SEI QUE VOCE ESTA ACORDADA". | hora_0313, pix_2@outro, desc_2@eu
+[16 - 20] | Marina tranca a porta do quarto. O corredor lá fora está no breu. | Plano de corpo inteiro com pes firmes no piso: Marina gira a chave na fechadura; corte para o corredor escuro no breu completo. | tranca_porta, corredor_breu@corredor
+
+------------------------------------------------------------
+
+BLOCO 4: TERCEIRO PIX (PULSO VERMELHO) E JANELA
+[20 - 23] | Terceiro Pix: A janela não tem grade. | Fundo pulsa em vermelho-alerta (#3B0A0A) com particulas em brasa; terceiro Pix vermelho no celular: "A JANELA NAO TEM GRADE". | pix_3
+[23 - 26] | Ela corre, trava a janela e fecha a cortina. | Marina correndo ate a janela aberta de madrugada e puxando a cortina pesada sobre a noite. | fecha_janela
+[26 - 27] | [SFX:trava_janela:1.4] | Bloco SFX puro: macro no trinco metalico da janela travando com screen shake e cortina cerrando a fresta de luar. | trava_janela
+
+------------------------------------------------------------
+
+BLOCO 5: QUARTO PIX (03:14) E PLOT TWIST
+[27 - 30] | O celular vibra pela última vez. Quarto Pix. Um centavo. | Relogio vira para 03:14 em vermelho; celular acende no breu vibrando forte com 4a notificacao de R$ 0,01. | hora_0314, pix_4@quarto
+[30 - 34] | Obrigado por trancar a janela. Eu não estava lá fora. | Close na mensagem vermelha do 4o Pix "OBRIGADO POR TRANCAR A JANELA. EU NAO ESTAVA LA FORA." -> corte para modulo bigFace de Marina em choque extremo! | msg_final, plot_twist@eu, pausa=0.35
+
+------------------------------------------------------------
+
+BLOCO 6: CLIMAX DO GUARDA-ROUPA
+[34 - 36] | [SFX:guarda_roupa:1.6] | Bloco SFX puro: no escuro do quarto, a porta do guarda-roupa abre devagar em fresta vertical sombria com par de olhos palidos surgindo na fenda. | guarda_roupa
+[36 - 39] | No escuro do quarto, a porta do guarda-roupa... abre devagar. | Zoom tenso na fresta do guarda-roupa se alargando e nos olhos fixos em Marina sob pulso vermelho (#3B0A0A). | abre_devagar, pausa=0.15
+
+------------------------------------------------------------
+
+BLOCO 7: CTA FINAL (ULTIMOS ~3,5s)
+[39 - 43] | Quer aprender a fazer vídeos assim no automático? Comente EU QUERO. | Cartao final CTA V3 com texto ajustado por measureText e pilula amarela ampla "COMENTE EU QUERO", sem vazar em nenhuma fonte. | cta, cta_acao@comente, pausa=0.35
+
+============================================================
+
+NOTAS TECNICAS
+- Relogios exibidos (um de cada vez): 03:12, 03:13, 03:14 (oculto na CTA).
+- Zero onomatopeias faladas: trava da janela e rangido do guarda-roupa entram em [SFX:trava_janela:1.4] e [SFX:guarda_roupa:1.6].
+- Integridade: validado por video_id=3, roteiro_sha256 e CTA final obrigatoria "COMENTE EU QUERO".

@@ -1,0 +1,2037 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rota recalculada: player V3</title>
+<link rel="icon" href="data:,">
+<style>
+/* Camada unica de tokens, espelhando tokens/colors.json (dark), spacing, typography, motion, borders, opacity. */
+:root{
+  --surface-page:#030712; --surface-sunken:#000000; --surface-raised:#1f2937;
+  --text-primary:#f9fafb; --text-secondary:#9ca3af;
+  --border-default:#1f2937; --border-strong:#6b7280; --focus-ring:#60a5fa;
+  --action-primary:#2563eb; --action-primary-hover:#1d4ed8;
+  --action-secondary:#111827; --action-secondary-hover:#374151;
+  --space-1:4px; --space-2:8px; --space-3:12px;
+  --radius-button:6px; --radius-card:8px; --border-width:1px; --focus-width:2px;
+  --font-sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --font-mono:"JetBrains Mono",Consolas,"Liberation Mono",Menlo,monospace;
+  --font-size-xs:12px; --font-size-sm:14px; --weight-medium:500;
+  --duration-fast:100ms; --ease-out:cubic-bezier(0,0,.2,1);
+  --opacity-disabled:.45; --target-min:44px; --chrome-h:128px; --press-offset:1px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font-family:var(--font-sans)}
+.app{min-height:100dvh;display:flex;flex-direction:column;align-items:center;gap:var(--space-2);padding:var(--space-2)}
+.stage{width:min(100%,calc((100dvh - var(--chrome-h)) * 9 / 16));aspect-ratio:9/16}
+canvas{display:block;width:100%;height:100%;border-radius:var(--radius-card);background:var(--surface-sunken)}
+.controls{width:100%;max-width:calc(var(--target-min) * 12);display:flex;align-items:center;gap:var(--space-2)}
+.btn{min-height:var(--target-min);min-width:var(--target-min);display:inline-flex;align-items:center;justify-content:center;gap:var(--space-1);
+  padding:0 var(--space-3);border:var(--border-width) solid var(--border-default);border-radius:var(--radius-button);
+  background:var(--action-secondary);color:var(--text-primary);font:var(--weight-medium) var(--font-size-sm)/1 var(--font-sans);cursor:pointer;
+  transition:background-color var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out)}
+.btn svg{width:var(--font-size-sm);height:var(--font-size-sm);fill:currentColor}
+.btn:hover{background:var(--action-secondary-hover)}
+.btn-primary{background:var(--action-primary);border-color:var(--action-primary)}
+.btn-primary:hover{background:var(--action-primary-hover)}
+.btn:focus-visible,.seek:focus-visible{outline:var(--focus-width) solid var(--focus-ring);outline-offset:var(--focus-width)}
+.btn:active{transform:translateY(var(--press-offset))}
+.btn:disabled{opacity:var(--opacity-disabled);cursor:not-allowed}
+.btn[aria-busy="true"]{cursor:progress}
+.btn[aria-pressed="true"]{background:var(--surface-raised);border-color:var(--border-strong)}
+.seek{flex:1;min-width:0;min-height:var(--target-min);accent-color:var(--action-primary);cursor:pointer}
+.seek:disabled{opacity:var(--opacity-disabled)}
+.time{font:var(--font-size-xs)/1 var(--font-mono);color:var(--text-secondary);white-space:nowrap}
+.status{margin:0;font-size:var(--font-size-xs);color:var(--text-secondary)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<main class="app">
+  <h1 class="sr-only">Previa do Short V3: Rota recalculada</h1>
+  <div class="stage"><canvas id="c" width="1080" height="1920" role="img" aria-label="Animacao do Short Rota recalculada"></canvas></div>
+  <div class="controls" role="group" aria-label="Controles do player">
+    <button id="play" class="btn btn-primary" type="button" disabled aria-busy="true">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path id="playIcon" d="M4 2l10 6-10 6z"/></svg><span id="playLbl">Carregando</span>
+    </button>
+    <input id="seek" class="seek" type="range" min="0" max="41" step="0.01" value="0" aria-label="Progresso" disabled>
+    <output id="time" class="time" for="seek">0,0 / 41,0</output>
+    <button id="cc" class="btn" type="button" aria-pressed="false">Legendas</button>
+  </div>
+  <p id="status" class="status" aria-live="polite">Procurando audio/mix_final.mp3 e audio/eventos.json...</p>
+</main>
+<script>
+(() => {
+'use strict';
+const W = 1080, H = 1920;
+const cv = document.getElementById('c');
+const main = cv.getContext('2d');
+let g = main;
+
+/* Paleta V3 (Dopamina Visual): fundos vibrantes + pulsos de tensao + 1 cor de destaque fixa do protagonista */
+const PAL = {
+  bgNavy: '#0A0F1D',
+  bgViolet: '#130926',
+  bgRed: '#3B0A0A',
+  bgYellow: '#261E0A',
+  bgDeep: '#050711',
+  road: '#0e1424',
+  roadEdge: '#22304d',
+  building: '#0c1222',
+  skin: '#d9ad8b',
+  skinShadow: '#b38464',
+  hair: '#141926',
+  ink: '#090c14',
+  jacket: '#12a4a8',
+  jacketShade: '#0b787d',
+  jacketDeep: '#074e53',
+  pants: '#1a2338',
+  pantsDark: '#101726',
+  shoe: '#0c101a',
+  sole: '#3e4a66',
+  dash: '#101626',
+  dashLight: '#1c263e',
+  seat: '#161c2c',
+  cyan: '#38d9ff',
+  cyanCore: '#dff8ff',
+  violet: '#8b5cf6',
+  yellow: '#FFD400',
+  alert: '#FF3B30',
+  alertDark: '#991616',
+  text: '#f5f7fb',
+  dim: '#94a3b8',
+  card: '#121828',
+  phone: '#090d16',
+  phoneEdge: '#32405c',
+  sweat: '#9ae6ff',
+  truck: '#161922',
+  truckDark: '#0b0d13'
+};
+
+const MONO = '"JetBrains Mono",Consolas,"Liberation Mono",Menlo,monospace';
+const SANS = 'Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+const COND = '"Arial Narrow","Roboto Condensed","Liberation Sans Narrow",Impact,Arial,sans-serif';
+
+/* Utilidades deterministicas */
+const clamp = (v, a=0, b=1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = k => { k = clamp(k); return k < 0.5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3) / 2; };
+const easeOut = k => 1 - Math.pow(1 - clamp(k), 3);
+const prog = (t, a, b) => clamp((t - a) / Math.max(0.001, b - a));
+const bell = (t, a, b) => Math.sin(Math.PI * prog(t, a, b));
+const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+const noise = (t, seed=0) => {
+  const i = Math.floor(t), f = t - i, u = f * f * (3 - 2 * f);
+  return lerp(hash(i + seed * 57), hash(i + 1 + seed * 57), u) * 2 - 1;
+};
+const hexRgb = h => {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const rgba = (hex, a) => {
+  const [r, gr, b] = hexRgb(hex);
+  return `rgba(${r},${gr},${b},${a})`;
+};
+function mixHex(h1, h2, k){
+  k = clamp(k);
+  const a = hexRgb(h1), b = hexRgb(h2);
+  const r = Math.round(lerp(a[0], b[0], k));
+  const gr = Math.round(lerp(a[1], b[1], k));
+  const bl = Math.round(lerp(a[2], b[2], k));
+  return `rgb(${r},${gr},${bl})`;
+}
+function mulberry(a){
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function rr(x, y, w, h, r){
+  const rad = Math.min(r, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + rad, y);
+  g.arcTo(x + w, y, x + w, y + h, rad);
+  g.arcTo(x + w, y + h, x, y + h, rad);
+  g.arcTo(x, y + h, x, y, rad);
+  g.arcTo(x, y, x + w, y, rad);
+  g.closePath();
+}
+function circ(x, y, r){ g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+function ell(x, y, rx, ry){ g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); }
+function glow(x, y, r, col, a){
+  if (a <= 0.002) return;
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, rgba(col, a));
+  gr.addColorStop(1, rgba(col, 0));
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  g.fillStyle = gr;
+  g.fillRect(x - r, y - r, r * 2, r * 2);
+  g.restore();
+}
+function vgrad(c1, c2, y0=-320, y1=H+320){
+  const gr = g.createLinearGradient(0, y0, 0, y1);
+  gr.addColorStop(0, c1);
+  gr.addColorStop(1, c2);
+  g.fillStyle = gr;
+  g.fillRect(-420, y0, W + 840, y1 - y0);
+}
+function popScale(age, dur=0.11){
+  if (age <= 0) return 0.68;
+  const k = clamp(age / dur);
+  if (k < 0.62) return lerp(0.68, 1.10, easeOut(k / 0.62));
+  return lerp(1.10, 1.0, ease((k - 0.62) / 0.38));
+}
+
+/* Profundidade de campo (Depth of Field): compoe o fundo em canvas auxiliar e aplica blur(8px) */
+const BLUR_PAD = 16;
+const blurCv = document.createElement('canvas');
+blurCv.width = W / 2 + BLUR_PAD * 2;
+blurCv.height = H / 2 + BLUR_PAD * 2;
+const blurCtx = blurCv.getContext('2d');
+function withBlur(px, fn){
+  const m = main.getTransform();
+  blurCtx.setTransform(1, 0, 0, 1, 0, 0);
+  blurCtx.globalAlpha = 1;
+  blurCtx.globalCompositeOperation = 'source-over';
+  blurCtx.filter = 'none';
+  blurCtx.fillStyle = PAL.bgNavy;
+  blurCtx.fillRect(0, 0, blurCv.width, blurCv.height);
+  blurCtx.translate(BLUR_PAD, BLUR_PAD);
+  blurCtx.scale(0.5, 0.5);
+  blurCtx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+  g = blurCtx;
+  fn();
+  g = main;
+  main.save();
+  main.setTransform(1, 0, 0, 1, 0, 0);
+  main.filter = `blur(${px}px)`;
+  main.drawImage(blurCv, -BLUR_PAD * 2, -BLUR_PAD * 2, W + BLUR_PAD * 4, H + BLUR_PAD * 4);
+  main.filter = 'none';
+  main.restore();
+}
+
+/* ============================================================
+   TIMELINE ORIENTADA A eventos.json + FALLBACK MODO PREVIA V3
+   ============================================================ */
+const EV_PREVIEW = {
+  video_id: 2,
+  slug: 'rota-recalculada',
+  titulo: 'Rota recalculada',
+  gancho: 0.0,
+  hora_02: 3.1,
+  gps_rota: 6.5,
+  sem_destino: 10.0,
+  rua_escura: 12.6,
+  retrovisor: 15.6,
+  destino_acidente: 18.6,
+  hora_0206: 21.6,
+  freio: 23.1,
+  caminhao: 24.1,
+  caminhao_duracao: 1.75,
+  quase: 25.85,
+  sussurro: 29.4,
+  plot_twist: 31.1,
+  proximo_acidente: 32.6,
+  cta: 36.0,
+  cta_acao: 38.5,
+  duracao_total: 40.4
+};
+
+let EV = { ...EV_PREVIEW };
+let duration = EV.duracao_total;
+let audio = null;
+let captionGroups = [];
+let BLINKS = [];
+let EXPR_CUES = [];
+let SHOTS = [];
+
+/* Divide um intervalo [a, b] em sub-planos garantidos entre 1.0s e 1.8s (Motor V3) */
+function splitShots(a, b, specs){
+  const span = Math.max(0.05, b - a);
+  let count = Math.ceil(span / 1.74);
+  if (count < 1) count = 1;
+  while (count > 1 && (span / count) < 0.95) count--;
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const s0 = a + (span * i) / count;
+    const s1 = i === count - 1 ? b : a + (span * (i + 1)) / count;
+    const sp = specs[i % specs.length];
+    out.push({
+      start: +s0.toFixed(3),
+      end: +s1.toFixed(3),
+      dur: +(s1 - s0).toFixed(3),
+      ...sp
+    });
+  }
+  return out;
+}
+
+function buildShots(e){
+  const end = e.duracao_total;
+  const raw = [];
+  const push = arr => { for (const s of arr) raw.push(s); };
+
+  // 1. Gancho (mapa neon -> punch-in no pino vermelho)
+  push(splitShots(0, e.hora_02, [
+    { scene: 'gancho_mapa', mood: 'navy', vig: 0.56, cam0: [1.00, 540, 960], cam1: [1.13, 540, 930] },
+    { scene: 'gancho_pino', mood: 'red',  vig: 0.64, cam0: [1.05, 540, 920], cam1: [1.20, 540, 880] }
+  ]));
+
+  // 2. Ambientacao na Marginal (plano externo carro -> interior cabine Rafael)
+  push(splitShots(e.hora_02, e.gps_rota, [
+    { scene: 'marginal_carro', mood: 'navy',   vig: 0.58, cam0: [1.00, 510, 980], cam1: [1.10, 575, 960] },
+    { scene: 'cabine_rafael',  mood: 'violet', vig: 0.60, cam0: [1.03, 540, 960], cam1: [1.14, 520, 930] }
+  ]));
+
+  // 3. Celular apita sozinho (close celular DOF amarelo -> punch-in rota/chegada)
+  push(splitShots(e.gps_rota, e.sem_destino, [
+    { scene: 'gps_apita',   mood: 'yellow', vig: 0.58, cam0: [1.00, 540, 950], cam1: [1.11, 540, 920], impact: e.gps_rota, amp: 14 },
+    { scene: 'gps_chegada', mood: 'yellow', vig: 0.62, cam0: [1.10, 540, 880], cam1: [1.21, 540, 850] }
+  ]));
+
+  // 4. Sem destino (rosto Rafael estranhando -> campo destino vazio)
+  push(splitShots(e.sem_destino, e.rua_escura, [
+    { scene: 'rafael_estranha', mood: 'violet', vig: 0.62, cam0: [1.04, 540, 930], cam1: [1.15, 540, 905] },
+    { scene: 'destino_vazio',   mood: 'navy',   vig: 0.64, cam0: [1.02, 540, 930], cam1: [1.14, 540, 900] }
+  ]));
+
+  // 5. Rua sem placa e sem poste (POV parabrisa curva -> seta insistente no GPS)
+  push(splitShots(e.rua_escura, e.retrovisor, [
+    { scene: 'parabrisa_breu', mood: 'navy',   vig: 0.72, cam0: [1.00, 520, 960], cam1: [1.14, 560, 945] },
+    { scene: 'seta_direita',   mood: 'violet', vig: 0.70, cam0: [1.04, 540, 950], cam1: [1.16, 540, 915] }
+  ]));
+
+  // 6. Retrovisor com farois sumindo (3 pares -> ultimo some + olhar refletido)
+  push(splitShots(e.retrovisor, e.destino_acidente, [
+    { scene: 'retrovisor_3', mood: 'violet', vig: 0.68, cam0: [1.00, 540, 920], cam1: [1.11, 540, 900] },
+    { scene: 'retrovisor_0', mood: 'violet', vig: 0.76, cam0: [1.12, 540, 890], cam1: [1.24, 540, 870] }
+  ]));
+
+  // 7. Destino: local do acidente (card vermelho DOF -> contador regressivo + medo)
+  push(splitShots(e.destino_acidente, e.hora_0206, [
+    { scene: 'alerta_destino', mood: 'red', vig: 0.66, cam0: [1.00, 540, 940], cam1: [1.12, 540, 915], impact: e.destino_acidente, amp: 18 },
+    { scene: 'distancia_80m',  mood: 'red', vig: 0.72, cam0: [1.08, 540, 920], cam1: [1.20, 540, 895] }
+  ]));
+
+  // 8. 02:06 + freada brusca + bigFace no choque
+  push(splitShots(e.hora_0206, e.caminhao, [
+    { scene: 'pedal_freio', mood: 'red', vig: 0.70, cam0: [1.02, 540, 980], cam1: [1.16, 540, 950], impact: e.freio, amp: 24 },
+    { scene: 'big_face',    mood: 'red', vig: 0.78, cam0: [1.04, 540, 930], cam1: [1.18, 540, 910], impact: e.freio, amp: 26 }
+  ]));
+
+  // 9. Bloco SFX puro: caminhao sem farol rasga o cruzamento
+  push(splitShots(e.caminhao, e.quase, [
+    { scene: 'caminhao_passa', mood: 'red', vig: 0.74, cam0: [1.02, 520, 960], cam1: [1.18, 560, 940], impact: e.caminhao + 0.55, amp: 34 }
+  ]));
+
+  // 10. Quase morreu (carro fumegando -> mapa top-down 1mm antes do X)
+  push(splitShots(e.quase, e.sussurro, [
+    { scene: 'carro_parado',  mood: 'navy', vig: 0.68, cam0: [1.00, 540, 980], cam1: [1.11, 540, 945] },
+    { scene: 'mapa_milimetro', mood: 'red', vig: 0.66, cam0: [1.05, 540, 950], cam1: [1.19, 540, 920] }
+  ]));
+
+  // 11. GPS sussurra (waveform no breu)
+  push(splitShots(e.sussurro, e.plot_twist, [
+    { scene: 'gps_sussurra', mood: 'dark', vig: 0.80, cam0: [1.00, 540, 950], cam1: [1.14, 540, 925] }
+  ]));
+
+  // 12. Plot Twist (Rota recalculada -> Proximo acidente: amanha 02:07 -> reflexo em choque)
+  push(splitShots(e.plot_twist, e.cta, [
+    { scene: 'twist_recalculada', mood: 'red', vig: 0.68, cam0: [1.00, 540, 940], cam1: [1.13, 540, 915], impact: e.plot_twist, amp: 26 },
+    { scene: 'twist_amanha',      mood: 'red', vig: 0.70, cam0: [1.08, 540, 920], cam1: [1.20, 540, 895], impact: e.proximo_acidente, amp: 16 },
+    { scene: 'twist_reflexo',     mood: 'red', vig: 0.78, cam0: [1.00, 540, 940], cam1: [1.12, 540, 920] }
+  ]));
+
+  // 13. CTA final (ultimos ~3.5s - 4.5s, ritmo V3)
+  push(splitShots(e.cta, end, [
+    { scene: 'cta_engine', mood: 'violet', vig: 0.50, cam0: [1.00, 540, 940], cam1: [1.08, 540, 920] },
+    { scene: 'cta_comente', mood: 'yellow', vig: 0.48, cam0: [1.02, 540, 940], cam1: [1.10, 540, 920], impact: e.cta_acao, amp: 10 },
+    { scene: 'cta_comente_pulse', mood: 'yellow', vig: 0.46, cam0: [1.06, 540, 930], cam1: [1.13, 540, 915] }
+  ]));
+
+  return raw.map((s, idx) => ({ id: idx + 1, ...s }));
+}
+
+function normalizeEvents(raw, audioDur){
+  const e = { ...EV_PREVIEW, ...(raw || {}) };
+  const dur = Math.max(audioDur || 0, Number(e.duracao_total) || EV_PREVIEW.duracao_total);
+  e.duracao_total = dur;
+  if (raw) {
+    e.gancho = Number(raw.gancho ?? 0);
+    e.hora_02 = Number(raw.hora_02 ?? dur * 0.08);
+    e.gps_rota = Number(raw.gps_rota ?? dur * 0.16);
+    e.sem_destino = Number(raw.sem_destino ?? dur * 0.25);
+    e.rua_escura = Number(raw.rua_escura ?? dur * 0.31);
+    e.retrovisor = Number(raw.retrovisor ?? dur * 0.38);
+    e.destino_acidente = Number(raw.destino_acidente ?? dur * 0.45);
+    e.hora_0206 = Number(raw.hora_0206 ?? dur * 0.52);
+    e.freio = Number(raw.freio ?? (e.hora_0206 + 1.2));
+    e.caminhao = Number(raw.caminhao ?? (e.freio + 0.85));
+    e.caminhao_duracao = Number(raw.caminhao_duracao ?? 1.75);
+    e.quase = Number(raw.quase ?? (e.caminhao + e.caminhao_duracao));
+    e.sussurro = Number(raw.sussurro ?? dur * 0.72);
+    e.plot_twist = Number(raw.plot_twist ?? dur * 0.77);
+    e.proximo_acidente = Number(raw.proximo_acidente ?? (e.plot_twist + 1.3));
+    e.cta = Number(raw.cta ?? (dur - 3.8));
+    e.cta_acao = Number(raw.cta_acao ?? (e.cta + 2.2));
+  }
+  EV = e;
+  duration = dur;
+  SHOTS = buildShots(EV);
+
+  /* Expressao troca escondida na piscada iniciada 2 frames (0.067s a 30fps) antes do marco */
+  EXPR_CUES = [
+    [0, 'neutral'],
+    [EV.sem_destino, 'worry'],
+    [EV.destino_acidente, 'fear'],
+    [EV.hora_0206, 'shock']
+  ];
+  const bl = [];
+  let bt = 0.9, bi = 0;
+  while (bt < duration + 1) { bl.push(bt); bt += 2.5 + hash(bi++ * 9.7) * 1.5; }
+  for (const [ct] of EXPR_CUES) if (ct > 0.2) bl.push(Math.max(0.05, ct - 0.067));
+  BLINKS = bl.sort((a, b) => a - b);
+}
+
+const exprAt = t => { let ex = 'neutral'; for (const [a, b] of EXPR_CUES) if (t >= a - 0.01) ex = b; return ex; };
+function faceAt(t){
+  let last = -1, prev = -1;
+  for (const b of BLINKS) { if (b <= t) { prev = last; last = b; } else break; }
+  const d = t - last;
+  const closed = last >= 0 && d < 0.16 ? Math.sin((d / 0.16) * Math.PI) : 0;
+  const ref = last < 0 ? 0 : (d < 0.08 ? (prev < 0 ? 0 : prev + 0.08) : last + 0.08);
+  return { ex: exprAt(ref), closed };
+}
+
+/* ============================================================
+   MOTOR V3: FUNDOS VIBRANTES PULSANTES + PARTICULAS CONTINUAS
+   ============================================================ */
+const PARTICLES = (() => {
+  const rng = mulberry(202602);
+  const arr = [];
+  for (let i = 0; i < 54; i++) {
+    arr.push({
+      x: rng() * (W + 300) - 150,
+      y: rng() * (H + 300) - 150,
+      vx: (rng() - 0.42) * 32,
+      vy: -(16 + rng() * 44),
+      r: 2.2 + rng() * 6.5,
+      layer: i < 28 ? 0 : 1,
+      ph: rng() * Math.PI * 2,
+      a: 0.14 + rng() * 0.32
+    });
+  }
+  return arr;
+})();
+
+function drawParticles(t, mood){
+  const colPrimary = mood === 'red' ? PAL.alert : (mood === 'yellow' ? PAL.yellow : PAL.cyan);
+  const colAlt = mood === 'red' ? '#ff8a5b' : (mood === 'yellow' ? '#fff3a1' : PAL.violet);
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < PARTICLES.length; i++) {
+    const p = PARTICLES[i];
+    const sp = p.layer === 1 ? 1.45 : 0.72;
+    const spanW = W + 300, spanH = H + 300;
+    const px = ((((p.x + p.vx * t * sp) + 150) % spanW) + spanW) % spanW - 150;
+    const py = ((((p.y + p.vy * t * sp) + 150) % spanH) + spanH) % spanH - 150;
+    const tw = 0.55 + 0.45 * Math.sin(t * (2.6 + p.layer * 1.4) + p.ph);
+    const col = (i % 3 === 0) ? colAlt : colPrimary;
+    const a = p.a * tw * (mood === 'dark' ? 0.55 : 1.0);
+    g.fillStyle = rgba(col, a);
+    circ(px, py, p.r);
+    if (p.layer === 1 && p.r > 5) {
+      g.fillStyle = rgba(col, a * 0.25);
+      circ(px, py, p.r * 2.4);
+    }
+  }
+  g.restore();
+}
+
+function drawBackdrop(t, mood){
+  const pulseSlow = 0.5 + 0.5 * Math.sin(t * 3.8);
+  const pulseFast = 0.5 + 0.5 * Math.sin(t * 7.6);
+  let top = PAL.bgNavy, bot = PAL.bgViolet, glowCol = PAL.cyan, glowA = 0.16;
+
+  if (mood === 'violet') {
+    top = mixHex(PAL.bgViolet, PAL.bgNavy, pulseSlow * 0.35);
+    bot = PAL.bgNavy;
+    glowCol = PAL.violet;
+    glowA = 0.20;
+  } else if (mood === 'yellow') {
+    top = mixHex(PAL.bgNavy, PAL.bgYellow, 0.45 + 0.50 * pulseFast);
+    bot = mixHex(PAL.bgViolet, PAL.bgYellow, 0.35 + 0.45 * pulseFast);
+    glowCol = PAL.yellow;
+    glowA = 0.24;
+  } else if (mood === 'red') {
+    top = mixHex(PAL.bgViolet, PAL.bgRed, 0.52 + 0.48 * pulseFast);
+    bot = mixHex(PAL.bgNavy, PAL.bgRed, 0.42 + 0.48 * pulseFast);
+    glowCol = PAL.alert;
+    glowA = 0.28 + 0.12 * pulseFast;
+  } else if (mood === 'dark') {
+    top = PAL.bgDeep;
+    bot = mixHex(PAL.bgDeep, PAL.bgNavy, 0.55);
+    glowCol = PAL.cyan;
+    glowA = 0.10;
+  } else {
+    top = mixHex(PAL.bgNavy, PAL.bgViolet, pulseSlow * 0.35);
+    bot = PAL.bgDeep;
+  }
+
+  vgrad(top, bot);
+  glow(540 + Math.sin(t * 0.8) * 90, 740, 680, glowCol, glowA);
+  drawParticles(t, mood);
+}
+
+/* ============================================================
+   RIG FLAT EM CAPSULA (10 PONTOS IK) - RAFAEL (JAQUETA TEAL)
+   ============================================================ */
+function drawEyes(cx, cy, r, ex, closed, lookX=0){
+  const lift = { neutral: 0, worry: 0.06, fear: 0.12, shock: 0.20 }[ex] || 0;
+  const tilt = { neutral: 0, worry: 0.12, fear: 0.11, shock: 0.05 }[ex] || 0;
+  const eyePositions = [[cx + r * 0.06, 1], [cx + r * 0.52, -1]];
+  g.lineCap = 'round';
+
+  for (const [x, inner] of eyePositions) {
+    const y = cy - r * 0.05;
+    const browY = y - r * (0.27 + lift);
+    g.strokeStyle = PAL.ink;
+    g.lineWidth = r * 0.072;
+    g.beginPath();
+    g.moveTo(x - inner * r * 0.14, browY + (ex === 'worry' || ex === 'fear' ? r * 0.035 : 0));
+    g.lineTo(x + inner * r * 0.13, browY - tilt * r);
+    g.stroke();
+
+    if (closed > 0.55) {
+      g.strokeStyle = PAL.ink;
+      g.lineWidth = r * 0.055;
+      g.beginPath(); g.moveTo(x - r * 0.11, y); g.lineTo(x + r * 0.11, y); g.stroke();
+      continue;
+    }
+
+    const scaleY = 1 - closed * 0.9;
+    g.save();
+    g.translate(x, y);
+    g.scale(1, scaleY);
+
+    if (ex === 'shock' || ex === 'fear' || ex === 'worry') {
+      const rx = ex === 'shock' ? r * 0.23 : ex === 'fear' ? r * 0.19 : r * 0.15;
+      const ry = ex === 'shock' ? r * 0.26 : ex === 'fear' ? r * 0.21 : r * 0.17;
+      g.fillStyle = PAL.text;
+      ell(0, 0, rx, ry);
+      const pr = ex === 'shock' ? r * 0.058 : ex === 'fear' ? r * 0.076 : r * 0.084;
+      g.fillStyle = PAL.ink;
+      circ(r * 0.03 + lookX * r * 0.05, 0, pr);
+      g.fillStyle = PAL.text;
+      circ(r * 0.05 + lookX * r * 0.05, -pr * 0.45, pr * 0.34);
+    } else {
+      g.fillStyle = PAL.ink;
+      ell(0, 0, r * 0.095, r * 0.12);
+      g.fillStyle = PAL.text;
+      circ(r * 0.03 + lookX * r * 0.03, -r * 0.045, r * 0.028);
+    }
+    g.restore();
+  }
+
+  if (ex === 'shock') {
+    g.fillStyle = rgba(PAL.ink, 0.85);
+    ell(cx + r * 0.29, cy + r * 0.40, r * 0.095, r * 0.13);
+    /* Gota de suor frio */
+    g.fillStyle = rgba(PAL.sweat, 0.92);
+    const sx = cx + r * 0.82, sy = cy - r * 0.34;
+    g.beginPath();
+    g.moveTo(sx, sy - r * 0.18);
+    g.quadraticCurveTo(sx + r * 0.09, sy + r * 0.02, sx, sy + r * 0.08);
+    g.quadraticCurveTo(sx - r * 0.09, sy + r * 0.02, sx, sy - r * 0.18);
+    g.fill();
+  } else if (ex === 'fear' || ex === 'worry') {
+    g.strokeStyle = rgba(PAL.ink, 0.72);
+    g.lineWidth = r * 0.048;
+    g.beginPath();
+    g.moveTo(cx + r * 0.18, cy + r * 0.36);
+    g.lineTo(cx + r * 0.40, cy + r * (ex === 'fear' ? 0.33 : 0.36));
+    g.stroke();
+  }
+}
+
+function drawHeadFlat(cx, cy, r, ex, closed, o={}){
+  const tilt = o.tilt || 0;
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(tilt);
+
+  /* Cabeca redonda flat sem contorno preto pesado */
+  g.fillStyle = PAL.skin;
+  circ(0, 0, r);
+
+  g.save();
+  g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.clip();
+  g.fillStyle = rgba(PAL.ink, 0.16);
+  circ(-r * 1.08, r * 0.16, r * 0.96);
+  g.restore();
+
+  /* Cabelo curto moderno sem costura (zero efeito capacete) */
+  g.fillStyle = o.hair || PAL.hair;
+  g.beginPath();
+  g.arc(-r * 0.04, -r * 0.06, r * 1.04, Math.PI * 0.76, -Math.PI * 0.16, false);
+  g.quadraticCurveTo(r * 0.50, -r * 0.62, -r * 0.08, -r * 0.56);
+  g.quadraticCurveTo(-r * 0.52, -r * 0.52, -r * 0.62, -r * 0.12);
+  g.quadraticCurveTo(-r * 0.68, r * 0.24, -r * 0.80, r * 0.64);
+  g.closePath();
+  g.fill();
+
+  /* Orelha flat limpa */
+  g.fillStyle = PAL.skin;
+  circ(-r * 0.68, r * 0.10, r * 0.19);
+  g.fillStyle = rgba(PAL.skinShadow, 0.65);
+  circ(-r * 0.69, r * 0.11, r * 0.09);
+
+  /* Rim light coerente com a fonte da cena */
+  if (o.rimA > 0) {
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.lineCap = 'round';
+    g.strokeStyle = rgba(o.rimColor || PAL.cyan, o.rimA);
+    g.lineWidth = r * 0.08;
+    g.beginPath();
+    g.arc(0, 0, r * 0.97, (o.rimAng || 0) - 0.85, (o.rimAng || 0) + 0.85);
+    g.stroke();
+    g.restore();
+  }
+
+  drawEyes(0, 0, r, ex, closed, o.lookX || 0);
+  g.restore();
+}
+
+function ik(sx, sy, hx, hy, l1, l2, flip=1){
+  const dx = hx - sx, dy = hy - sy;
+  const d = Math.min(Math.hypot(dx, dy), l1 + l2 - 0.01);
+  const a = Math.atan2(dy, dx);
+  const c = clamp((l1*l1 + d*d - l2*l2) / (2*l1*d), -1, 1);
+  const an = a + flip * Math.acos(c);
+  return [sx + Math.cos(an) * l1, sy + Math.sin(an) * l1];
+}
+function drawLimb(s, h, l1, l2, w, col, handCol, flip=1){
+  const e = ik(s[0], s[1], h[0], h[1], l1, l2, flip);
+  g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(s[0], s[1]); g.lineTo(e[0], e[1]); g.lineTo(h[0], h[1]); g.stroke();
+  if (handCol) { g.fillStyle = handCol; circ(h[0], h[1], w * 0.52); }
+  return e;
+}
+
+/* Rafael sentado ao volante (tronco em capsula + bracos IK segurando o volante) */
+function drawRafaelDriver(x, y, s, o){
+  const t = o.t;
+  const br = Math.sin(t * 2 * Math.PI / (o.fastBreath ? 1.45 : 3.0));
+  const steer = o.steer || 0;
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
+
+  /* Encosto do banco do motorista */
+  g.fillStyle = PAL.seat;
+  rr(-168, -280, 154, 410, 48); g.fill();
+  g.fillStyle = '#1f273c';
+  rr(-148, -370, 96, 108, 34); g.fill();
+
+  const shY = -168 - br * 5;
+  const hx = 10, hy = shY - 106 - br * 2;
+  const wheelX = 182, wheelY = -18 + Math.sin(t * 5) * (o.fastBreath ? 3 : 0.8);
+
+  /* Braco distante (IK ate topo do volante) */
+  drawLimb([26, shY + 46], [wheelX - 18, wheelY - 58 + steer * 26], 116, 112, 34, PAL.jacketShade, PAL.skinShadow, 1);
+
+  /* Tronco flat em capsula (jaqueta azul-petroleo fixa) */
+  g.fillStyle = PAL.jacket;
+  rr(-72, shY - 12, 146, 260, 66); g.fill();
+  g.save();
+  rr(-72, shY - 12, 146, 260, 66); g.clip();
+  g.fillStyle = rgba(PAL.jacketDeep, 0.42);
+  g.fillRect(-80, shY - 20, 48, 290);
+  /* Gola e ziper minimalista */
+  g.fillStyle = PAL.jacketDeep;
+  rr(18, shY - 10, 10, 260, 4); g.fill();
+  g.restore();
+
+  /* Cinto de seguranca diagonal */
+  g.strokeStyle = '#0e1320'; g.lineWidth = 22; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-46, shY + 12); g.lineTo(54, shY + 190); g.stroke();
+
+  /* Pescoco e cabeca expressiva */
+  g.fillStyle = PAL.skinShadow;
+  rr(-8, shY - 38, 34, 38, 12); g.fill();
+  drawHeadFlat(hx, hy, 82, o.ex, o.closed, {
+    tilt: (o.tilt || 0) + br * 0.014,
+    rimA: o.rimA ?? 0.72,
+    rimColor: o.rimColor || PAL.cyan,
+    rimAng: o.rimAng ?? 0.1,
+    lookX: o.lookX || 0
+  });
+
+  /* Volante */
+  g.strokeStyle = '#1d263b'; g.lineWidth = 20;
+  g.beginPath(); g.ellipse(wheelX, wheelY, 34, 98, -0.22, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = '#2d3a57'; g.lineWidth = 10;
+  g.beginPath(); g.moveTo(wheelX - 18, wheelY); g.lineTo(wheelX + 26, wheelY + 6); g.stroke();
+
+  /* Braco proximo (IK ate borda do volante) */
+  drawLimb([-10, shY + 50], [wheelX - 24, wheelY + 18 - steer * 24], 116, 112, 36, PAL.jacket, PAL.skin, 1);
+
+  g.restore();
+}
+
+/* ============================================================
+   UI IN-WORLD: CELULAR, MAPA NEON, CARRO, RETROVISOR, ALERTA
+   ============================================================ */
+function drawPhone(cx, cy, w, h, fn){
+  const x = cx - w / 2, y = cy - h / 2;
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,.78)'; g.shadowBlur = 46;
+  g.fillStyle = PAL.phone; rr(x, y, w, h, 72); g.fill();
+  g.restore();
+  g.strokeStyle = PAL.phoneEdge; g.lineWidth = 6; rr(x, y, w, h, 72); g.stroke();
+
+  const sx = x + 24, sy = y + 26, sw = w - 48, sh = h - 52;
+  g.save();
+  rr(sx, sy, sw, sh, 50); g.clip();
+  g.fillStyle = '#0b1020'; g.fillRect(sx, sy, sw, sh);
+  fn(sx, sy, sw, sh);
+  /* Ilha superior limpa */
+  g.fillStyle = '#05070e'; rr(cx - 80, sy + 14, 160, 26, 13); g.fill();
+  g.restore();
+}
+
+/* Mapa estilizado neon (grade urbana + curva da Marginal + rota desenhada) */
+function drawMapGrid(x, y, w, h, t, o={}){
+  const routeCol = o.routeCol || PAL.cyan;
+  const redMode = !!o.redMode;
+  g.save();
+  g.fillStyle = redMode ? '#14080e' : '#091022';
+  g.fillRect(x, y, w, h);
+
+  /* Quarteiroes urbanos sutis */
+  g.strokeStyle = redMode ? 'rgba(255,59,48,.14)' : 'rgba(56,217,255,.12)';
+  g.lineWidth = 3;
+  const step = 92;
+  for (let gx = x - (t * 8 % step); gx < x + w + step; gx += step) {
+    g.beginPath(); g.moveTo(gx, y); g.lineTo(gx + 34, y + h); g.stroke();
+  }
+  for (let gy = y; gy < y + h + step; gy += step) {
+    g.beginPath(); g.moveTo(x, gy); g.lineTo(x + w, gy - 22); g.stroke();
+  }
+
+  /* Rio / Marginal em faixa larga escura */
+  g.strokeStyle = redMode ? 'rgba(139,20,28,.45)' : 'rgba(30,64,138,.45)';
+  g.lineWidth = 54; g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(x - 40, y + h * 0.78);
+  g.bezierCurveTo(x + w * 0.30, y + h * 0.62, x + w * 0.62, y + h * 0.56, x + w + 40, y + h * 0.24);
+  g.stroke();
+
+  /* Rota GPS neon */
+  const pts = [
+    [x + w * 0.22, y + h * 0.80],
+    [x + w * 0.36, y + h * 0.62],
+    [x + w * 0.58, y + h * 0.54],
+    [x + w * 0.66, y + h * 0.34]
+  ];
+  const progress = o.progress ?? 1;
+  g.save();
+  g.shadowColor = routeCol; g.shadowBlur = 24;
+  g.strokeStyle = routeCol; g.lineWidth = 14; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(pts[0][0], pts[0][1]);
+  const segs = pts.length - 1;
+  for (let i = 0; i < segs; i++) {
+    const segP = clamp(progress * segs - i);
+    if (segP <= 0) break;
+    const nx = lerp(pts[i][0], pts[i + 1][0], segP);
+    const ny = lerp(pts[i][1], pts[i + 1][1], segP);
+    g.lineTo(nx, ny);
+  }
+  g.stroke();
+  g.restore();
+
+  /* Pino vermelho pulsante no destino */
+  const px = pts[3][0], py = pts[3][1];
+  const wave = (t * 1.4) % 1;
+  g.strokeStyle = rgba(PAL.alert, (1 - wave) * 0.85);
+  g.lineWidth = 6;
+  g.beginPath(); g.arc(px, py, 22 + wave * 92, 0, Math.PI * 2); g.stroke();
+  glow(px, py, 140, PAL.alert, 0.38);
+  g.fillStyle = PAL.alert; circ(px, py, 22);
+  g.fillStyle = PAL.text; circ(px, py, 9);
+
+  /* Icone do carro (triangulo ciano) */
+  const carK = o.carK ?? 0.25;
+  const ci = Math.min(segs - 1, Math.floor(carK * segs));
+  const cf = clamp(carK * segs - ci);
+  const cx = lerp(pts[ci][0], pts[ci + 1][0], cf);
+  const cy = lerp(pts[ci][1], pts[ci + 1][1], cf);
+  g.fillStyle = PAL.cyanCore;
+  g.beginPath();
+  g.moveTo(cx + 20, cy - 18);
+  g.lineTo(cx - 16, cy - 4);
+  g.lineTo(cx + 4, cy + 20);
+  g.closePath();
+  g.fill();
+  g.restore();
+}
+
+function drawAlertTriangle(cx, cy, r, col=PAL.alert){
+  g.save();
+  g.fillStyle = col;
+  g.beginPath();
+  g.moveTo(cx, cy - r);
+  g.lineTo(cx + r * 0.96, cy + r * 0.78);
+  g.lineTo(cx - r * 0.96, cy + r * 0.78);
+  g.closePath();
+  g.fill();
+  g.fillStyle = PAL.ink;
+  rr(cx - r * 0.11, cy - r * 0.34, r * 0.22, r * 0.56, r * 0.09); g.fill();
+  circ(cx, cy + r * 0.48, r * 0.12);
+  g.restore();
+}
+
+/* Carro visto de fora na Marginal com paralaxe de predios e postes */
+function drawMarginalExterior(t, stopped=false){
+  const spd = stopped ? 0 : 1;
+  /* Horizonte urbano de Sao Paulo em silhueta */
+  const bOff = (t * 68 * spd) % 240;
+  g.fillStyle = '#0b1020';
+  for (let i = -2; i < 10; i++) {
+    const bx = i * 165 - bOff;
+    const bh = 240 + hash(i * 19 + 3) * 340;
+    g.fillRect(bx, 1080 - bh, 128, bh);
+    /* Poucas janelas acesas de madrugada */
+    g.fillStyle = rgba(PAL.cyan, 0.22);
+    for (let r = 0; r < 6; r++) {
+      if (hash(i * 31 + r * 7) > 0.62) {
+        g.fillRect(bx + 18 + (r % 3) * 34, 1080 - bh + 28 + Math.floor(r / 2) * 44, 18, 12);
+      }
+    }
+    g.fillStyle = '#0b1020';
+  }
+
+  /* Postes de luz da Marginal passando rapido */
+  const pOff = (t * 420 * spd) % 360;
+  for (let i = -1; i < 5; i++) {
+    const px = i * 360 - pOff + 120;
+    g.fillStyle = '#1a2338';
+    g.fillRect(px, 680, 12, 460);
+    g.fillRect(px, 680, 68, 10);
+    glow(px + 60, 700, 175, '#7dd3fc', 0.22);
+    g.fillStyle = '#e0f2fe';
+    ell(px + 58, 692, 16, 6);
+  }
+
+  /* Asfalto da Marginal */
+  vgrad('#0d1323', '#060912', 1120, H + 200);
+  g.fillStyle = '#1f2b44';
+  g.fillRect(-200, 1120, W + 400, 10);
+
+  /* Faixas tracejadas em movimento */
+  const dOff = (t * 780 * spd) % 220;
+  g.fillStyle = rgba(PAL.yellow, 0.65);
+  for (let i = -1; i < 8; i++) {
+    rr(i * 220 - dOff, 1255, 115, 14, 6); g.fill();
+  }
+
+  /* Marcas de pneu no asfalto se parado apos freada */
+  if (stopped) {
+    g.fillStyle = 'rgba(0,0,0,.62)';
+    g.fillRect(-100, 1298, 590, 18);
+    g.fillRect(-100, 1344, 590, 18);
+    /* Fumaca leve saindo do capo/pneus */
+    for (let i = 0; i < 9; i++) {
+      const k = ((t * 0.7 + i * 0.14) % 1);
+      g.fillStyle = rgba('#cbd5e1', (1 - k) * 0.20);
+      circ(680 + Math.sin(t * 2 + i) * 35 + k * 40, 1245 - k * 210, 24 + k * 65);
+    }
+  }
+
+  /* Carro sedan moderno flat (silhueta limpa) */
+  const cx = stopped ? 470 : 480 + Math.sin(t * 1.8) * 18;
+  const cy = 1230 + (stopped ? 0 : Math.sin(t * 24) * 2.5);
+  g.save();
+  g.translate(cx, cy);
+
+  /* Sombra sob o carro */
+  g.fillStyle = 'rgba(0,0,0,.68)';
+  ell(10, 96, 268, 26);
+
+  /* Facho do farol dianteiro */
+  const cone = g.createLinearGradient(230, 20, 820, 90);
+  cone.addColorStop(0, rgba('#e0f2fe', 0.50));
+  cone.addColorStop(1, rgba('#38d9ff', 0));
+  g.fillStyle = cone;
+  g.beginPath();
+  g.moveTo(232, 16); g.lineTo(820, -45); g.lineTo(820, 135); g.lineTo(232, 54);
+  g.closePath();
+  g.fill();
+
+  /* Carroceria */
+  g.fillStyle = '#1b263b';
+  g.beginPath();
+  g.moveTo(-240, 74);
+  g.lineTo(-232, 8);
+  g.quadraticCurveTo(-195, -6, -135, -14);
+  g.lineTo(-68, -82);
+  g.lineTo(78, -82);
+  g.lineTo(154, -12);
+  g.quadraticCurveTo(226, -6, 248, 22);
+  g.lineTo(248, 74);
+  g.closePath();
+  g.fill();
+
+  /* Vidros com brilho azul do celular dentro */
+  g.fillStyle = '#0c162b';
+  g.beginPath();
+  g.moveTo(-114, -12); g.lineTo(-58, -68); g.lineTo(68, -68); g.lineTo(132, -12);
+  g.closePath();
+  g.fill();
+  glow(55, -35, 95, PAL.cyan, 0.35);
+
+  /* Farois traseiro (vermelho) e dianteiro (branco) */
+  g.fillStyle = PAL.alert; rr(-238, 12, 22, 22, 6); g.fill();
+  glow(-236, 22, 85, PAL.alert, 0.35);
+  g.fillStyle = '#f8fafc'; rr(224, 14, 24, 22, 6); g.fill();
+
+  /* Rodas */
+  for (const wx of [-148, 152]) {
+    g.fillStyle = '#070a12'; circ(wx, 74, 44);
+    g.fillStyle = '#334155'; circ(wx, 74, 24);
+    g.fillStyle = '#0f172a'; circ(wx, 74, 10);
+  }
+  g.restore();
+}
+
+/* Interior da cabine com painel, parabrisa e celular no suporte */
+function drawCabine(t, o={}){
+  const f = faceAt(t);
+  const ex = o.ex || f.ex;
+  const mood = o.mood || 'violet';
+
+  /* Janela traseira / lateral com luzes noturnas passando */
+  g.fillStyle = '#070c18';
+  g.fillRect(-150, 260, W + 300, 740);
+  const speed = o.stopped ? 0 : 1;
+  const lOff = (t * 320 * speed) % 340;
+  for (let i = -1; i < 6; i++) {
+    const lx = i * 340 - lOff;
+    glow(lx, 490, 120, mood === 'red' ? PAL.alert : PAL.cyan, 0.22);
+    g.fillStyle = rgba('#bae6fd', 0.45);
+    rr(lx - 26, 480, 52, 10, 5); g.fill();
+  }
+
+  /* Coluna do carro */
+  g.fillStyle = '#0c111e';
+  g.fillRect(-150, 180, W + 300, 120);
+  g.fillRect(910, 260, 260, 900);
+
+  /* Rafael sentado ao volante */
+  drawRafaelDriver(430, 1140, 1.38, {
+    t, ex, closed: f.closed,
+    rimA: o.rimA ?? 0.78,
+    rimColor: o.rimColor || PAL.cyan,
+    rimAng: 0.12,
+    lookX: o.lookX ?? 0.35,
+    fastBreath: !!o.fastBreath,
+    steer: o.steer || 0
+  });
+
+  /* Painel inferior */
+  g.fillStyle = PAL.dash;
+  rr(-100, 1190, W + 200, 760, 48); g.fill();
+  g.fillStyle = PAL.dashLight;
+  rr(120, 1235, 390, 88, 22); g.fill();
+  /* Velocimetro digital */
+  g.fillStyle = mood === 'red' ? PAL.alert : PAL.cyan;
+  g.font = `700 44px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(o.speedText || '68 KM/H', 315, 1280);
+
+  /* Suporte de celular aceso a direita do painel */
+  const px = 815, py = 1005;
+  g.fillStyle = '#1b2438'; rr(px - 18, py + 115, 36, 95, 10); g.fill();
+  g.fillStyle = PAL.phone; rr(px - 74, py - 128, 148, 256, 24); g.fill();
+  g.fillStyle = mood === 'red' ? '#3d0d12' : '#0f2744';
+  rr(px - 62, py - 114, 124, 228, 14); g.fill();
+  /* Mini rota brilhando no suporte */
+  g.strokeStyle = mood === 'red' ? PAL.alert : PAL.cyan;
+  g.lineWidth = 7; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(px - 22, py + 72); g.lineTo(px + 6, py); g.lineTo(px + 26, py - 68); g.stroke();
+  glow(px, py, 270, mood === 'red' ? PAL.alert : PAL.cyan, 0.36);
+}
+
+/* ============================================================
+   CENAS INDIVIDUAIS DO VIDEO 02 ("ROTA RECALCULADA")
+   ============================================================ */
+function drawScene(shot, t){
+  const localP = prog(t, shot.start, shot.end);
+  const f = faceAt(t);
+  drawBackdrop(t, shot.mood);
+
+  switch (shot.scene) {
+    /* 1. Gancho: mapa neon da Marginal com rota desenhando */
+    case 'gancho_mapa': {
+      drawPhone(540, 840, 740, 1100, (sx, sy, sw, sh) => {
+        drawMapGrid(sx, sy, sw, sh, t, { progress: easeOut(localP), carK: 0.12 + localP * 0.25 });
+        /* Card superior dentro do GPS */
+        g.fillStyle = rgba('#0b1224', 0.92);
+        rr(sx + 32, sy + 64, sw - 64, 152, 26); g.fill();
+        g.strokeStyle = rgba(PAL.cyan, 0.55); g.lineWidth = 3;
+        rr(sx + 32, sy + 64, sw - 64, 152, 26); g.stroke();
+        g.fillStyle = PAL.cyan; g.font = `700 28px ${MONO}`; g.textAlign = 'left';
+        g.fillText('GPS ATIVO - MARGINAL', sx + 64, sy + 118);
+        g.fillStyle = PAL.text; g.font = `800 40px ${SANS}`;
+        g.fillText('Calculando previsão...', sx + 64, sy + 174);
+      });
+      break;
+    }
+
+    /* 2. Gancho punch-in: pino vermelho pulsante "02:07" */
+    case 'gancho_pino': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'red');
+        drawMapGrid(-100, 100, W + 200, H - 200, t, { redMode: true, routeCol: PAL.alert, progress: 1, carK: 0.72 });
+      });
+      const sc = popScale(t - shot.start, 0.14);
+      g.save();
+      g.translate(540, 840);
+      g.scale(sc, sc);
+      /* Aneis radar vermelhos */
+      for (let i = 0; i < 3; i++) {
+        const wv = ((t * 1.5 + i * 0.33) % 1);
+        g.strokeStyle = rgba(PAL.alert, (1 - wv) * 0.8);
+        g.lineWidth = 8;
+        g.beginPath(); g.arc(0, 0, 120 + wv * 260, 0, Math.PI * 2); g.stroke();
+      }
+      glow(0, 0, 320, PAL.alert, 0.45);
+      /* Pino gigante de alerta */
+      g.fillStyle = PAL.alert;
+      g.beginPath();
+      g.arc(0, -45, 138, Math.PI * 0.85, Math.PI * 0.15, false);
+      g.lineTo(0, 175);
+      g.closePath();
+      g.fill();
+      drawAlertTriangle(0, -48, 66, PAL.yellow);
+      /* Etiqueta abaixo do pino */
+      g.fillStyle = PAL.card; rr(-255, 200, 510, 114, 24); g.fill();
+      g.strokeStyle = PAL.alert; g.lineWidth = 5; rr(-255, 200, 510, 114, 24); g.stroke();
+      g.fillStyle = PAL.text; g.font = `900 46px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('HORA EXATA: 02:07', 0, 258);
+      g.restore();
+      break;
+    }
+
+    /* 3. Marginal deserta a noite (carro em paralaxe) */
+    case 'marginal_carro': {
+      drawMarginalExterior(t, false);
+      break;
+    }
+
+    /* 4. Cabine interna com Rafael dirigindo */
+    case 'cabine_rafael': {
+      drawCabine(t, { mood: 'violet', ex: 'neutral', lookX: 0.18, speedText: '64 KM/H' });
+      break;
+    }
+
+    /* 5. Celular apita sozinho: banner amarelo "NOVA ROTA" com fundo blur(8px) */
+    case 'gps_apita': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'yellow');
+        drawCabine(t, { mood: 'violet', ex: 'neutral' });
+      });
+      /* Ondas sonoras saindo do celular */
+      for (let i = 0; i < 3; i++) {
+        const wv = ((t * 2.2 + i * 0.33) % 1);
+        g.strokeStyle = rgba(PAL.yellow, (1 - wv) * 0.72);
+        g.lineWidth = 8;
+        rr(540 - 360 - wv * 85, 835 - 510 - wv * 85, 720 + wv * 170, 1020 + wv * 170, 74); g.stroke();
+      }
+      drawPhone(540, 835, 720, 1020, (sx, sy, sw, sh) => {
+        drawMapGrid(sx, sy, sw, sh, t, { routeCol: PAL.yellow, progress: easeOut(localP), carK: 0.35 });
+        const pop = popScale(t - shot.start, 0.14);
+        g.save();
+        g.translate(sx + sw / 2, sy + 230);
+        g.scale(pop, pop);
+        g.fillStyle = PAL.yellow; rr(-300, -110, 600, 220, 28); g.fill();
+        g.fillStyle = PAL.ink; g.font = `900 32px ${MONO}`; g.textAlign = 'center';
+        g.fillText('NOVA ROTA AUTOMÁTICA', 0, -42);
+        g.font = `900 66px ${COND}`;
+        g.fillText('CHEGADA: 02:07', 0, 42);
+        g.restore();
+      });
+      break;
+    }
+
+    /* 6. Punch-in na tela de chegada 02:07 */
+    case 'gps_chegada': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'yellow');
+        drawMapGrid(-80, 0, W + 160, H, t, { routeCol: PAL.yellow, progress: 1, carK: 0.45 });
+      });
+      drawPhone(540, 835, 750, 1040, (sx, sy, sw, sh) => {
+        drawMapGrid(sx, sy, sw, sh, t, { routeCol: PAL.yellow, progress: 1, carK: 0.38 + localP * 0.15 });
+        g.fillStyle = rgba('#0b101e', 0.94); rr(sx + 32, sy + sh - 295, sw - 64, 235, 30); g.fill();
+        g.strokeStyle = PAL.yellow; g.lineWidth = 5; rr(sx + 32, sy + sh - 295, sw - 64, 235, 30); g.stroke();
+        g.fillStyle = PAL.yellow; g.font = `900 64px ${MONO}`; g.textAlign = 'left';
+        g.fillText('7 MIN', sx + 74, sy + sh - 202);
+        g.fillStyle = PAL.text; g.font = `700 36px ${SANS}`;
+        g.fillText('Chegada prevista: 02:07', sx + 74, sy + sh - 122);
+        g.fillStyle = PAL.dim; g.font = `600 28px ${MONO}`;
+        g.fillText('DESTINO: NÃO INFORMADO', sx + 74, sy + sh - 78);
+      });
+      break;
+    }
+
+    /* 7. Rafael estranha (close no rosto, troca de expressao na piscada -> worry) */
+    case 'rafael_estranha': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'violet');
+        drawMarginalExterior(t, false);
+      });
+      drawRafaelDriver(470, 1160, 1.85, {
+        t, ex: f.ex, closed: f.closed,
+        rimA: 0.88, rimColor: PAL.yellow, rimAng: 0.05, lookX: 0.55
+      });
+      glow(920, 960, 380, PAL.yellow, 0.25);
+      break;
+    }
+
+    /* 8. Campo de destino vazio piscando no app */
+    case 'destino_vazio': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'navy');
+        drawCabine(t, { mood: 'navy', ex: 'worry' });
+      });
+      drawPhone(540, 835, 740, 1020, (sx, sy, sw, sh) => {
+        drawMapGrid(sx, sy, sw, sh, t, { routeCol: PAL.cyan, progress: 1, carK: 0.48 });
+        /* Barra de busca vazia em destaque */
+        g.fillStyle = '#0f172a'; rr(sx + 34, sy + 96, sw - 68, 220, 30); g.fill();
+        g.strokeStyle = PAL.cyan; g.lineWidth = 5; rr(sx + 34, sy + 96, sw - 68, 220, 30); g.stroke();
+        g.fillStyle = PAL.dim; g.font = `700 28px ${MONO}`; g.textAlign = 'left';
+        g.fillText('CAMPO DE DESTINO', sx + 68, sy + 150);
+        g.fillStyle = '#1e293b'; rr(sx + 64, sy + 178, sw - 128, 98, 18); g.fill();
+        const blinkCursor = Math.floor(t * 4) % 2 === 0;
+        g.fillStyle = PAL.yellow; g.font = `800 44px ${MONO}`;
+        g.fillText(blinkCursor ? '(VAZIO) |' : '(VAZIO)', sx + 92, sy + 240);
+        /* Aviso de rota ativa mesmo vazia */
+        g.fillStyle = rgba(PAL.alert, 0.92); rr(sx + 80, sy + 350, sw - 160, 80, 20); g.fill();
+        g.fillStyle = PAL.text; g.font = `800 32px ${SANS}`; g.textAlign = 'center';
+        g.fillText('NAVEGAÇÃO TRAVADA', sx + sw / 2, sy + 402);
+      });
+      break;
+    }
+
+    /* 9. POV pelo parabrisa virando em rua de breu total sem poste */
+    case 'parabrisa_breu': {
+      vgrad('#050812', '#0b091a', -200, 900);
+      g.fillStyle = '#080c17';
+      g.fillRect(-100, 860, W + 200, 1200);
+      const turn = ease(localP) * 180;
+      g.fillStyle = '#12192b';
+      g.beginPath();
+      g.moveTo(120, 1800); g.lineTo(440 + turn, 880); g.lineTo(660 + turn, 880); g.lineTo(960, 1800);
+      g.closePath();
+      g.fill();
+
+      for (const fx of [260, 820]) {
+        const gr = g.createRadialGradient(fx, 1540, 20, 540 + turn * 0.7, 940, 740);
+        gr.addColorStop(0, rgba('#e0f2fe', 0.34));
+        gr.addColorStop(1, rgba('#38d9ff', 0));
+        g.fillStyle = gr;
+        g.beginPath();
+        g.moveTo(fx - 90, 1740); g.lineTo(fx + 90, 1740);
+        g.lineTo(540 + turn + 260, 880); g.lineTo(540 + turn - 260, 880);
+        g.closePath();
+        g.fill();
+      }
+
+      const posteX = lerp(740, 1080, localP);
+      const posteS = lerp(0.55, 1.35, localP);
+      g.fillStyle = '#141a2b';
+      g.fillRect(posteX, 920 - 380 * posteS, 14 * posteS, 420 * posteS);
+      g.fillRect(posteX - 65 * posteS, 920 - 380 * posteS, 70 * posteS, 10 * posteS);
+      const plX = lerp(310, 40, localP);
+      g.fillStyle = '#182135';
+      g.fillRect(plX, 820, 12, 260);
+      rr(plX - 58, 780, 128, 66, 8); g.fill();
+      g.strokeStyle = '#334155'; g.lineWidth = 4; rr(plX - 58, 780, 128, 66, 8); g.stroke();
+
+      g.fillStyle = '#070a12';
+      g.fillRect(-150, -100, W + 300, 320);
+      g.beginPath(); g.arc(540, 1740, 280, Math.PI, Math.PI * 2); g.lineWidth = 34; g.strokeStyle = '#161e30'; g.stroke();
+      break;
+    }
+
+    /* 10. Seta gigante "VIRE A DIREITA" insistindo no GPS sobre estrada desfocada */
+    case 'seta_direita': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'violet');
+        vgrad('#060812', '#130926');
+        g.fillStyle = '#101628';
+        g.beginPath(); g.moveTo(140, 1900); g.lineTo(520, 860); g.lineTo(660, 860); g.lineTo(980, 1900); g.closePath(); g.fill();
+      });
+      const pulse = 0.5 + 0.5 * Math.sin(t * 9);
+      drawPhone(540, 835, 740, 1020, (sx, sy, sw, sh) => {
+        g.fillStyle = '#0c1024'; g.fillRect(sx, sy, sw, sh);
+        glow(sx + sw / 2, sy + 400, 340, PAL.cyan, 0.25 + 0.15 * pulse);
+        g.strokeStyle = PAL.cyan; g.lineWidth = 44; g.lineCap = 'round'; g.lineJoin = 'round';
+        g.beginPath();
+        g.moveTo(sx + sw * 0.36, sy + 600);
+        g.lineTo(sx + sw * 0.36, sy + 335);
+        g.lineTo(sx + sw * 0.68, sy + 335);
+        g.stroke();
+        g.fillStyle = PAL.cyan;
+        g.beginPath();
+        g.moveTo(sx + sw * 0.78, sy + 335);
+        g.lineTo(sx + sw * 0.58, sy + 235);
+        g.lineTo(sx + sw * 0.58, sy + 435);
+        g.closePath();
+        g.fill();
+        g.fillStyle = PAL.text; g.font = `900 56px ${COND}`; g.textAlign = 'center';
+        g.fillText('VIRE À DIREITA AGORA', sx + sw / 2, sy + 735);
+        g.fillStyle = PAL.dim; g.font = `700 30px ${MONO}`;
+        g.fillText('RUA SEM IDENTIFICAÇÃO', sx + sw / 2, sy + 810);
+      });
+      break;
+    }
+
+    /* 11 & 12. Retrovisor interno com farois sumindo um por um */
+    case 'retrovisor_3':
+    case 'retrovisor_0': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'violet');
+        g.fillStyle = '#090c18'; g.fillRect(-100, 260, W + 200, 900);
+      });
+      const isLast = shot.scene === 'retrovisor_0';
+      const mw = 860, mh = 340, mx = 540 - mw / 2, my = 690;
+
+      g.fillStyle = '#151c2e'; rr(518, 410, 44, 290, 12); g.fill();
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 40;
+      g.fillStyle = '#0c101b'; rr(mx - 20, my - 20, mw + 40, mh + 40, 56); g.fill();
+      g.restore();
+      g.strokeStyle = '#334155'; g.lineWidth = 6; rr(mx - 20, my - 20, mw + 40, mh + 40, 56); g.stroke();
+
+      g.save();
+      rr(mx, my, mw, mh, 40); g.clip();
+      vgrad('#09071a', '#03050c', my, my + mh);
+      g.fillStyle = '#11162a';
+      g.beginPath(); g.moveTo(mx + 140, my + mh); g.lineTo(mx + 370, my + 115); g.lineTo(mx + 490, my + 115); g.lineTo(mx + 720, my + mh); g.closePath(); g.fill();
+
+      const pairs = [
+        { x: mx + 250, y: my + 185, s: 1.0, off: isLast ? -1 : 0.42 },
+        { x: mx + 430, y: my + 150, s: 0.78, off: isLast ? -1 : 0.85 },
+        { x: mx + 575, y: my + 135, s: 0.62, off: isLast ? 0.45 : 2.0 }
+      ];
+      for (const p of pairs) {
+        const alive = localP < p.off;
+        if (!alive) continue;
+        const flick = localP > p.off - 0.18 ? (Math.floor(t * 28) % 2 ? 0.25 : 1) : 1;
+        for (const dx of [-28 * p.s, 28 * p.s]) {
+          glow(p.x + dx, p.y, 92 * p.s, '#fef08a', 0.55 * flick);
+          g.fillStyle = rgba('#fefce8', 0.95 * flick);
+          circ(p.x + dx, p.y, 13 * p.s);
+        }
+      }
+
+      if (isLast && localP > 0.35) {
+        g.save();
+        g.globalAlpha = clamp((localP - 0.35) / 0.35) * 0.55;
+        drawEyes(500, my + 185, 110, 'fear', f.closed, 0);
+        g.restore();
+      }
+      g.fillStyle = 'rgba(255,255,255,.06)';
+      g.beginPath(); g.moveTo(mx + 60, my); g.lineTo(mx + 180, my); g.lineTo(mx + 60, my + mh); g.lineTo(mx - 20, my + mh); g.closePath(); g.fill();
+      g.restore();
+
+      const rest = isLast ? (localP < 0.45 ? 1 : 0) : (localP < 0.42 ? 3 : localP < 0.85 ? 2 : 1);
+      g.fillStyle = rgba(PAL.card, 0.92); rr(245, 1110, 590, 82, 22); g.fill();
+      g.strokeStyle = rest === 0 ? PAL.alert : PAL.violet; g.lineWidth = 4; rr(245, 1110, 590, 82, 22); g.stroke();
+      g.fillStyle = rest === 0 ? PAL.alert : PAL.text;
+      g.font = `800 32px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(rest === 0 ? 'NENHUM FAROL ATRÁS' : `FARÓIS NO RETROVISOR: ${rest}`, 540, 1152);
+      break;
+    }
+
+    /* 13. Destino final: LOCAL DO ACIDENTE (cartao vermelho DOF + pulso #3B0A0A) */
+    case 'alerta_destino': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'red');
+        drawCabine(t, { mood: 'red', ex: 'fear', rimColor: PAL.alert });
+      });
+      drawPhone(540, 835, 740, 1020, (sx, sy, sw, sh) => {
+        drawMapGrid(sx, sy, sw, sh, t, { redMode: true, routeCol: PAL.alert, progress: 1, carK: 0.78 });
+        const pop = popScale(t - shot.start, 0.13);
+        g.save();
+        g.translate(sx + sw / 2, sy + 430);
+        g.scale(pop, pop);
+        g.fillStyle = PAL.alert; rr(-305, -205, 610, 410, 34); g.fill();
+        g.strokeStyle = PAL.yellow; g.lineWidth = 6; rr(-305, -205, 610, 410, 34); g.stroke();
+        drawAlertTriangle(0, -104, 56, PAL.yellow);
+        g.fillStyle = PAL.text; g.font = `800 32px ${MONO}`; g.textAlign = 'center';
+        g.fillText('DESTINO FINAL', 0, -4);
+        g.font = `900 72px ${COND}`;
+        g.fillText('LOCAL DO', 0, 74);
+        g.fillText('ACIDENTE', 0, 148);
+        g.restore();
+      });
+      break;
+    }
+
+    /* 14. Distancia regressiva + medo no rosto de Rafael */
+    case 'distancia_80m': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'red');
+        drawMapGrid(-80, 0, W + 160, H, t, { redMode: true, routeCol: PAL.alert, progress: 1, carK: 0.88 });
+      });
+      const metros = Math.max(10, Math.round(lerp(80, 15, easeOut(localP))));
+      g.fillStyle = PAL.alert; rr(140, 355, 800, 210, 32); g.fill();
+      g.strokeStyle = PAL.yellow; g.lineWidth = 6; rr(140, 355, 800, 210, 32); g.stroke();
+      g.fillStyle = PAL.yellow; g.font = `900 96px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(`${metros} METROS`, 540, 440);
+      g.fillStyle = PAL.text; g.font = `800 34px ${SANS}`;
+      g.fillText('CHEGADA AO LOCAL DO ACIDENTE', 540, 520);
+
+      drawRafaelDriver(460, 1280, 1.55, {
+        t, ex: 'fear', closed: f.closed,
+        rimA: 0.95, rimColor: PAL.alert, rimAng: 0.08, lookX: 0.4, fastBreath: true
+      });
+      break;
+    }
+
+    /* 15. Pe pisando no freio + velocimetro despencando */
+    case 'pedal_freio': {
+      const slam = easeOut(clamp((localP - 0.15) / 0.55));
+      g.fillStyle = '#0d111e'; rr(120, 380, 840, 320, 38); g.fill();
+      g.strokeStyle = PAL.alert; g.lineWidth = 6; rr(120, 380, 840, 320, 38); g.stroke();
+      const kmh = Math.round(lerp(72, 4, slam));
+      g.fillStyle = PAL.alert; g.font = `900 132px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(`${kmh} KM/H`, 540, 515);
+      g.fillStyle = PAL.yellow; g.font = `900 38px ${COND}`;
+      g.fillText('FREIO DE EMERGÊNCIA ACIONADO', 540, 628);
+
+      g.save();
+      g.translate(540, 1080);
+      g.fillStyle = '#0a0e1a'; rr(-340, -180, 680, 460, 36); g.fill();
+      const press = slam * 68;
+      g.strokeStyle = '#64748b'; g.lineWidth = 26; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(0, -190); g.lineTo(0, -15 + press); g.stroke();
+      g.fillStyle = '#252f44'; rr(-110, -35 + press, 220, 128, 20); g.fill();
+      g.strokeStyle = PAL.alert; g.lineWidth = 6; rr(-110, -35 + press, 220, 128, 20); g.stroke();
+      g.fillStyle = '#475569';
+      for (let i = -3; i <= 3; i++) { g.fillRect(i * 26 - 6, -15 + press, 12, 88); }
+
+      const footY = lerp(-240, -10 + press, slam);
+      g.fillStyle = PAL.pants; rr(-78, footY + 75, 165, 220, 32); g.fill();
+      g.fillStyle = '#0f1626'; rr(-102, footY - 12, 204, 130, 42); g.fill();
+      g.fillStyle = PAL.jacket; rr(-86, footY + 6, 172, 24, 10); g.fill();
+
+      if (slam > 0.55) {
+        g.strokeStyle = PAL.yellow; g.lineWidth = 8; g.lineCap = 'round';
+        for (let i = 0; i < 6; i++) {
+          const ang = -Math.PI * 0.9 + (i / 5) * Math.PI * 0.8;
+          const r0 = 120, r1 = 165 + Math.sin(t * 40 + i) * 28;
+          g.beginPath();
+          g.moveTo(Math.cos(ang) * r0, press + Math.sin(ang) * r0);
+          g.lineTo(Math.cos(ang) * r1, press + Math.sin(ang) * r1);
+          g.stroke();
+        }
+      }
+      g.restore();
+      break;
+    }
+
+    /* 16. MODULO bigFace NO CHOQUE EXTREMO (blur 8px + pupilas contraidas + suor frio) */
+    case 'big_face': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'red');
+        drawCabine(t, { mood: 'red', ex: 'shock', rimColor: PAL.alert });
+      });
+      const jitX = noise(t * 48, 1) * 9;
+      const jitY = noise(t * 48, 2) * 9;
+      g.save();
+      g.translate(540 + jitX, 930 + jitY);
+      /* Ombros em capsula descendo naturalmente ate fora do quadro */
+      g.fillStyle = PAL.jacket;
+      rr(-320, 270, 640, 880, 180); g.fill();
+      g.fillStyle = PAL.jacketDeep;
+      rr(-42, 270, 84, 880, 20); g.fill();
+      g.fillStyle = PAL.skinShadow;
+      rr(-65, 195, 130, 120, 40); g.fill();
+
+      drawHeadFlat(0, -15, 295, 'shock', f.closed, {
+        tilt: -0.04 + noise(t * 20, 3) * 0.015,
+        rimA: 0.98,
+        rimColor: PAL.alert,
+        rimAng: 0.10,
+        lookX: 0.15
+      });
+      glow(320, -20, 460, PAL.alert, 0.34);
+      g.restore();
+      break;
+    }
+
+    /* 17. BLOCO SFX PURO: Caminhao gigante sem farol rasga o cruzamento */
+    case 'caminhao_passa': {
+      vgrad('#060711', '#1a060c');
+      /* Facho do farol do carro de Rafael iluminando o asfalto e o cruzamento */
+      const fGr = g.createLinearGradient(540, 1700, 540, 580);
+      fGr.addColorStop(0, rgba('#e0f2fe', 0.48));
+      fGr.addColorStop(1, rgba('#38d9ff', 0));
+      g.fillStyle = fGr;
+      g.beginPath(); g.moveTo(150, 1820); g.lineTo(930, 1820); g.lineTo(1080, 620); g.lineTo(0, 620); g.closePath(); g.fill();
+
+      /* Caminhao gigante cruzando da esquerda para a direita em altissima velocidade */
+      const tx = lerp(-1250, 1180, ease(localP));
+      g.save();
+      g.translate(tx, 640);
+      /* Rastro de velocidade APENAS atras do bau (gradiente suave) */
+      const trail = g.createLinearGradient(-1150, 0, -600, 0);
+      trail.addColorStop(0, rgba(PAL.alert, 0));
+      trail.addColorStop(1, rgba(PAL.alert, 0.24));
+      g.fillStyle = trail;
+      g.fillRect(-1150, 40, 560, 520);
+
+      /* Bau gigantesco do caminhao */
+      g.fillStyle = '#1b202e'; rr(-620, 0, 1180, 580, 22); g.fill();
+      g.strokeStyle = '#36415c'; g.lineWidth = 8;
+      rr(-620, 0, 1180, 580, 22); g.stroke();
+      for (let i = -540; i <= 460; i += 140) {
+        g.beginPath(); g.moveTo(i, 20); g.lineTo(i, 560); g.stroke();
+      }
+      /* Faixas refletivas vermelho/branco na lateral */
+      for (let i = -580; i <= 500; i += 90) {
+        g.fillStyle = (Math.floor(i / 90) % 2 === 0) ? PAL.alert : '#f1f5f9';
+        g.fillRect(i, 515, 58, 22);
+      }
+      /* Cabine do caminhao (farois APAGADOS, contorno iluminado pelo farol de Rafael) */
+      g.fillStyle = '#131724'; rr(565, 110, 320, 470, 28); g.fill();
+      g.strokeStyle = '#475569'; g.lineWidth = 6; rr(565, 110, 320, 470, 28); g.stroke();
+      g.fillStyle = '#060911'; rr(715, 155, 140, 165, 16); g.fill();
+      /* Grade frontal escura + para-choque metalico + farol apagado */
+      g.fillStyle = '#252e42'; rr(825, 360, 52, 85, 8); g.fill();
+      g.fillStyle = '#0b0e17'; rr(845, 455, 36, 44, 8); g.fill();
+      g.strokeStyle = '#64748b'; g.lineWidth = 4; rr(845, 455, 36, 44, 8); g.stroke();
+      g.fillStyle = '#334155'; rr(805, 520, 92, 34, 8); g.fill();
+
+      /* Rodas gigantes */
+      for (const wx of [-440, -280, 340, 725]) {
+        g.fillStyle = '#05060a'; circ(wx, 595, 86);
+        g.fillStyle = '#475569'; circ(wx, 595, 42);
+        g.fillStyle = '#0f172a'; circ(wx, 595, 16);
+      }
+      g.restore();
+
+      /* Linhas de vento/velocidade cruzando a tela */
+      g.strokeStyle = rgba(PAL.text, 0.34); g.lineWidth = 6; g.lineCap = 'round';
+      for (let i = 0; i < 12; i++) {
+        const ly = 560 + i * 74;
+        const lx = ((t * 2800 + i * 270) % (W + 600)) - 300;
+        g.beginPath(); g.moveTo(lx, ly); g.lineTo(lx + 240, ly); g.stroke();
+      }
+      /* Flash dramatico no pico da passagem */
+      const fl = bell(localP, 0.34, 0.62);
+      if (fl > 0) {
+        g.fillStyle = rgba(PAL.alert, fl * 0.22);
+        g.fillRect(-100, -100, W + 200, H + 200);
+      }
+      /* Topo do painel/parabrisa de Rafael */
+      g.fillStyle = '#070a12';
+      g.fillRect(-150, 1340, W + 300, 680);
+      g.fillRect(-150, -120, W + 300, 320);
+      break;
+    }
+
+    /* 18. Carro parado fumegando no asfalto */
+    case 'carro_parado': {
+      drawMarginalExterior(t, true);
+      break;
+    }
+
+    /* 19. Mapa top-down: icone do carro parado 1 milimetro antes do X vermelho */
+    case 'mapa_milimetro': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'red');
+        drawMarginalExterior(t, true);
+      });
+      drawPhone(540, 835, 740, 1020, (sx, sy, sw, sh) => {
+        g.fillStyle = '#0b1020'; g.fillRect(sx, sy, sw, sh);
+        g.fillStyle = '#141d33';
+        g.fillRect(sx + sw * 0.38, sy, sw * 0.24, sh);
+        g.fillRect(sx, sy + sh * 0.36, sw, sh * 0.22);
+        const xc = sx + sw * 0.50, yc = sy + sh * 0.45;
+        glow(xc, yc, 180, PAL.alert, 0.48);
+        g.strokeStyle = PAL.alert; g.lineWidth = 22; g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(xc - 56, yc - 56); g.lineTo(xc + 56, yc + 56);
+        g.moveTo(xc + 56, yc - 56); g.lineTo(xc - 56, yc + 56);
+        g.stroke();
+
+        const cy = yc + 145;
+        g.fillStyle = PAL.cyan;
+        rr(xc - 36, cy - 58, 72, 116, 22); g.fill();
+        g.fillStyle = PAL.cyanCore;
+        rr(xc - 24, cy - 42, 48, 30, 10); g.fill();
+        g.fillStyle = PAL.card; rr(sx + 56, sy + sh - 225, sw - 112, 155, 26); g.fill();
+        g.strokeStyle = PAL.cyan; g.lineWidth = 4; rr(sx + 56, sy + sh - 225, sw - 112, 155, 26); g.stroke();
+        g.fillStyle = PAL.cyan; g.font = `900 44px ${MONO}`; g.textAlign = 'center';
+        g.fillText('PARADO A 1,2 M', sx + sw / 2, sy + sh - 160);
+        g.fillStyle = PAL.text; g.font = `700 32px ${SANS}`;
+        g.fillText('DO PONTO DE IMPACTO', sx + sw / 2, sy + sh - 104);
+      });
+      break;
+    }
+
+    /* 20. GPS sussurra: onda sonora ciano-vermelha no breu */
+    case 'gps_sussurra': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'dark');
+        drawCabine(t, { mood: 'dark', ex: 'fear', stopped: true });
+      });
+      g.fillStyle = rgba(PAL.card, 0.94); rr(110, 580, 860, 550, 44); g.fill();
+      g.strokeStyle = rgba(PAL.alert, 0.72); g.lineWidth = 5; rr(110, 580, 860, 550, 44); g.stroke();
+      g.fillStyle = PAL.dim; g.font = `700 30px ${MONO}`; g.textAlign = 'center';
+      g.fillText('ASSISTENTE DE VOZ GPS', 540, 670);
+      const bars = 25;
+      for (let i = 0; i < bars; i++) {
+        const bx = 210 + i * 27.5;
+        const dist = 1 - Math.abs(i - 12) / 13;
+        const amp = (24 + 140 * dist * (0.45 + 0.55 * Math.abs(Math.sin(t * 11 + i * 0.7))));
+        g.fillStyle = i % 2 === 0 ? PAL.alert : PAL.cyan;
+        rr(bx - 7, 865 - amp / 2, 14, amp, 7); g.fill();
+      }
+      g.fillStyle = PAL.text; g.font = `800 40px ${SANS}`;
+      g.fillText('Falando...', 540, 1060);
+      break;
+    }
+
+    /* 21. PLOT TWIST 1: ROTA RECALCULADA (tela vermelha com impacto) */
+    case 'twist_recalculada': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'red');
+        drawCabine(t, { mood: 'red', ex: 'shock', rimColor: PAL.alert, stopped: true });
+      });
+      drawPhone(540, 835, 740, 1020, (sx, sy, sw, sh) => {
+        drawMapGrid(sx, sy, sw, sh, t, { redMode: true, routeCol: PAL.alert, progress: easeOut(localP), carK: 0.08 });
+        const pop = popScale(t - shot.start, 0.14);
+        g.save();
+        g.translate(sx + sw / 2, sy + 440);
+        g.scale(pop, pop);
+        g.fillStyle = PAL.alert; rr(-305, -165, 610, 330, 34); g.fill();
+        g.strokeStyle = PAL.yellow; g.lineWidth = 6; rr(-305, -165, 610, 330, 34); g.stroke();
+        g.fillStyle = PAL.yellow; g.font = `900 34px ${MONO}`; g.textAlign = 'center';
+        g.fillText('NOVA PREVISÃO', 0, -82);
+        g.fillStyle = PAL.text; g.font = `900 74px ${COND}`;
+        g.fillText('ROTA', 0, 8);
+        g.fillText('RECALCULADA', 0, 92);
+        g.restore();
+      });
+      break;
+    }
+
+    /* 22. PLOT TWIST 2: PROXIMO ACIDENTE: AMANHA - 02:07 */
+    case 'twist_amanha': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'red');
+        drawMapGrid(-80, 0, W + 160, H, t, { redMode: true, routeCol: PAL.alert, progress: 1, carK: 0.94 });
+      });
+      const pop = popScale(t - shot.start, 0.14);
+      g.save();
+      g.translate(540, 860);
+      g.scale(pop, pop);
+      g.fillStyle = '#16070b'; rr(-425, -265, 850, 530, 42); g.fill();
+      g.strokeStyle = PAL.alert; g.lineWidth = 8; rr(-425, -265, 850, 530, 42); g.stroke();
+      drawAlertTriangle(0, -160, 58, PAL.yellow);
+      g.fillStyle = PAL.alert; g.font = `900 44px ${MONO}`; g.textAlign = 'center';
+      g.fillText('PRÓXIMO ACIDENTE', 0, -45);
+      g.fillStyle = PAL.text; g.font = `900 96px ${COND}`;
+      g.fillText('AMANHÃ', 0, 62);
+      g.fillStyle = PAL.yellow; g.font = `900 92px ${MONO}`;
+      g.fillText('02:07', 0, 172);
+      g.restore();
+      break;
+    }
+
+    /* 23. PLOT TWIST 3: Rafael paralisado em choque sob luz vermelha do painel */
+    case 'twist_reflexo': {
+      drawCabine(t, { mood: 'red', ex: 'shock', rimColor: PAL.alert, rimA: 1.0, lookX: 0.45, fastBreath: true, stopped: true, speedText: '0 KM/H' });
+      glow(820, 980, 480, PAL.alert, 0.36);
+      break;
+    }
+
+    /* 24. CTA Parte 1: Motor automatico V3 (preview de codigo + ondas + timeline) */
+    case 'cta_engine': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'violet');
+        drawMapGrid(-80, 0, W + 160, H, t, { routeCol: PAL.cyan, progress: 1, carK: 0.55 });
+      });
+      const pop = popScale(t - shot.start, 0.14);
+      g.save();
+      g.translate(540, 820);
+      g.scale(pop, pop);
+      g.fillStyle = rgba('#0d1326', 0.95); rr(-430, -340, 860, 680, 44); g.fill();
+      g.strokeStyle = PAL.cyan; g.lineWidth = 5; rr(-430, -340, 860, 680, 44); g.stroke();
+
+      g.fillStyle = '#18223d'; rr(-430, -340, 860, 84, 44); g.fill();
+      g.fillRect(-430, -296, 860, 40);
+      for (let i = 0; i < 3; i++) {
+        g.fillStyle = [PAL.alert, PAL.yellow, PAL.cyan][i];
+        circ(-370 + i * 38, -298, 12);
+      }
+      g.fillStyle = PAL.text; g.font = `700 28px ${MONO}`; g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.fillText('SHORT AUTOMÁTICO // V3', -255, -298);
+
+      const tracks = [
+        { lbl: 'CANVAS 9:16', col: PAL.cyan, y: -150 },
+        { lbl: 'VOZ IA + SYNC', col: PAL.yellow, y: -30 },
+        { lbl: 'SFX + -14 LUFS', col: PAL.alert, y: 90 }
+      ];
+      for (let i = 0; i < tracks.length; i++) {
+        const tr = tracks[i];
+        g.fillStyle = PAL.dim; g.font = `700 24px ${MONO}`; g.textAlign = 'left';
+        g.fillText(tr.lbl, -365, tr.y - 28);
+        g.fillStyle = '#162038'; rr(-365, tr.y, 730, 52, 14); g.fill();
+        const fillW = 140 + 580 * easeOut(clamp(localP * 1.2 - i * 0.12));
+        g.fillStyle = rgba(tr.col, 0.85); rr(-365, tr.y, fillW, 52, 14); g.fill();
+      }
+
+      const playX = lerp(-340, 340, localP);
+      g.strokeStyle = PAL.text; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(playX, -210); g.lineTo(playX, 175); g.stroke();
+
+      g.fillStyle = PAL.text; g.font = `900 54px ${COND}`; g.textAlign = 'center';
+      g.fillText('VÍDEOS ASSIM NO AUTOMÁTICO', 0, 260);
+      g.restore();
+      break;
+    }
+
+    /* 25 & 26. CTA Parte 2: Pilula amarela pop-in "COMENTE EU QUERO" (zero colisao com legendas) */
+    case 'cta_comente':
+    case 'cta_comente_pulse': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'yellow');
+      });
+      const isPulse = shot.scene === 'cta_comente_pulse';
+      const pop = isPulse ? (1 + 0.035 * Math.sin(t * 10)) : popScale(t - shot.start, 0.14);
+      g.save();
+      g.translate(540, 815);
+      g.scale(pop, pop);
+
+      glow(0, 20, 440, PAL.yellow, 0.34);
+      g.fillStyle = rgba('#0d1224', 0.94); rr(-435, -310, 870, 620, 46); g.fill();
+      g.strokeStyle = PAL.yellow; g.lineWidth = 6; rr(-435, -310, 870, 620, 46); g.stroke();
+
+      g.fillStyle = PAL.cyan; g.font = `800 34px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('PASSO A PASSO COMPLETO', 0, -205);
+
+      g.fillStyle = PAL.text; g.font = `900 66px ${COND}`;
+      g.fillText('QUER APRENDER A FAZER', 0, -108);
+      g.fillText('NO AUTOMÁTICO?', 0, -34);
+
+      g.fillStyle = PAL.yellow; rr(-340, 48, 680, 146, 73); g.fill();
+      g.fillStyle = PAL.ink; g.font = `900 72px ${COND}`;
+      g.fillText('COMENTE EU QUERO', 0, 124);
+
+      const bob = Math.sin(t * 9) * 10;
+      g.strokeStyle = PAL.yellow; g.lineWidth = 10; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.beginPath();
+      g.moveTo(-26, 232 + bob); g.lineTo(0, 260 + bob); g.lineTo(26, 232 + bob);
+      g.stroke();
+      g.restore();
+      break;
+    }
+  }
+}
+
+/* ============================================================
+   CAMERA VIVA V3 + SCREEN SHAKE AMORTECIDO + RELOGIO UNICO
+   ============================================================ */
+function pickShot(t){
+  for (let i = 0; i < SHOTS.length; i++) {
+    const s = SHOTS[i];
+    if (t < s.end || i === SHOTS.length - 1) return s;
+  }
+  return SHOTS[0];
+}
+
+function cameraFor(shot, t){
+  const k = ease(prog(t, shot.start, shot.end));
+  const z = lerp(shot.cam0[0], shot.cam1[0], k);
+  const cx = lerp(shot.cam0[1], shot.cam1[1], k);
+  const cy = lerp(shot.cam0[2], shot.cam1[2], k);
+
+  /* Handheld deterministico continuo */
+  const handAmp = shot.scene.startsWith('cta_') ? 2.2 : 5.0;
+  let sx = noise(t * 2.1, 11) * handAmp;
+  let sy = noise(t * 1.9, 29) * handAmp;
+
+  /* Screen shake amortecido nos impactos */
+  const impacts = [
+    [EV.gps_rota, 14, 7.5],
+    [EV.destino_acidente, 18, 6.5],
+    [EV.freio, 24, 5.5],
+    [EV.caminhao + 0.45, 34, 4.2],
+    [EV.plot_twist, 26, 6.0],
+    [EV.cta_acao, 10, 9.0]
+  ];
+  for (const [ti, amp, dec] of impacts) {
+    if (t >= ti && t < ti + 0.95) {
+      const dt = t - ti;
+      const env = Math.exp(-dt * dec);
+      sx += Math.sin(dt * 95) * amp * env;
+      sy += Math.cos(dt * 83) * amp * 0.72 * env;
+    }
+  }
+  return { z, cx, cy, sx, sy };
+}
+
+/* Um unico relogio por vez no topo (02:00 -> 02:06 -> 02:07), oculto na CTA */
+function drawClock(t){
+  if (t >= EV.cta - 0.08) return;
+  const stops = [
+    [0, '02:00', false],
+    [EV.hora_0206, '02:06', true],
+    [EV.plot_twist, '02:07', true]
+  ];
+  let idx = 0;
+  for (let i = 0; i < stops.length; i++) if (t >= stops[i][0]) idx = i;
+
+  const [tStart, label, isRed] = stops[idx];
+  const prevLabel = idx > 0 ? stops[idx - 1][1] : label;
+  const prevRed = idx > 0 ? stops[idx - 1][2] : isRed;
+  const dt = t - tStart;
+
+  /* Transicao limpa de 2 fases (sai antigo -> entra novo, nunca sobrepostos) */
+  let shownLabel = label, shownRed = isRed, sy = 1;
+  if (idx > 0 && dt < 0.24) {
+    if (dt < 0.12) {
+      shownLabel = prevLabel; shownRed = prevRed;
+      sy = Math.max(0.05, 1 - dt / 0.12);
+    } else {
+      sy = Math.max(0.05, (dt - 0.12) / 0.12);
+    }
+  }
+
+  g.save();
+  g.translate(540, 148);
+  g.fillStyle = rgba('#090d1a', 0.86);
+  rr(-164, -56, 328, 112, 26); g.fill();
+  g.strokeStyle = shownRed ? PAL.alert : rgba(PAL.cyan, 0.55);
+  g.lineWidth = 4;
+  rr(-164, -56, 328, 112, 26); g.stroke();
+
+  g.scale(1, sy);
+  g.fillStyle = shownRed ? PAL.alert : PAL.text;
+  g.font = `900 72px ${MONO}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(shownLabel, 0, 3);
+  g.restore();
+}
+
+/* Vinheta cinematografica + grao de filme deterministico */
+const GRAIN = (() => {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(256, 256);
+  const r = mulberry(919);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.floor(r() * 255);
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 20;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+})();
+
+function finish(t, vig){
+  const gr = g.createRadialGradient(540, 960, 260, 540, 960, 1220);
+  gr.addColorStop(0, 'rgba(0,0,0,0)');
+  gr.addColorStop(1, `rgba(0,0,0,${vig})`);
+  g.fillStyle = gr;
+  g.fillRect(0, 0, W, H);
+
+  g.save();
+  g.globalAlpha = 0.20;
+  const gx = Math.floor(hash(Math.floor(t * 24) * 3.1) * 256);
+  const gy = Math.floor(hash(Math.floor(t * 24) * 7.3) * 256);
+  for (let x = -gx; x < W; x += 256) {
+    for (let y = -gy; y < H; y += 256) g.drawImage(GRAIN, x, y);
+  }
+  g.restore();
+}
+
+/* ============================================================
+   LEGENDAS V3 POP-IN (2-3 PALAVRAS, MAIUSCULAS, AMARELO/VERMELHO)
+   ============================================================ */
+const RED_WORDS = new Set([
+  'acidente', 'sozinho', 'nenhum', 'placa', 'poste', 'somem', 'local',
+  'freio', 'tudo', 'caminhao', 'farol', 'sussurra', 'recalculada',
+  'proximo', 'amanha', 'estaria', 'cruza', 'sem'
+]);
+function normWord(w){
+  return w.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function buildPreviewCaptions(){
+  const e = EV;
+  const lines = [
+    [e.gancho, e.hora_02 - 0.18, 'E se o seu GPS soubesse a hora exata do seu acidente?'],
+    [e.hora_02, e.gps_rota - 0.18, 'Duas da manhã, Rafael fecha a última corrida na Marginal.'],
+    [e.gps_rota, e.sem_destino - 0.18, 'O celular apita sozinho: nova rota, chegada às duas e sete.'],
+    [e.sem_destino, e.rua_escura - 0.18, 'Só que ele não digitou destino nenhum.'],
+    [e.rua_escura, e.retrovisor - 0.18, 'A voz manda virar numa rua sem placa e sem poste.'],
+    [e.retrovisor, e.destino_acidente - 0.18, 'No retrovisor, os faróis atrás somem, um por um.'],
+    [e.destino_acidente, e.hora_0206 - 0.18, 'Na tela, o destino aparece: local do acidente.'],
+    [e.hora_0206, e.caminhao - 0.08, 'Duas e seis, Rafael pisa no freio com tudo.'],
+    [e.quase, e.sussurro - 0.45, 'Um caminhão sem farol cruza exatamente onde ele estaria.'],
+    [e.sussurro, e.plot_twist - 0.45, 'Então o GPS sussurra:'],
+    [e.plot_twist, e.proximo_acidente - 0.18, 'Rota recalculada.'],
+    [e.proximo_acidente, e.cta - 0.35, 'Próximo acidente: amanhã, duas e sete.'],
+    [e.cta, e.cta_acao - 0.18, 'Quer aprender a fazer vídeos assim no automático?'],
+    [e.cta_acao, e.duracao_total - 0.45, 'Comente EU QUERO.']
+  ];
+  const groups = [];
+  for (const [t0, t1, txt] of lines) {
+    const words = txt.split(' ');
+    const span = Math.max(0.25, t1 - t0);
+    const weights = words.map(w => Math.max(2, w.length) + 1.2);
+    const sum = weights.reduce((a, b) => a + b, 0);
+    let cur = t0;
+    const timed = words.map((w, i) => {
+      const d = span * (weights[i] / sum);
+      const item = { palavra: w, inicio: cur, fim: cur + d, duracao: d };
+      cur += d;
+      return item;
+    });
+    const clauses = [];
+    let cl = [];
+    timed.forEach((p, idx) => {
+      cl.push(p);
+      const rem = timed.length - idx - 1;
+      if (/[:,]$/.test(p.palavra) && cl.length >= 2 && rem >= 2) { clauses.push(cl); cl = []; }
+    });
+    if (cl.length) clauses.push(cl);
+    for (const c of clauses) {
+      let i = 0;
+      while (i < c.length) {
+        const rem = c.length - i;
+        const sz = rem <= 3 ? rem : (rem === 4 ? 2 : 3);
+        const sl = c.slice(i, i + sz);
+        groups.push({ inicio: sl[0].inicio, fim: sl[sl.length - 1].fim, palavras: sl });
+        i += sz;
+      }
+    }
+  }
+  captionGroups = groups;
+}
+
+function drawCaptions(t){
+  let grp = null;
+  for (const c of captionGroups) {
+    if (t >= c.inicio - 0.04 && t <= c.fim + 0.14) { grp = c; break; }
+  }
+  if (!grp || !grp.palavras || !grp.palavras.length) return;
+
+  const words = grp.palavras.map(p => ({
+    txt: String(p.palavra || '').toUpperCase(),
+    key: normWord(String(p.palavra || '')),
+    inicio: Number(p.inicio),
+    fim: Number(p.fim ?? (Number(p.inicio) + Number(p.duracao || 0.25)))
+  }));
+  let active = 0;
+  for (let i = 0; i < words.length; i++) if (t >= words[i].inicio - 0.02) active = i;
+
+  const grpPop = popScale(t - grp.inicio + 0.02, 0.11);
+
+  g.save();
+  let fs = 80;
+  g.font = `900 ${fs}px ${COND}`;
+  g.textBaseline = 'middle';
+  g.textAlign = 'center';
+  let sp = Math.max(30, Math.round(fs * 0.44));
+  let wds = words.map(w => g.measureText(w.txt).width);
+  let tw = wds.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+  if (tw > 910) {
+    fs = Math.floor(fs * 910 / tw);
+    g.font = `900 ${fs}px ${COND}`;
+    sp = Math.max(22, Math.round(fs * 0.44));
+    wds = words.map(w => g.measureText(w.txt).width);
+    tw = wds.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+  }
+
+  const y = 1495;
+  g.translate(540, y);
+  g.scale(grpPop, grpPop);
+  g.translate(-540, -y);
+
+  let x = 540 - tw / 2;
+  g.lineJoin = 'round';
+  g.miterLimit = 2;
+
+  words.forEach((w, i) => {
+    const cx = x + wds[i] / 2;
+    const isAct = i === active;
+    const isRed = RED_WORDS.has(w.key);
+    const fill = isAct ? (isRed ? PAL.alert : PAL.yellow) : '#FFFFFF';
+    const wPop = isAct ? lerp(1.13, 1.06, easeOut(clamp((t - w.inicio) / 0.09))) : 1.0;
+
+    g.save();
+    g.translate(cx, y);
+    g.scale(wPop, wPop);
+    g.shadowColor = 'rgba(0,0,0,.88)';
+    g.shadowBlur = 16;
+    g.shadowOffsetY = 6;
+    g.strokeStyle = '#000000';
+    g.lineWidth = Math.max(12, Math.round(fs * 0.21));
+    g.strokeText(w.txt, 0, 0);
+    g.shadowBlur = 0; g.shadowOffsetY = 0;
+    g.fillStyle = fill;
+    g.fillText(w.txt, 0, 0);
+    g.restore();
+
+    x += wds[i] + sp;
+  });
+  g.restore();
+}
+
+let ccOn = false;
+function renderAt(t){
+  t = clamp(+t || 0, 0, duration);
+  g = main;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = 'source-over';
+  g.filter = 'none';
+  g.shadowBlur = 0;
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, W, H);
+
+  /* Corte seco para preto nos ultimos 0.20s */
+  if (t >= duration - 0.20) return;
+
+  const shot = pickShot(t);
+  const cam = cameraFor(shot, t);
+
+  g.save();
+  g.translate(W / 2 + cam.sx, H / 2 + cam.sy);
+  g.scale(cam.z, cam.z);
+  g.translate(-cam.cx, -cam.cy);
+  drawScene(shot, t);
+  g.restore();
+
+  drawClock(t);
+  finish(t, shot.vig || 0.60);
+
+  /* Flash / micro-fade de corte rapido (0.06s) nas trocas de shot */
+  const cutAge = t - shot.start;
+  if (shot.id > 1 && cutAge >= 0 && cutAge < 0.06) {
+    const k = 1 - cutAge / 0.06;
+    g.fillStyle = shot.mood === 'red' ? `rgba(255,59,48,${k * 0.16})` : `rgba(0,0,0,${k * 0.35})`;
+    g.fillRect(0, 0, W, H);
+  }
+
+  if (ccOn) drawCaptions(t);
+}
+window.renderAt = renderAt;
+window.getDuration = () => duration;
+window.getShots = () => SHOTS.map(s => ({ id: s.id, scene: s.scene, mood: s.mood, start: s.start, end: s.end, dur: s.dur }));
+
+/* Controles do player */
+const $ = id => document.getElementById(id);
+const btn = $('play'), seek = $('seek'), out = $('time'), cc = $('cc'), status = $('status');
+let playing = false, cur = 0, t0 = 0, p0 = 0;
+const fmt = v => v.toFixed(1).replace('.', ',');
+
+function ui(){
+  seek.value = cur;
+  out.textContent = `${fmt(cur)} / ${fmt(duration)}`;
+  seek.setAttribute('aria-valuetext', `${fmt(cur)} de ${fmt(duration)} segundos`);
+  $('playLbl').textContent = playing ? 'Pausar' : 'Play';
+  $('playIcon').setAttribute('d', playing ? 'M3 2h4v12H3zM9 2h4v12H9z' : 'M4 2l10 6-10 6z');
+}
+function tick(){
+  if (!playing) return;
+  cur = Math.min(t0 + (performance.now() - p0) / 1000, duration);
+  if (audio && cur < audio.duration && Math.abs(audio.currentTime - cur) > 0.2) audio.currentTime = cur;
+  renderAt(cur); ui();
+  if (cur >= duration) pause(); else requestAnimationFrame(tick);
+}
+function play(){
+  if (cur >= duration) cur = 0;
+  playing = true; t0 = cur; p0 = performance.now();
+  if (audio) { audio.currentTime = cur; audio.play().catch(() => {}); }
+  ui(); requestAnimationFrame(tick);
+}
+function pause(){ playing = false; if (audio) audio.pause(); ui(); }
+btn.addEventListener('click', () => playing ? pause() : play());
+seek.addEventListener('input', () => {
+  cur = +seek.value; t0 = cur; p0 = performance.now();
+  if (audio && cur < audio.duration) audio.currentTime = cur;
+  renderAt(cur); ui();
+});
+cc.addEventListener('click', () => {
+  ccOn = !ccOn; cc.setAttribute('aria-pressed', String(ccOn)); renderAt(cur);
+});
+
+async function fetchJson(url){
+  if (location.protocol === 'file:') return null;
+  try { const r = await fetch(url, { cache: 'no-store' }); if (r.ok) return await r.json(); } catch {}
+  return null;
+}
+function probeAudio(src){
+  return new Promise(res => {
+    const el = new Audio(); let done = false;
+    const fin = v => { if (!done) { done = true; res(v); } };
+    el.preload = 'auto';
+    el.addEventListener('loadedmetadata', () => fin(el), { once: true });
+    el.addEventListener('error', () => fin(null), { once: true });
+    setTimeout(() => fin(null), 3500);
+    el.src = src;
+  });
+}
+
+async function load(){
+  const [evData, tsData] = await Promise.all([
+    fetchJson('audio/eventos.json'),
+    fetchJson('audio/timestamps.json')
+  ]);
+  let a = await probeAudio('audio/mix_final.mp3');
+  let audioSrc = 'audio/mix_final.mp3';
+  if (!a) { a = await probeAudio('audio/narracao.mp3'); audioSrc = 'audio/narracao.mp3'; }
+
+  if (a && isFinite(a.duration)) audio = a;
+  normalizeEvents(evData, audio ? audio.duration : null);
+
+  if (tsData && Array.isArray(tsData.grupos) && tsData.grupos.length) {
+    captionGroups = tsData.grupos;
+  } else {
+    buildPreviewCaptions();
+  }
+
+  if (audio && evData) {
+    status.textContent = `Audio (${audioSrc}) sincronizado com eventos.json e timestamps.json (${fmt(duration)} s).`;
+  } else if (audio) {
+    status.textContent = `Audio (${audioSrc}) carregado sem eventos.json (${fmt(duration)} s).`;
+  } else {
+    status.textContent = `Modo Previa V3: sem audio, usando marcos padrao do roteiro_02 (0 a ${fmt(duration)} s).`;
+  }
+  seek.max = duration;
+  btn.disabled = false; seek.disabled = false; btn.removeAttribute('aria-busy');
+  renderAt(cur); ui();
+}
+
+normalizeEvents(null, null);
+buildPreviewCaptions();
+renderAt(0); ui(); load();
+})();
+</script>
+</body>
+</html>

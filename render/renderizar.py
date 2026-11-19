@@ -1,12 +1,16 @@
-"""Estacao 4 (v3): renderiza player.html (1080x1920, 30 fps) para a proxima numeracao livre.
+"""Estacao 4 (v3 otimizada): renderiza player.html (1080x1920, 30 fps) para a proxima numeracao livre.
 
 Uso (na raiz do repositorio):
-    python3 render/renderizar.py           # render completo (output/short_02.mp4, short_03.mp4...)
+    python3 render/renderizar.py           # render completo (output/short_03.mp4, short_04.mp4...)
     python3 render/renderizar.py --teste   # render rapido de 2s para validacao
     python3 render/renderizar.py --legendas
+    python3 render/renderizar.py --png     # transporte PNG lossless (mais lento na CPU)
 
-Requisitos: Python 3.9+, ffmpeg/ffprobe no PATH e Chrome, Chromium ou Edge instalado.
-Nao precisa de pacotes pip nem de baixar navegador extra (usa CDP via stdlib).
+Melhorias V3 (video-director + trava blindada):
+- Valida obrigatoriamente video_id, titulo, roteiro_sha256 e CTA final 'COMENTE EU QUERO'
+  via pipeline/historico.py antes de iniciar o render quando houver audio/JSONs em audio/.
+- Transporte MJPEG q=0.96 por padrao (muito mais rapido que toDataURL PNG em CPU) com
+  codificacao final H.264 CRF 18 (-preset fast -tune animation) e grao sutil no ffmpeg.
 """
 
 from __future__ import annotations
@@ -33,13 +37,18 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-from pipeline.historico import caminho_saida_atual, obter_video_atual  # noqa: E402
+from pipeline.historico import (  # noqa: E402
+    caminho_saida_atual,
+    obter_video_atual,
+    validar_artefatos_audio,
+)
 
-AUDIO_MIX = RAIZ / "audio" / "mix_final.mp3"
-AUDIO_MP3 = RAIZ / "audio" / "narracao.mp3"
+PASTA_AUDIO = RAIZ / "audio"
+AUDIO_MIX = PASTA_AUDIO / "mix_final.mp3"
+AUDIO_MP3 = PASTA_AUDIO / "narracao.mp3"
 LARGURA = 1080
 ALTURA = 1920
-DURACAO_PREVIA = 42.0
+DURACAO_PREVIA = 43.0
 FOLGA_AUDIO = 0.3
 
 
@@ -294,7 +303,14 @@ def avaliar_js(cdp: ClienteCDP, expressao: str):
     return res.get("result", {}).get("value")
 
 
-def montar_comando_ffmpeg(saida: Path, fps: int, audio_alvo: Path | None, duracao: float) -> list[str]:
+def montar_comando_ffmpeg(
+    saida: Path,
+    fps: int,
+    audio_alvo: Path | None,
+    duracao: float,
+    usar_png: bool = False,
+) -> list[str]:
+    vcodec_pipe = "png" if usar_png else "mjpeg"
     cmd = [
         "ffmpeg",
         "-y",
@@ -303,7 +319,7 @@ def montar_comando_ffmpeg(saida: Path, fps: int, audio_alvo: Path | None, duraca
         "-f",
         "image2pipe",
         "-vcodec",
-        "png",
+        vcodec_pipe,
         "-framerate",
         str(fps),
         "-i",
@@ -326,10 +342,14 @@ def montar_comando_ffmpeg(saida: Path, fps: int, audio_alvo: Path | None, duraca
         )
     cmd.extend(
         [
+            "-vf",
+            "noise=alls=3:allf=t",
             "-c:v",
             "libx264",
             "-preset",
-            "medium",
+            "fast",
+            "-tune",
+            "animation",
             "-crf",
             "18",
             "-pix_fmt",
@@ -375,6 +395,7 @@ def main() -> None:
         help="Arquivo MP4 de saida (padrao: proximo numero livre em historico_videos.json).",
     )
     parser.add_argument("--legendas", action="store_true", help="Ativa as legendas sincronizadas do player.")
+    parser.add_argument("--png", action="store_true", help="Usa PNG lossless no pipe (mais lento na CPU).")
     parser.add_argument("--navegador", type=str, default=None, help="Caminho manual do Chrome/Chromium/Edge.")
     args = parser.parse_args()
 
@@ -384,6 +405,18 @@ def main() -> None:
         raise SystemExit("player.html nao encontrado na raiz do repositorio.")
 
     video_ativo = obter_video_atual(validar=True)
+    audio_alvo = selecionar_audio()
+    tem_artefato_json = (PASTA_AUDIO / "timestamps.json").is_file() or (PASTA_AUDIO / "eventos.json").is_file()
+
+    # Trava blindada: sempre que houver audio ou JSONs em audio/, exige integridade 100% com video_atual + CTA.
+    if audio_alvo is not None or tem_artefato_json:
+        val = validar_artefatos_audio(PASTA_AUDIO)
+        c = val["carimbo"]
+        print(
+            f"Trava de audio OK: Video {c['video_id']:02d} '{c['titulo']}' "
+            f"(sha256={c['roteiro_sha256'][:12]}, CTA confirmada)."
+        )
+
     saida_padrao = caminho_saida_atual()
     saida = args.saida if args.saida is not None else saida_padrao
     if not saida.is_absolute():
@@ -391,8 +424,6 @@ def main() -> None:
     saida.parent.mkdir(parents=True, exist_ok=True)
 
     navegador = encontrar_navegador(args.navegador)
-    audio_alvo = selecionar_audio()
-
     print(
         f"Historico validado (Sempre Video Novo): Video {int(video_ativo['id']):02d} "
         f"'{video_ativo['titulo']}' -> {saida.relative_to(RAIZ).as_posix() if saida.is_relative_to(RAIZ) else saida}"
@@ -435,7 +466,7 @@ def main() -> None:
         if status_player:
             print(f"Player: {status_player}", flush=True)
 
-        dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 42"))
+        dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 43"))
         if audio_alvo is not None:
             duracao_real = duracao_audio_ffprobe(audio_alvo) + FOLGA_AUDIO
             modo = f"com audio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {FOLGA_AUDIO}s)"
@@ -445,9 +476,10 @@ def main() -> None:
 
         duracao = min(2.0, duracao_real) if args.teste else duracao_real
         total_quadros = max(1, int(round(duracao * args.fps)))
+        pipe_fmt = "PNG" if args.png else "MJPEG q=0.96"
 
         print(f"Navegador: {navegador}")
-        print(f"Modo: {modo}{' [TESTE 2s]' if args.teste else ''}")
+        print(f"Modo: {modo}{' [TESTE 2s]' if args.teste else ''} | Pipe: {pipe_fmt}")
         print(f"Renderizando {total_quadros} quadros ({LARGURA}x{ALTURA} @ {args.fps} fps) -> {saida}")
 
         if args.legendas:
@@ -457,21 +489,33 @@ def main() -> None:
         if dims != [LARGURA, ALTURA]:
             raise RuntimeError(f"Canvas com resolucao inesperada: {dims} (esperado {[LARGURA, ALTURA]}).")
 
-        cmd_ff = montar_comando_ffmpeg(saida, args.fps, audio_alvo, duracao)
+        # Prepara helper enxuto de captura no contexto da pagina para reduzir overhead JS
+        avaliar_js(
+            cdp,
+            "window.__cv = document.getElementById('c');"
+            + (
+                "window.__snap = t => { window.renderAt(t); return window.__cv.toDataURL('image/png').slice(22); };"
+                if args.png
+                else "window.__snap = t => { window.renderAt(t); return window.__cv.toDataURL('image/jpeg', 0.96).slice(23); };"
+            ),
+        )
+
+        cmd_ff = montar_comando_ffmpeg(saida, args.fps, audio_alvo, duracao, usar_png=args.png)
         ff = subprocess.Popen(cmd_ff, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         assert ff.stdin is not None
 
         for i in range(total_quadros):
             t = i / args.fps
-            b64 = avaliar_js(
-                cdp,
-                f"window.renderAt({t:.6f}); document.getElementById('c').toDataURL('image/png').slice(22);",
-            )
+            b64 = avaliar_js(cdp, f"window.__snap({t:.6f})")
             ff.stdin.write(base64.b64decode(b64))
             if (i + 1) % args.fps == 0 or i + 1 == total_quadros:
                 decorrido = time.monotonic() - inicio
                 pct = (i + 1) * 100.0 / total_quadros
-                print(f"  {i + 1}/{total_quadros} quadros ({pct:5.1f}%) | {decorrido:.1f}s", flush=True)
+                fps_real = (i + 1) / max(0.01, decorrido)
+                print(
+                    f"  {i + 1}/{total_quadros} quadros ({pct:5.1f}%) | {decorrido:.1f}s ({fps_real:.1f} q/s)",
+                    flush=True,
+                )
 
         ff.stdin.close()
         stderr_ff = ff.stderr.read().decode("utf-8", errors="replace") if ff.stderr else ""
