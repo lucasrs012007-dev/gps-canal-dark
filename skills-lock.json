@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "skills": {
+    "github-actions-efficiency": {
+      "source": "github/awesome-copilot",
+      "commit": "1683f50e94c9fd489191f73d7c8f7e2bd871bd0c",
+      "sourceType": "github",
+      "skillPath": "skills/github-actions-efficiency/SKILL.md",
+      "computedHash": "1e29703ead16150c7a746ba4eaba1680239636f3da1a616adf4a58b06943c874",
+      "installMode": "copy"
+    },
+    "social": {
+      "source": "coreyhaines31/marketingskills",
+      "commit": "73573e94a06a39965978b3fa1f9c1eace8cebc7c",
+      "sourceType": "github",
+      "skillPath": "skills/social/SKILL.md",
+      "computedHash": "3442dfae79280b6d191282726598064a405745295cebaeed6a95a45311383731",
+      "installMode": "copy"
+    },
+    "sound-effects": {
+      "source": "elevenlabs/skills",
+      "commit": "97478d1b23b9a6795f85bf8b6e33a4677fa1f869",
+      "sourceType": "github",
+      "skillPath": "sound-effects/SKILL.md",
+      "computedHash": "5c0a1d653194633986f9887c599f3f98c595bce0fcb0e16dc5d90935ec65a6df",
+      "installMode": "copy"
+    },
+    "text-to-speech": {
+      "source": "elevenlabs/skills",
+      "commit": "97478d1b23b9a6795f85bf8b6e33a4677fa1f869",
+      "sourceType": "github",
+      "skillPath": "text-to-speech/SKILL.md",
+      "computedHash": "fec523d1f12af3c06c94783129f2d556fafc9309ee3f13578170f7ef33c5f97e",
+      "installMode": "copy"
+    },
+    "video-director": {
+      "source": "win4r/video-director",
+      "commit": "02d1912ab251bf5235b45e8e7aad81b4bc786b15",
+      "sourceType": "github",
+      "skillPath": "video-director/SKILL.md",
+      "computedHash": "97169e09c861d14742213a4d44523586470f7b70b7607424999bb02a2f25b3c5",
+      "installMode": "copy"
+    }
+  }
+}

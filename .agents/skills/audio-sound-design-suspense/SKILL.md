@@ -1,6 +1,6 @@
 ---
 name: audio-sound-design-suspense
-description: Regras obrigatorias de narracao, ritmo, sound design procedural e masterizacao para YouTube Shorts de suspense: corte de pausas mortas (0,18s padrao e 0,45s dramatica), proibicao de narrar onomatopeias de acao, ElevenLabs prioritario via .env ou Colab Secrets com fallback edge-tts grave, cama sonora + SFX sincronizados por eventos.json e masterizacao final em -14 LUFS com ducking. Use sempre que gerar ou revisar audio de um Short.
+description: "Regras obrigatorias de narracao, ritmo, sound design procedural e masterizacao para YouTube Shorts de suspense: corte de pausas mortas (0,18s padrao e 0,45s dramatica), proibicao de narrar onomatopeias de acao, ElevenLabs prioritario via .env ou Colab Secrets com fallback edge-tts grave, cama sonora + SFX sincronizados por eventos.json e masterizacao final em -14 LUFS com ducking. Use sempre que gerar ou revisar audio de um Short."
 ---
 
 # Audio e Sound Design para Shorts de Suspense

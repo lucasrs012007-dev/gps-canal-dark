@@ -1,6 +1,6 @@
 ---
 name: viralstick-animacao-2d
-description: Regras obrigatorias V3 (Dopamina Visual) para animacao 2D minimalista de suspense em HTML5 Canvas 9:16 (1080x1920): rig articulado de 10 pontos flat em capsula, Depth of Field blur(8px), fundos vibrantes pulsando na tensao, particulas continuas, cortes dinamicos a cada 1,0s a 1,8s, screen shake nos impactos, legendas pop-in em amarelo/vermelho, regra Sempre Video Novo e checklist visual de 5 etapas. Use sempre que construir ou revisar o player Canvas de um Short animado por codigo.
+description: "Regras obrigatorias V3 (Dopamina Visual) para animacao 2D minimalista de suspense em HTML5 Canvas 9:16 (1080x1920): rig articulado de 10 pontos flat em capsula, Depth of Field blur(8px), fundos vibrantes pulsando na tensao, particulas continuas, cortes dinamicos a cada 1,0s a 1,8s, screen shake nos impactos, legendas pop-in em amarelo/vermelho, regra Sempre Video Novo e checklist visual de 5 etapas. Use sempre que construir ou revisar o player Canvas de um Short animado por codigo."
 ---
 
 # ViralStick Animacao 2D em HTML5 Canvas (9:16) - Motor V3
