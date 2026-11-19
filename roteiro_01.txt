@@ -1,0 +1,45 @@
+ROTEIRO 01: "NÃO ABRA A PORTA"
+Formato: YouTube Shorts 9:16 (1080x1920) | Micro-Suspense adaptado ao Brasil
+Duração: 45 segundos | Narração: 117 palavras
+Personagem: Caio, boneco simples (cabeça redonda, moletom com capuz, olhos de ponto, sem boca)
+Regra visual de ouro: a porta NUNCA abre na tela e nunca mostramos de que lado dela o Caio está, até o último bloco.
+
+Estrutura de cada bloco:
+[Tempo em Segundos] | [Texto Exato da Narração] | [O que desenhar na tela e qual número/relógio aparece]
+
+============================================================
+
+BLOCO 1: GANCHO
+[00 - 03] | Sete da noite. Todo celular do Brasil apita ao mesmo tempo. | Mapa do Brasil em silhueta escura ocupando a tela. Centenas de pontinhos de luz (celulares) acendem juntos, de uma vez, do Oiapoque ao Chuí, com um pulso de onda saindo de cada um. Relógio digital grande no topo: 19:00.
+
+------------------------------------------------------------
+
+BLOCO 2: O ALERTA
+[03 - 10] | Alerta de emergência: até o amanhecer, não abra a porta para ninguém. Caio ri. Acha que é teste do governo. | Corte para a tela de um celular em close, notificação vermelha com ícone de triângulo: "ALERTA DE EMERGÊNCIA: Até o amanhecer, não abra a porta para ninguém." Abaixo, um anexo de foto borrado/cinza com a etiqueta "1 foto" (ninguém toca nele). Caio aparece no canto inferior, dá de ombros e guarda o celular no bolso. Relógio no topo: 19:00.
+
+------------------------------------------------------------
+
+BLOCO 3: ESCALADA 1
+[10 - 19] | Nove da noite. Caio chega em casa. Segundo alerta: ele já está no seu bairro. A mãe para de responder no grupo da família. | Relógio troca com efeito de virar: 19:00 para 21:00. Caio parado de frente para uma porta de apartamento fechada com o número 302. Celular vibra: "Ele já está no seu bairro." Em seguida, tela do grupo "Família" com a mensagem do Caio "mãe?" e dois tiques cinza (não lida). A porta continua fechada. Relógio no topo: 21:00.
+
+------------------------------------------------------------
+
+BLOCO 4: ESCALADA 2
+[19 - 26] | Meia-noite. A luz cai no bairro inteiro. Só as telas brilham nas janelas. Terceiro alerta: ele bate três vezes. | Relógio troca: 21:00 para 00:00. Plano aberto de um prédio visto de fora. Todas as luzes apagam de uma vez. Em cada janela fica só um retângulo pequeno de luz azulada (um celular). Notificação sobe na tela: "Ele bate três vezes." Relógio no topo: 00:00, piscando.
+
+------------------------------------------------------------
+
+BLOCO 5: O CLÍMAX
+[26 - 35] | Três da manhã. Toc. Toc. Toc. Do outro lado da porta, alguém prende a respiração. Uma voz sussurra: abre, sou eu. | Relógio troca: 00:00 para 03:00, em vermelho. Close fechado só na porta 302 e na silhueta do Caio iluminada pela tela do celular, sem mostrar o cômodo nem o corredor (lado ambíguo). A cada "Toc" a tela treme e surge uma onda na madeira. A tela escurece nas bordas (vinheta) e a respiração vira uma nuvem de vapor. Relógio no topo: 03:00.
+
+------------------------------------------------------------
+
+BLOCO 6: PLOT TWIST
+[35 - 45] | Silêncio. Caio finalmente abre a foto de quem não pode entrar. É o rosto dele. Caio nunca esteve do lado de dentro. | Um segundo de tela quase preta (silêncio). O dedo do Caio toca o anexo "1 foto" do primeiro alerta: a imagem desborra e mostra o próprio rosto do Caio com a faixa "NÃO ABRA PARA ELE". Na frase final, a câmera recua e gira: revelamos que Caio está no CORREDOR escuro, com a mão ainda erguida depois de bater. Do lado de dentro da porta 302, a mãe abraça a irmã mais nova no chão, segurando o celular com a mesma foto do Caio na tela. Relógio no topo: 03:00 vira 03:01 e congela. Corte seco para preto.
+
+============================================================
+
+NOTAS PARA AS PRÓXIMAS ESTAÇÕES
+- Pistas plantadas para o twist: a porta nunca abre (Bloco 3), a mãe não responde (Bloco 3), a foto anexada é mostrada e ignorada (Bloco 2), "do outro lado da porta" é ambíguo (Bloco 5).
+- Relógios que precisam aparecer: 19:00, 21:00, 00:00, 03:00, 03:01.
+- Ritmo médio da narração: cerca de 2,6 palavras por segundo. O Bloco 1 é o mais rápido de propósito (gancho).
