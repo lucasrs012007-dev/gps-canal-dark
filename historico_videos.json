@@ -1,0 +1,45 @@
+{
+  "versao": 3,
+  "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
+  "video_atual": 2,
+  "videos": [
+    {
+      "id": 1,
+      "slug": "nao-abra-a-porta",
+      "titulo": "Nao abra a porta",
+      "tema": "Alerta de emergencia no celular sobre batidas na porta 302 com plot twist do lado de fora",
+      "palavras_chave": [
+        "alerta de emergencia",
+        "porta 302",
+        "batidas na porta",
+        "caio",
+        "corredor",
+        "apagao"
+      ],
+      "roteiro": "roteiro_01.txt",
+      "saida": "output/short_01.mp4",
+      "status": "publicado",
+      "motor": "v2",
+      "commit": "3bd8dd6"
+    },
+    {
+      "id": 2,
+      "slug": "rota-recalculada",
+      "titulo": "Rota recalculada",
+      "tema": "GPS de motorista de aplicativo na Marginal que preve a hora exata do proprio acidente",
+      "palavras_chave": [
+        "gps",
+        "motorista de aplicativo",
+        "marginal",
+        "rota recalculada",
+        "acidente",
+        "caminhao",
+        "rafael"
+      ],
+      "roteiro": "roteiro_02.txt",
+      "saida": "output/short_02.mp4",
+      "status": "em_producao",
+      "motor": "v3"
+    }
+  ]
+}

@@ -1,20 +1,21 @@
-"""Estação 4: renderiza player.html (1080x1920, 30 fps) para output/short_01.mp4.
+"""Estacao 4 (v3): renderiza player.html (1080x1920, 30 fps) para a proxima numeracao livre.
 
-Uso (na raiz do repositório):
-    python3 render/renderizar.py           # render completo (audio/mix_final.mp3 ou narracao.mp3 + 0.3s)
-    python3 render/renderizar.py --teste   # render rápido de 2s para validação
+Uso (na raiz do repositorio):
+    python3 render/renderizar.py           # render completo (output/short_02.mp4, short_03.mp4...)
+    python3 render/renderizar.py --teste   # render rapido de 2s para validacao
     python3 render/renderizar.py --legendas
 
 Requisitos: Python 3.9+, ffmpeg/ffprobe no PATH e Chrome, Chromium ou Edge instalado.
-Não precisa de pacotes pip nem de baixar navegador extra (usa CDP via stdlib).
+Nao precisa de pacotes pip nem de baixar navegador extra (usa CDP via stdlib).
 """
+
+from __future__ import annotations
 
 import argparse
 import base64
 import hashlib
 import http.server
 import json
-import math
 import os
 import shutil
 import socket
@@ -29,12 +30,16 @@ import urllib.request
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+if str(RAIZ) not in sys.path:
+    sys.path.insert(0, str(RAIZ))
+
+from pipeline.historico import caminho_saida_atual, obter_video_atual  # noqa: E402
+
 AUDIO_MIX = RAIZ / "audio" / "mix_final.mp3"
 AUDIO_MP3 = RAIZ / "audio" / "narracao.mp3"
-SAIDA_PADRAO = RAIZ / "output" / "short_01.mp4"
 LARGURA = 1080
 ALTURA = 1920
-DURACAO_PREVIA = 45.0
+DURACAO_PREVIA = 42.0
 FOLGA_AUDIO = 0.3
 
 
@@ -65,7 +70,7 @@ def encontrar_navegador(explicit: str | None = None) -> str:
         caminho = shutil.which(explicit) or explicit
         if Path(caminho).is_file():
             return caminho
-        raise SystemExit(f"Navegador informado não encontrado: {explicit}")
+        raise SystemExit(f"Navegador informado nao encontrado: {explicit}")
 
     env_bin = os.environ.get("CHROME_BIN") or os.environ.get("BROWSER_BIN")
     if env_bin and Path(env_bin).is_file():
@@ -122,7 +127,7 @@ def duracao_audio_ffprobe(caminho: Path) -> float:
 
 
 class ClienteCDP:
-    """Cliente WebSocket RFC 6455 mínimo em stdlib para Chrome DevTools Protocol."""
+    """Cliente WebSocket RFC 6455 minimo em stdlib para Chrome DevTools Protocol."""
 
     def __init__(self, ws_url: str, timeout: float = 60.0):
         parsed = urllib.parse.urlparse(ws_url)
@@ -153,7 +158,7 @@ class ClienteCDP:
             hashlib.sha1((chave + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()
         ).decode("ascii")
         if esperado not in cab:
-            raise RuntimeError("Resposta Sec-WebSocket-Accept inválida.")
+            raise RuntimeError("Resposta Sec-WebSocket-Accept invalida.")
 
     def _ler_ate(self, marcador: bytes) -> bytes:
         while True:
@@ -165,14 +170,14 @@ class ClienteCDP:
                 return out
             pedaco = self.sock.recv(65536)
             if not pedaco:
-                raise ConnectionError("Conexão CDP encerrada durante handshake.")
+                raise ConnectionError("Conexao CDP encerrada durante handshake.")
             self._buf.extend(pedaco)
 
     def _ler_exato(self, n: int) -> bytes:
         while len(self._buf) < n:
             pedaco = self.sock.recv(max(65536, n - len(self._buf)))
             if not pedaco:
-                raise ConnectionError("Conexão CDP encerrada inesperadamente.")
+                raise ConnectionError("Conexao CDP encerrada inesperadamente.")
             self._buf.extend(pedaco)
         out = bytes(self._buf[:n])
         del self._buf[:n]
@@ -264,11 +269,10 @@ def abrir_cdp(navegador: str, porta_dbg: int, perfil_tmp: str) -> tuple[subproce
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     url_lista = f"http://127.0.0.1:{porta_dbg}/json/list"
 
-    # Ignora proxy do sistema ao consultar o endpoint CDP em 127.0.0.1.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     for _ in range(80):
         if proc.poll() is not None:
-            raise RuntimeError(f"Navegador encerrou antes de abrir o CDP (código {proc.returncode}).")
+            raise RuntimeError(f"Navegador encerrou antes de abrir o CDP (codigo {proc.returncode}).")
         try:
             with opener.open(url_lista, timeout=1.0) as r:
                 alvos = [a for a in json.loads(r.read()) if a.get("type") == "page"]
@@ -362,34 +366,37 @@ def selecionar_audio() -> Path | None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Renderiza player.html para MP4 9:16 (1080x1920).")
     parser.add_argument("--teste", action="store_true", help="Renderiza apenas os 2 primeiros segundos.")
-    parser.add_argument("--fps", type=int, default=30, help="Quadros por segundo (padrão: 30).")
-    parser.add_argument("--saida", "-o", type=Path, default=SAIDA_PADRAO, help="Arquivo MP4 de saída.")
-    parser.add_argument("--legendas", action="store_true", help="Ativa as legendas de teste do player.")
+    parser.add_argument("--fps", type=int, default=30, help="Quadros por segundo (padrao: 30).")
+    parser.add_argument(
+        "--saida",
+        "-o",
+        type=Path,
+        default=None,
+        help="Arquivo MP4 de saida (padrao: proximo numero livre em historico_videos.json).",
+    )
+    parser.add_argument("--legendas", action="store_true", help="Ativa as legendas sincronizadas do player.")
     parser.add_argument("--navegador", type=str, default=None, help="Caminho manual do Chrome/Chromium/Edge.")
     args = parser.parse_args()
 
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise SystemExit("ffmpeg e ffprobe precisam estar instalados e no PATH.")
     if not (RAIZ / "player.html").is_file():
-        raise SystemExit("player.html não encontrado na raiz do repositório.")
+        raise SystemExit("player.html nao encontrado na raiz do repositorio.")
+
+    video_ativo = obter_video_atual(validar=True)
+    saida_padrao = caminho_saida_atual()
+    saida = args.saida if args.saida is not None else saida_padrao
+    if not saida.is_absolute():
+        saida = RAIZ / saida
+    saida.parent.mkdir(parents=True, exist_ok=True)
 
     navegador = encontrar_navegador(args.navegador)
     audio_alvo = selecionar_audio()
-    if audio_alvo is not None:
-        duracao_real = duracao_audio_ffprobe(audio_alvo) + FOLGA_AUDIO
-        modo = f"com áudio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {FOLGA_AUDIO}s)"
-    else:
-        duracao_real = DURACAO_PREVIA
-        modo = f"mudo / Modo Prévia ({DURACAO_PREVIA:.0f}s)"
 
-    duracao = min(2.0, duracao_real) if args.teste else duracao_real
-    total_quadros = max(1, int(round(duracao * args.fps)))
-    saida = args.saida if args.saida.is_absolute() else (RAIZ / args.saida)
-    saida.parent.mkdir(parents=True, exist_ok=True)
-
-    print(f"Navegador: {navegador}")
-    print(f"Modo: {modo}{' [TESTE 2s]' if args.teste else ''}")
-    print(f"Renderizando {total_quadros} quadros ({LARGURA}x{ALTURA} @ {args.fps} fps) -> {saida}")
+    print(
+        f"Historico validado (Sempre Video Novo): Video {int(video_ativo['id']):02d} "
+        f"'{video_ativo['titulo']}' -> {saida.relative_to(RAIZ).as_posix() if saida.is_relative_to(RAIZ) else saida}"
+    )
 
     srv, porta_http = iniciar_servidor()
     porta_dbg = porta_livre()
@@ -410,7 +417,6 @@ def main() -> None:
         )
         cdp.chamar("Page.navigate", {"url": f"http://127.0.0.1:{porta_http}/player.html"})
 
-        # Aguarda o player terminar o carregamento inicial (áudio/timestamps ou Modo Prévia).
         pronto = False
         for _ in range(100):
             pronto = avaliar_js(
@@ -423,19 +429,33 @@ def main() -> None:
                 break
             time.sleep(0.1)
         if not pronto:
-            raise RuntimeError("player.html não ficou pronto dentro do tempo limite.")
+            raise RuntimeError("player.html nao ficou pronto dentro do tempo limite.")
 
         status_player = avaliar_js(cdp, "(document.getElementById('status')?.textContent || '').trim()")
         if status_player:
             print(f"Player: {status_player}", flush=True)
 
+        dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 42"))
+        if audio_alvo is not None:
+            duracao_real = duracao_audio_ffprobe(audio_alvo) + FOLGA_AUDIO
+            modo = f"com audio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {FOLGA_AUDIO}s)"
+        else:
+            duracao_real = dur_player or DURACAO_PREVIA
+            modo = f"mudo / Modo Previa ({duracao_real:.1f}s)"
+
+        duracao = min(2.0, duracao_real) if args.teste else duracao_real
+        total_quadros = max(1, int(round(duracao * args.fps)))
+
+        print(f"Navegador: {navegador}")
+        print(f"Modo: {modo}{' [TESTE 2s]' if args.teste else ''}")
+        print(f"Renderizando {total_quadros} quadros ({LARGURA}x{ALTURA} @ {args.fps} fps) -> {saida}")
+
         if args.legendas:
             avaliar_js(cdp, "document.getElementById('cc').click()")
 
-        # Confirma resolução interna do canvas.
         dims = avaliar_js(cdp, "(() => { const c = document.getElementById('c'); return [c.width, c.height]; })()")
         if dims != [LARGURA, ALTURA]:
-            raise RuntimeError(f"Canvas com resolução inesperada: {dims} (esperado {[LARGURA, ALTURA]}).")
+            raise RuntimeError(f"Canvas com resolucao inesperada: {dims} (esperado {[LARGURA, ALTURA]}).")
 
         cmd_ff = montar_comando_ffmpeg(saida, args.fps, audio_alvo, duracao)
         ff = subprocess.Popen(cmd_ff, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -457,9 +477,9 @@ def main() -> None:
         stderr_ff = ff.stderr.read().decode("utf-8", errors="replace") if ff.stderr else ""
         ret = ff.wait()
         if ret != 0:
-            raise RuntimeError(f"ffmpeg falhou (código {ret}): {stderr_ff}")
+            raise RuntimeError(f"ffmpeg falhou (codigo {ret}): {stderr_ff}")
 
-        print(f"Concluído em {time.monotonic() - inicio:.1f}s: {saida} ({saida.stat().st_size / 1024:.1f} KB)")
+        print(f"Concluido em {time.monotonic() - inicio:.1f}s: {saida} ({saida.stat().st_size / 1024:.1f} KB)")
     finally:
         if ff and ff.poll() is None:
             ff.kill()

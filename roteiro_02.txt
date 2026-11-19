@@ -1,0 +1,56 @@
+ROTEIRO 02: "ROTA RECALCULADA"
+Formato: YouTube Shorts 9:16 (1080x1920) | Micro-Suspense "E se...?" no Brasil
+Duracao alvo: 38 a 44 segundos | Narracao: 109 palavras | Motor: V3 (Dopamina Visual)
+Personagem: Rafael, motorista de aplicativo (jaqueta azul-petroleo flat em capsula, cabelo escuro)
+Regra visual: mudanca de plano, zoom dinamico ou elemento visual a cada 1,0s a 1,8s; zero planos estaticos.
+
+Estrutura de cada bloco:
+[Tempo em Segundos] | [Texto Exato da Narracao] | [Direcao visual e relogio] | [Eventos e pausas]
+
+============================================================
+
+BLOCO 1: GANCHO
+[00 - 03] | E se o seu GPS soubesse a hora exata do seu acidente? | Mapa escuro vibrante (#0A0F1D / #130926) com rota neon pulsando ate um pino vermelho na Marginal. Relogio no topo: 02:00. | gancho
+
+------------------------------------------------------------
+
+BLOCO 2: AMBIENTACAO
+[03 - 07] | Duas da manhã, Rafael fecha a última corrida na Marginal. | Plano aberto do carro cortando a Marginal deserta em paralaxe, seguido de corte interno para Rafael no volante sob luz fria do painel. Relogio: 02:00. | hora_02
+
+------------------------------------------------------------
+
+BLOCO 3: O ANOMALO NO GPS
+[07 - 11] | O celular apita sozinho: nova rota, chegada às duas e sete. | Fundo desfocado (blur 8px) pulsando em amarelo-eletrico (#261E0A); close no celular no suporte exibindo banner "NOVA ROTA: CHEGADA 02:07". | gps_rota
+[11 - 14] | Só que ele não digitou destino nenhum. | Close no rosto de Rafael (troca de expressao na piscada para preocupado) e detalhe no campo "Destino: vazio" piscando no aplicativo. | sem_destino
+
+------------------------------------------------------------
+
+BLOCO 4: ESCALADA NO BREU
+[14 - 18] | A voz manda virar numa rua sem placa e sem poste. | Ponto de vista pelo parabrisa: curva fechada em rua de breu total, facho de farol na neblina e seta do GPS insistindo para a direita. | rua_escura
+[18 - 22] | No retrovisor, os faróis atrás somem, um por um. | Close no espelho retrovisor interno com profundidade de campo: tres pares de farois piscam e desaparecem na escuridao, fundo roxo profundo (#130926). | retrovisor
+
+------------------------------------------------------------
+
+BLOCO 5: ALERTA E CLIMAX
+[22 - 26] | Na tela, o destino aparece: local do acidente. | Fundo pulsa em vermelho-alerta (#3B0A0A) com particulas em brasa; celular em close com fundo desfocado exibindo cartao vermelho "LOCAL DO ACIDENTE - 80 M". | destino_acidente
+[26 - 29] | Duas e seis, Rafael pisa no freio com tudo. | Relogio vira para 02:06 em vermelho; modulo bigFace no choque extremo (pupilas contraidas, suor frio, rim light vermelho) e screen shake violento na freada. | hora_0206, freio@freio
+[29 - 31] | [SFX:caminhao:1.75] | Bloco silencioso para SFX real: caminhao enorme sem farol corta o cruzamento diante do parabrisa com flash lateral e camera shake brutal. | caminhao
+[31 - 35] | Um caminhão sem farol cruza exatamente onde ele estaria. | Carro parado fumegando no asfalto escuro, marcas de pneu e corte para o mapa top-down mostrando o icone do carro um milimetro antes do X vermelho. | quase
+
+------------------------------------------------------------
+
+BLOCO 6: PLOT TWIST
+[35 - 37] | Então o GPS sussurra: | Fundo quase preto com onda sonora ciano-vermelha pulsando no alto-falante do celular enquanto Rafael prende a respiracao. | sussurro, pausa=0.45
+[37 - 41] | Rota recalculada. Próximo acidente: amanhã, duas e sete. | Corte seco do drone + sub-bass boom; relogio vira para 02:07 vermelho congelado; tela do GPS mostra nova rota vermelha "AMANHA - 02:07" com reflexo em choque. | plot_twist, proximo_acidente@proximo, pausa=0.45
+
+------------------------------------------------------------
+
+BLOCO 7: CTA FINAL (ULTIMOS ~3,5s)
+[41 - 45] | Quer aprender a fazer vídeos assim no automático? Comente EU QUERO. | Cartao final V3 vibrante com animacao de codigo/onda sonora e pilula amarela pop-in "COMENTE EU QUERO", sem sobrepor relogio nem legendas. | cta, cta_acao@comente, pausa=0.35
+
+============================================================
+
+NOTAS TECNICAS
+- Relogios exibidos (um de cada vez): 02:00, 02:06, 02:07 (oculto na CTA).
+- Zero onomatopeias faladas: buzina e passagem do caminhao entram apenas no bloco [SFX:caminhao:1.75].
+- Prosodia fluida: frases desenhadas para ElevenLabs (eleven_multilingual_v2, stability=0.42, similarity_boost=0.80).

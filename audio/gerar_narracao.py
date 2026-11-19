@@ -1,18 +1,23 @@
-"""Estacao 2 (v2): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
+"""Estacao 2 (v3): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
 
 Uso (na raiz do repositorio):
-    python3 audio/gerar_narracao.py          # ElevenLabs (se ELEVENLABS_API_KEY) ou edge-tts
+    python3 audio/gerar_narracao.py          # ElevenLabs (via ambiente/.env) ou edge-tts
     python3 audio/gerar_narracao.py --mock   # teste automatizado local sem rede
 
 Regras aplicadas (skill audio-sound-design-suspense):
-- Remove onomatopeias de acao ("Toc. Toc. Toc." / "Toque. Toque. Toque.") da fala
-  e substitui por bloco de silencio exato de 2.1s (evento batidas_porta).
+- Consulta historico_videos.json via pipeline/historico.py para usar o roteiro do video ativo
+  e validar a regra permanente 'Sempre Video Novo'.
+- Carrega automaticamente o arquivo .env local (ignorado pelo Git) quando ELEVENLABS_API_KEY
+  nao estiver definida no ambiente. Nunca imprime nem grava chaves em disco.
+- Remove onomatopeias de acao e substitui blocos [SFX:nome:duracao] por silencio exato.
 - Sintetiza frase por frase, corta silencios mortos nas pontas via ffmpeg silenceremove,
-  meca a duracao real via ffprobe e concatena em PCM WAV antes de codificar voz_limpa.mp3
+  mede a duracao real via ffprobe e concatena em PCM WAV antes de codificar voz_limpa.mp3
   para evitar deriva acumulada de quadros MP3.
 - Gera timestamps.json (grupos de no maximo 3 palavras, sem misturar frases) e
   eventos.json com os segundos exatos de cada marco da historia.
 """
+
+from __future__ import annotations
 
 import argparse
 import asyncio
@@ -24,6 +29,7 @@ import re
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import unicodedata
 import urllib.error
@@ -32,12 +38,17 @@ import wave
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-ROTEIRO = RAIZ / "roteiro_01.txt"
+if str(RAIZ) not in sys.path:
+    sys.path.insert(0, str(RAIZ))
+
+from pipeline.historico import caminho_roteiro_atual, obter_video_atual  # noqa: E402
+
 PASTA_AUDIO = RAIZ / "audio"
 VOZ_LIMPA_MP3 = PASTA_AUDIO / "voz_limpa.mp3"
 TIMESTAMPS_JSON = PASTA_AUDIO / "timestamps.json"
 EVENTOS_JSON = PASTA_AUDIO / "eventos.json"
 TEXTO_TXT = PASTA_AUDIO / "narracao.txt"
+ARQUIVO_ENV = RAIZ / ".env"
 
 # Configuracoes de voz
 EDGE_VOZ = "pt-BR-AntonioNeural"
@@ -51,17 +62,42 @@ ELEVENLABS_VOZ_PADRAO = "pNInz6obpgDQGcFmaJgB"  # Adam (masculina grave/narrativ
 PAUSA_PADRAO = 0.18
 PAUSA_DRAMATICA = 0.45
 DURACAO_BATIDAS_PORTA = 2.10
-CAUDA_FINAL = 1.40
+CAUDA_FINAL = 0.45
 
 TAXA_AMOSTRAGEM = 44100
 CANAIS = 2
 TICKS_POR_SEGUNDO = 10_000_000
 
 LINHA_BLOCO = re.compile(r"^\[\s*\d+\s*-\s*\d+\s*\]\s*\|")
+PADRAO_SFX = re.compile(r"^\[\s*SFX\s*:\s*([a-zA-Z0-9_]+)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*\]$", re.IGNORECASE)
 PADRAO_BATIDAS = re.compile(
     r"(?:^|\s)(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?(?=\s|$)",
     re.IGNORECASE,
 )
+
+
+def carregar_env(caminho_env: Path = ARQUIVO_ENV) -> bool:
+    """Carrega variaveis do .env local apenas quando ausentes ou vazias no ambiente."""
+    if not caminho_env.is_file():
+        return False
+    carregou = False
+    for linha in caminho_env.read_text(encoding="utf-8").splitlines():
+        bruta = linha.strip()
+        if not bruta or bruta.startswith("#"):
+            continue
+        if bruta.startswith("export "):
+            bruta = bruta[7:].strip()
+        if "=" not in bruta:
+            continue
+        chave, valor = bruta.split("=", 1)
+        chave = chave.strip()
+        valor = valor.strip()
+        if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in ("'", '"'):
+            valor = valor[1:-1]
+        if chave and not os.environ.get(chave, "").strip():
+            os.environ[chave] = valor
+            carregou = True
+    return carregou
 
 
 def normalizar_chave(texto: str) -> str:
@@ -71,8 +107,8 @@ def normalizar_chave(texto: str) -> str:
     return re.sub(r"\s+", " ", sem_acento).strip().lower()
 
 
-def suavizar_prosodia(trecho: str) -> str:
-    """Une micro-frases picotadas demais para leitura conversacional fluida sem alterar a historia."""
+def suavizar_prosodia_legado(trecho: str) -> str:
+    """Ajuste legado para roteiro_01.txt (mantem fluidez sem alterar a historia)."""
     ajustes = [
         (
             "Sete da noite. Todo celular do Brasil apita ao mesmo tempo.",
@@ -97,27 +133,88 @@ def suavizar_prosodia(trecho: str) -> str:
     return out
 
 
-def extrair_itens_roteiro(caminho: Path) -> list[dict]:
-    """Extrai frases fluidas na ordem do roteiro, trocando batidas por silencio de 2.1s."""
-    blocos = []
+def _interpretar_coluna_eventos(espec: str) -> tuple[list[str], list[tuple[str, str]], float | None]:
+    eventos_inicio: list[str] = []
+    eventos_palavra: list[tuple[str, str]] = []
+    pausa_explicita: float | None = None
+
+    for parte in espec.split(","):
+        tok = parte.strip()
+        if not tok:
+            continue
+        if tok.lower().startswith("pausa="):
+            pausa_explicita = float(tok.split("=", 1)[1].strip())
+        elif "@" in tok:
+            ev_nome, alvo = tok.split("@", 1)
+            ev_nome = ev_nome.strip()
+            alvo = normalizar_chave(alvo.strip())
+            if ev_nome and alvo:
+                eventos_palavra.append((ev_nome, alvo))
+        else:
+            eventos_inicio.append(tok)
+    return eventos_inicio, eventos_palavra, pausa_explicita
+
+
+def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
+    """Extrai falas e blocos silenciosos de SFX na ordem do roteiro.
+
+    Retorna (itens, usa_eventos_explicitos).
+    """
+    linhas_bloco: list[list[str]] = []
     for linha in caminho.read_text(encoding="utf-8").splitlines():
         if LINHA_BLOCO.match(linha):
             colunas = [c.strip() for c in linha.split("|")]
-            blocos.append(suavizar_prosodia(colunas[1]))
-    if not blocos:
+            if len(colunas) >= 2:
+                linhas_bloco.append(colunas)
+    if not linhas_bloco:
         raise SystemExit(f"Nenhum bloco de narracao encontrado em {caminho}.")
 
+    usa_eventos_explicitos = any(len(cols) >= 4 and cols[3] for cols in linhas_bloco)
     marcador = " __BATIDAS_PORTA__ "
     itens: list[dict] = []
-    for bloco_idx, bloco in enumerate(blocos):
-        substituido = PADRAO_BATIDAS.sub(marcador, bloco)
+
+    for bloco_idx, colunas in enumerate(linhas_bloco):
+        narracao = colunas[1]
+        espec_eventos = colunas[3] if len(colunas) >= 4 else ""
+        ev_inicio, ev_palavra, pausa_explicita = _interpretar_coluna_eventos(espec_eventos)
+
+        m_sfx = PADRAO_SFX.match(narracao)
+        if m_sfx:
+            nome_ev = ev_inicio[0] if ev_inicio else m_sfx.group(1)
+            dur_sfx = float(m_sfx.group(2))
+            itens.append(
+                {
+                    "tipo": "silencio",
+                    "bloco": bloco_idx,
+                    "evento": nome_ev,
+                    "duracao": dur_sfx,
+                    "pausa_antes": pausa_explicita,
+                }
+            )
+            continue
+
+        if not usa_eventos_explicitos:
+            narracao = suavizar_prosodia_legado(narracao)
+
+        substituido = PADRAO_BATIDAS.sub(marcador, narracao)
         partes = substituido.split("__BATIDAS_PORTA__")
+        primeira_fala_do_bloco = True
         for p_idx, parte in enumerate(partes):
             trecho = parte.strip()
             if trecho:
                 frases = [f.strip() for f in re.split(r"(?<=[\.\!\?])\s+", trecho) if f.strip()]
                 for frase in frases:
-                    itens.append({"tipo": "fala", "bloco": bloco_idx, "texto": frase})
+                    itens.append(
+                        {
+                            "tipo": "fala",
+                            "bloco": bloco_idx,
+                            "texto": frase,
+                            "eventos_inicio": ev_inicio if primeira_fala_do_bloco else [],
+                            "eventos_palavra": ev_palavra,
+                            "pausa_antes": pausa_explicita if primeira_fala_do_bloco else None,
+                        }
+                    )
+                    primeira_fala_do_bloco = False
             if p_idx < len(partes) - 1:
                 itens.append(
                     {
@@ -125,9 +222,10 @@ def extrair_itens_roteiro(caminho: Path) -> list[dict]:
                         "bloco": bloco_idx,
                         "evento": "batidas_porta",
                         "duracao": DURACAO_BATIDAS_PORTA,
+                        "pausa_antes": None,
                     }
                 )
-    return itens
+    return itens, usa_eventos_explicitos
 
 
 def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
@@ -136,9 +234,13 @@ def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
         return 0.0
     anterior = itens[idx - 1]
     atual = itens[idx]
-    # Depois do bloco silencioso de 2.1s das batidas, a fala entra direto (ja ha respiro apos a 3a batida).
+    if atual.get("pausa_antes") is not None:
+        return float(atual["pausa_antes"])
+    # Apos bloco silencioso de SFX, a fala seguinte entra sem atraso extra.
     if anterior["tipo"] == "silencio":
         return 0.0
+    if atual["tipo"] == "silencio":
+        return 0.08
     if atual["tipo"] == "fala":
         chave = normalizar_chave(atual["texto"])
         if chave.startswith("silencio") or chave.startswith("e o rosto dele"):
@@ -146,40 +248,30 @@ def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
     return PAUSA_PADRAO
 
 
-def mapear_evento_da_frase(texto: str) -> str | None:
+def mapear_evento_legado(texto: str) -> str | None:
     chave = normalizar_chave(texto)
-    if chave.startswith("alerta de emergencia"):
-        return "alerta_1"
-    if chave.startswith("caio ri"):
-        return "caio_ri"
-    if chave.startswith("nove da noite"):
-        return "hora_21"
-    if chave.startswith("segundo alerta"):
-        return "alerta_2"
-    if chave.startswith("a mae para de responder"):
-        return "chat_mae"
-    if chave.startswith("meia-noite") or chave.startswith("meia noite"):
-        return "hora_00"
-    if chave.startswith("a luz cai"):
-        return "apagao_00"
-    if chave.startswith("so as telas"):
-        return "janelas_telas"
-    if chave.startswith("terceiro alerta"):
-        return "alerta_3"
-    if chave.startswith("tres da manha"):
-        return "hora_03"
-    if chave.startswith("do outro lado da porta"):
-        return "respiracao"
-    if chave.startswith("uma voz sussurra"):
-        return "sussurro"
-    if chave.startswith("silencio"):
-        return "silencio"
-    if chave.startswith("caio finalmente abre a foto"):
-        return "foto_revela"
-    if chave.startswith("e o rosto dele"):
-        return "big_face"
-    if chave.startswith("caio nunca esteve"):
-        return "plot_twist"
+    mapa = [
+        ("alerta de emergencia", "alerta_1"),
+        ("caio ri", "caio_ri"),
+        ("nove da noite", "hora_21"),
+        ("segundo alerta", "alerta_2"),
+        ("a mae para de responder", "chat_mae"),
+        ("meia-noite", "hora_00"),
+        ("meia noite", "hora_00"),
+        ("a luz cai", "apagao_00"),
+        ("so as telas", "janelas_telas"),
+        ("terceiro alerta", "alerta_3"),
+        ("tres da manha", "hora_03"),
+        ("do outro lado da porta", "respiracao"),
+        ("uma voz sussurra", "sussurro"),
+        ("silencio", "silencio"),
+        ("caio finalmente abre a foto", "foto_revela"),
+        ("e o rosto dele", "big_face"),
+        ("caio nunca esteve", "plot_twist"),
+    ]
+    for prefixo, evento in mapa:
+        if chave.startswith(prefixo):
+            return evento
     return None
 
 
@@ -210,15 +302,15 @@ def gerar_wav_silencio(caminho: Path, duracao: float) -> float:
 
 
 def sintetizar_mock(texto: str, destino_wav: Path, indice: int) -> list[dict]:
-    """Gera um sinal vocal simulado com silencios nas pontas para validar todo o pipeline localmente."""
+    """Gera sinal vocal simulado com silencios nas pontas para validar o pipeline sem rede."""
     palavras = texto.split()
     peso_chars = sum(max(2, len(p)) for p in palavras)
-    dur_ativa = max(0.55, min(3.4, 0.24 + peso_chars * 0.048))
+    dur_ativa = max(0.65, min(3.8, 0.28 + peso_chars * 0.056))
     pad_ini = 0.14
     pad_fim = 0.18
     dur_total = pad_ini + dur_ativa + pad_fim
     n_total = int(round(dur_total * TAXA_AMOSTRAGEM))
-    freq_base = 128.0 + (indice % 5) * 9.0
+    freq_base = 124.0 + (indice % 5) * 9.0
 
     amostras = bytearray()
     for i in range(n_total):
@@ -235,8 +327,7 @@ def sintetizar_mock(texto: str, destino_wav: Path, indice: int) -> list[dict]:
                 + 0.25 * math.sin(2.0 * math.pi * (f * 2.0) * tr)
             )
         val = max(-32767, min(32767, int(s * 32767)))
-        frame = struct.pack("<hh", val, val)
-        amostras.extend(frame)
+        amostras.extend(struct.pack("<hh", val, val))
 
     with wave.open(str(destino_wav), "wb") as wf:
         wf.setnchannels(CANAIS)
@@ -381,7 +472,6 @@ def limpar_silencio_frase(origem: Path, destino_wav: Path) -> float:
     subprocess.run(cmd, check=True)
     dur = medir_duracao_ffprobe(destino_wav)
     if dur < 0.08:
-        # Protecao caso uma frase muito curta/baixa tenha sido removida pelo limiar.
         cmd_raw = [
             "ffmpeg",
             "-y",
@@ -436,7 +526,6 @@ def alinhar_palavras_na_frase(
             )
         return saida
 
-    # Distribuicao proporcional ao tamanho da palavra e micro-pausas de pontuacao interna.
     pesos = []
     for tok in tokens:
         limpa = re.sub(r"[^\wÀ-ÿ]", "", tok)
@@ -465,11 +554,10 @@ def alinhar_palavras_na_frase(
 
 
 def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
-    """Agrupa palavras de UMA unica frase em blocos de no maximo 3 palavras, sem orfaos desnecessarios."""
+    """Agrupa palavras de UMA unica frase em blocos de no maximo 3 palavras."""
     if not palavras_frase:
         return []
 
-    # Primeiro respeita quebras naturais em ":" ou "," desde que nao gere bloco de 1 palavra.
     clausulas: list[list[dict]] = []
     atual: list[dict] = []
     for idx, p in enumerate(palavras_frase):
@@ -536,20 +624,34 @@ def concatenar_wavs_para_mp3(lista_wavs: list[Path], wav_mestre: Path, destino_m
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Gera voz_limpa.mp3, timestamps.json e eventos.json sincronizados com roteiro_01.txt."
+        description="Gera voz_limpa.mp3, timestamps.json e eventos.json sincronizados com o roteiro ativo."
     )
     parser.add_argument(
         "--mock",
         action="store_true",
         help="Usa tons sinteticos locais no lugar do TTS (apenas para teste automatizado).",
     )
+    parser.add_argument(
+        "--roteiro",
+        type=Path,
+        default=None,
+        help="Caminho manual do roteiro (padrao: video ativo em historico_videos.json).",
+    )
     args = parser.parse_args()
 
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise SystemExit("ffmpeg e ffprobe precisam estar instalados e no PATH.")
 
+    env_carregado = carregar_env()
+    video_ativo = obter_video_atual(validar=True)
+    roteiro_path = args.roteiro if args.roteiro else caminho_roteiro_atual()
+    if not roteiro_path.is_absolute():
+        roteiro_path = RAIZ / roteiro_path
+    if not roteiro_path.is_file():
+        raise SystemExit(f"Roteiro nao encontrado: {roteiro_path}")
+
     PASTA_AUDIO.mkdir(exist_ok=True)
-    itens = extrair_itens_roteiro(ROTEIRO)
+    itens, usa_eventos_explicitos = extrair_itens_roteiro(roteiro_path)
 
     api_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
     voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or ELEVENLABS_VOZ_PADRAO
@@ -564,7 +666,12 @@ def main() -> None:
         motor = "edge-tts"
         voz_usada = f"{EDGE_VOZ} (pitch={EDGE_PITCH}, rate={EDGE_RATE})"
 
-    print(f"Motor de voz: {motor} ({voz_usada})")
+    origem_chave = " (.env local)" if (motor == "elevenlabs" and env_carregado) else ""
+    print(
+        f"Video {int(video_ativo['id']):02d}: {video_ativo['titulo']} | "
+        f"Roteiro: {roteiro_path.name}"
+    )
+    print(f"Motor de voz: {motor} ({voz_usada}){origem_chave}")
 
     texto_falado = " ".join(it["texto"] for it in itens if it["tipo"] == "fala")
     TEXTO_TXT.write_text(texto_falado + "\n", encoding="utf-8")
@@ -572,9 +679,14 @@ def main() -> None:
     palavras_todas: list[dict] = []
     grupos_todos: list[dict] = []
     frases_log: list[dict] = []
-    eventos: dict[str, float | list[float]] = {}
+    eventos: dict[str, float | int | str | list[float]] = {
+        "video_id": int(video_ativo["id"]),
+        "slug": str(video_ativo["slug"]),
+        "titulo": str(video_ativo["titulo"]),
+        "roteiro": roteiro_path.name,
+    }
 
-    with tempfile.TemporaryDirectory(prefix="voz-v2-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="voz-v3-") as tmp:
         tmp_dir = Path(tmp)
         wavs_concat: list[Path] = []
         cursor = 0.0
@@ -593,17 +705,19 @@ def main() -> None:
                 t_ini = round(cursor, 3)
                 dur_s = gerar_wav_silencio(s_wav, item["duracao"])
                 wavs_concat.append(s_wav)
-                eventos[item["evento"]] = t_ini
-                eventos["batidas_porta_duracao"] = round(dur_s, 3)
-                eventos["batidas_tempos"] = [
-                    round(t_ini + 0.0, 3),
-                    round(t_ini + 0.65, 3),
-                    round(t_ini + 1.30, 3),
-                ]
+                ev_nome = item["evento"]
+                eventos[ev_nome] = t_ini
+                eventos[f"{ev_nome}_duracao"] = round(dur_s, 3)
+                if ev_nome == "batidas_porta":
+                    eventos["batidas_tempos"] = [
+                        round(t_ini + 0.0, 3),
+                        round(t_ini + 0.65, 3),
+                        round(t_ini + 1.30, 3),
+                    ]
                 frases_log.append(
                     {
                         "tipo": "silencio",
-                        "evento": item["evento"],
+                        "evento": ev_nome,
                         "inicio": t_ini,
                         "fim": round(cursor + dur_s, 3),
                         "duracao": round(dur_s, 3),
@@ -627,25 +741,41 @@ def main() -> None:
             wavs_concat.append(limpa_wav)
 
             t_ini = cursor
-            evento_nome = mapear_evento_da_frase(texto)
-            if evento_nome and evento_nome not in eventos:
-                eventos[evento_nome] = round(t_ini, 3)
-
             palavras_frase = alinhar_palavras_na_frase(texto, t_ini, dur_frase, raw_words)
 
-            # Marcos intra-frase precisos (quando duas micro-frases foram unidas pela prosodia).
-            chave_f = normalizar_chave(texto)
-            if "apita" in chave_f and "mapa_apito" not in eventos:
-                for p in palavras_frase:
-                    if normalizar_chave(p["palavra"]).startswith("apita"):
-                        eventos["mapa_apito"] = p["inicio"]
-                        break
-            if "a luz cai" in chave_f and "apagao_00" not in eventos:
-                for idx_p, p in enumerate(palavras_frase):
-                    if normalizar_chave(p["palavra"]).startswith("luz"):
-                        t_ap = palavras_frase[idx_p - 1]["inicio"] if idx_p > 0 else p["inicio"]
-                        eventos["apagao_00"] = t_ap
-                        break
+            evento_principal = None
+            if usa_eventos_explicitos:
+                for ev_nome in item.get("eventos_inicio", []):
+                    if ev_nome not in eventos:
+                        eventos[ev_nome] = round(t_ini, 3)
+                    if evento_principal is None:
+                        evento_principal = ev_nome
+                for ev_nome, alvo in item.get("eventos_palavra", []):
+                    if ev_nome in eventos:
+                        continue
+                    for p in palavras_frase:
+                        limpa_p = re.sub(r"[^a-z0-9]", "", normalizar_chave(p["palavra"]))
+                        if limpa_p.startswith(alvo):
+                            eventos[ev_nome] = p["inicio"]
+                            if evento_principal is None:
+                                evento_principal = ev_nome
+                            break
+            else:
+                evento_principal = mapear_evento_legado(texto)
+                if evento_principal and evento_principal not in eventos:
+                    eventos[evento_principal] = round(t_ini, 3)
+                chave_f = normalizar_chave(texto)
+                if "apita" in chave_f and "mapa_apito" not in eventos:
+                    for p in palavras_frase:
+                        if normalizar_chave(p["palavra"]).startswith("apita"):
+                            eventos["mapa_apito"] = p["inicio"]
+                            break
+                if "a luz cai" in chave_f and "apagao_00" not in eventos:
+                    for idx_p, p in enumerate(palavras_frase):
+                        if normalizar_chave(p["palavra"]).startswith("luz"):
+                            t_ap = palavras_frase[idx_p - 1]["inicio"] if idx_p > 0 else p["inicio"]
+                            eventos["apagao_00"] = t_ap
+                            break
 
             grupos_frase = quebrar_em_grupos_legenda(palavras_frase)
 
@@ -692,7 +822,7 @@ def main() -> None:
                     "tipo": "fala",
                     "frase_indice": frase_idx,
                     "texto": texto,
-                    "evento": evento_nome,
+                    "evento": evento_principal,
                     "inicio": round(t_ini, 3),
                     "fim": round(t_ini + dur_frase, 3),
                     "duracao": round(dur_frase, 3),
@@ -711,42 +841,24 @@ def main() -> None:
 
     duracao_total = round(dur_mp3, 3)
     eventos["duracao_total"] = duracao_total
+    eventos["frases"] = frases_log
 
-    obrigatorios = [
-        "alerta_1",
-        "hora_21",
-        "alerta_2",
-        "apagao_00",
-        "alerta_3",
-        "hora_03",
-        "batidas_porta",
-        "sussurro",
-        "silencio",
-        "foto_revela",
-        "big_face",
-        "plot_twist",
-        "duracao_total",
-    ]
-    faltando = [k for k in obrigatorios if k not in eventos]
-    if faltando:
-        raise RuntimeError(f"Eventos obrigatorios ausentes: {faltando}")
-
-    eventos_ordenados = {k: eventos[k] for k in obrigatorios}
-    for extra in (
-        "mapa_apito",
-        "caio_ri",
-        "chat_mae",
-        "hora_00",
-        "janelas_telas",
-        "respiracao",
-        "batidas_porta_duracao",
-        "batidas_tempos",
-    ):
-        if extra in eventos:
-            eventos_ordenados[extra] = eventos[extra]
-    eventos_ordenados["frases"] = frases_log
+    if roteiro_path.name == "roteiro_02.txt":
+        obrigatorios = [
+            "gancho", "hora_02", "gps_rota", "sem_destino", "rua_escura",
+            "retrovisor", "destino_acidente", "hora_0206", "freio", "caminhao",
+            "quase", "sussurro", "plot_twist", "proximo_acidente", "cta", "cta_acao",
+            "duracao_total",
+        ]
+        faltando = [k for k in obrigatorios if k not in eventos]
+        if faltando:
+            raise RuntimeError(f"Eventos obrigatorios ausentes para roteiro_02: {faltando}")
 
     dados_timestamps = {
+        "video_id": int(video_ativo["id"]),
+        "slug": str(video_ativo["slug"]),
+        "titulo": str(video_ativo["titulo"]),
+        "roteiro": roteiro_path.name,
         "audio": VOZ_LIMPA_MP3.name,
         "motor": motor,
         "voz": voz_usada,
@@ -763,14 +875,16 @@ def main() -> None:
         json.dumps(dados_timestamps, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     EVENTOS_JSON.write_text(
-        json.dumps(eventos_ordenados, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(eventos, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
     print(
         f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | "
         f"{len(palavras_todas)} palavras em {len(grupos_todos)} grupos de legenda"
     )
-    print(f"Eventos gravados em {EVENTOS_JSON.name} (batidas_porta={eventos['batidas_porta']}s)")
+    if "cta" in eventos:
+        cta_dur = duracao_total - float(eventos["cta"])
+        print(f"Plot twist em {eventos.get('plot_twist')}s | CTA em {eventos['cta']}s (ultimos {cta_dur:.2f}s)")
 
 
 if __name__ == "__main__":

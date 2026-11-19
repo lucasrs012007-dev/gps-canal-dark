@@ -114,3 +114,8 @@ client/public/__manus__/version.json
 
 # Rendered videos
 output/
+
+# Segredos locais (nunca versionar chaves de API)
+.env.*
+!.env.example
+*.key
