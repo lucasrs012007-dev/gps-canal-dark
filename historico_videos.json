@@ -1,7 +1,7 @@
 {
-  "versao": 5,
+  "versao": 6,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 5,
+  "video_atual": 6,
   "videos": [
     {
       "id": 1,
@@ -103,11 +103,39 @@
         "cozinha"
       ],
       "roteiro": "roteiro_05.txt",
+      "player_backup": "arquivo/video_05/player.html",
       "saida": "output/short_05.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v4.1",
       "parte_label": "PARTE 1",
-      "cta_modo": "meio"
+      "cta_modo": "meio",
+      "commit": "32aa2cb"
+    },
+    {
+      "id": 6,
+      "slug": "o-elevador-do-subsolo-2",
+      "titulo": "O Elevador do Subsolo 2",
+      "tema": "Elevador de madrugada trava no sexto andar, reflexo no espelho atrasa, painel desce ate andar inexistente S3 e porteiro revela na camera que um duplo ja saiu no hall",
+      "palavras_chave": [
+        "elevador",
+        "subsolo 2",
+        "espelho",
+        "reflexo",
+        "andar s3",
+        "cadeira de metal",
+        "porteiro",
+        "camera do teto"
+      ],
+      "roteiro": "roteiro_06.txt",
+      "saida": "output/short_06.mp4",
+      "saidas_partes": [
+        "output/short_06_parte1.mp4",
+        "output/short_06_parte2.mp4"
+      ],
+      "status": "em_producao",
+      "motor": "v5",
+      "parte_label": "PARTE 1",
+      "cta_modo": "pausa_meio"
     }
   ]
 }

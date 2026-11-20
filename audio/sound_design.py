@@ -337,26 +337,122 @@ def _normalizar_pico_estereo(esq, dir_, alvo: float = 0.88):
 # DETECCAO DE VIDEO ATIVO E CURVA DE CAMA SONORA (DRONE)
 # ============================================================
 
+def _eh_video_06(ev: dict) -> bool:
+    return (
+        ("tranco_elevador" in ev)
+        or ("visor_s3" in ev)
+        or ("porta_elevador" in ev)
+        or (int(ev.get("video_id", 1)) == 6)
+    )
+
+
 def _eh_video_05(ev: dict) -> bool:
-    return ("interfone" in ev) or ("portaria_vazia" in ev) or (int(ev.get("video_id", 1)) == 5)
+    return (not _eh_video_06(ev)) and (
+        ("interfone" in ev) or ("portaria_vazia" in ev) or (int(ev.get("video_id", 1)) == 5)
+    )
 
 
 def _eh_video_04(ev: dict) -> bool:
-    return (not _eh_video_05(ev)) and (("berco_vazio" in ev) or ("passos_corredor" in ev) or (int(ev.get("video_id", 1)) == 4))
+    return (not _eh_video_06(ev)) and (not _eh_video_05(ev)) and (
+        ("berco_vazio" in ev) or ("passos_corredor" in ev) or (int(ev.get("video_id", 1)) == 4)
+    )
 
 
 def _eh_video_03(ev: dict) -> bool:
-    return (not _eh_video_05(ev)) and (not _eh_video_04(ev)) and (("pix_1" in ev) or ("guarda_roupa" in ev) or (int(ev.get("video_id", 1)) == 3))
+    return (not _eh_video_06(ev)) and (not _eh_video_05(ev)) and (not _eh_video_04(ev)) and (
+        ("pix_1" in ev) or ("guarda_roupa" in ev) or (int(ev.get("video_id", 1)) == 3)
+    )
 
 
 def _eh_video_02(ev: dict) -> bool:
-    return (not _eh_video_05(ev)) and (not _eh_video_04(ev)) and (not _eh_video_03(ev)) and (
-        ("gps_rota" in ev) or ("caminhao" in ev) or (int(ev.get("video_id", 1)) == 2)
+    return (
+        (not _eh_video_06(ev))
+        and (not _eh_video_05(ev))
+        and (not _eh_video_04(ev))
+        and (not _eh_video_03(ev))
+        and (("gps_rota" in ev) or ("caminhao" in ev) or (int(ev.get("video_id", 1)) == 2))
     )
 
 
 def _envelope_drone_em_t(t: float, ev: dict) -> float:
-    """Curva de tensao do drone com corte subito no plot_twist."""
+    """Curva de tensao do drone com silencio na CTA tela cheia V5, dip limpo no corte P2 e corte no plot_twist."""
+    if _eh_video_06(ev):
+        porta_el = float(ev.get("porta_elevador", 10.0))
+        porta_el_d = float(ev.get("porta_elevador_duracao", 1.1))
+        trava = float(ev.get("trava_seco", 18.0))
+        tranco = float(ev.get("tranco_elevador", 21.0))
+        tranco_d = float(ev.get("tranco_elevador_duracao", 1.2))
+        cta_ini = float(ev.get("cta_meio_inicio", 30.0))
+        cta_fim = float(ev.get("cta_meio_fim", 33.8))
+        alarme = float(ev.get("alarme_interfone", 46.0))
+        alarme_d = float(ev.get("alarme_interfone_duracao", 1.1))
+        s3 = float(ev.get("visor_s3", 52.0))
+        corte_p2 = float(ev.get("corte_parte_2", 58.0))
+        esmaga = float(ev.get("esmaga_botao", 66.0))
+        interf = float(ev.get("interfone", 72.0))
+        interf_d = float(ev.get("interfone_duracao", 1.2))
+        terreo = float(ev.get("voltou_terreo", 90.0))
+        cel = float(ev.get("celular_vibra", 94.0))
+        imp = float(ev.get("impacto_twist", 104.0))
+        imp_d = float(ev.get("impacto_twist_duracao", 1.4))
+        twist = float(ev.get("plot_twist", 108.0))
+
+        # 1. Silencio absoluto durante a CTA dedicada em tela cheia V5 (freio seco na entrada e volta limpa na saida)
+        if cta_ini + 0.025 <= t <= cta_fim - 0.025:
+            return 0.0
+        # 2. Micro-silencio cirurgico em volta de corte_parte_2 para corte FFmpeg sem estalo entre Parte 1 e Parte 2
+        if abs(t - corte_p2) <= 0.035:
+            return 0.0
+        # 3. Corte subito no impacto_twist e silencio gelado na revelacao final (loop seco sem cama)
+        if imp + 0.04 <= t < imp + imp_d:
+            return 0.0
+        if imp + imp_d <= t < twist:
+            return 0.05
+        if t >= twist:
+            return 0.0
+
+        corte_imp = 1.0 if t < imp else max(0.0, 1.0 - (t - imp) / 0.04)
+        if t < 0.35:
+            base = 0.13 * (t / 0.35)
+        elif t < trava:
+            k = t / max(0.1, trava)
+            base = 0.13 + 0.11 * k
+        elif t < cta_ini:
+            base = 0.29
+        elif t < s3:
+            k = max(0.0, (t - cta_fim) / max(0.1, s3 - cta_fim))
+            base = 0.24 + 0.14 * k
+        elif t < corte_p2:
+            base = 0.38
+        elif t < esmaga:
+            base = 0.25
+        elif t < terreo:
+            k = (t - esmaga) / max(0.1, terreo - esmaga)
+            base = 0.29 + 0.12 * k
+        elif t < cel:
+            base = 0.16
+        else:
+            k = (t - cel) / max(0.1, imp - cel)
+            base = 0.24 + 0.18 * (k ** 1.2)
+
+        # Rampas curtas nas bordas da CTA tela cheia e do corte Parte 2
+        if cta_ini - 0.025 <= t < cta_ini + 0.025:
+            base *= max(0.0, (cta_ini + 0.025 - t) / 0.05)
+        elif cta_fim - 0.025 < t <= cta_fim + 0.06:
+            base *= min(1.0, (t - (cta_fim - 0.025)) / 0.085)
+        if 0.035 < abs(t - corte_p2) <= 0.075:
+            base *= (abs(t - corte_p2) - 0.035) / 0.04
+
+        if porta_el - 0.06 <= t <= porta_el + porta_el_d + 0.06:
+            base *= 0.35
+        if tranco - 0.06 <= t <= tranco + tranco_d + 0.06:
+            base *= 0.24
+        if alarme - 0.06 <= t <= alarme + alarme_d + 0.06:
+            base *= 0.26
+        if interf - 0.06 <= t <= interf + interf_d + 0.06:
+            base *= 0.24
+        return base * corte_imp
+
     if _eh_video_05(ev):
         cong = float(ev.get("congela", 4.0))
         interf = float(ev.get("interfone", 10.5))
@@ -604,7 +700,7 @@ def sintetizar_cama_drone(duracao: float, ev: dict, ganhos_cat: dict[str, float]
         env = p_arr[idx_i] * (1.0 - frac) + p_arr[idx_i + 1] * frac
 
         lfo = 0.84 + 0.16 * np.sin(2.0 * np.pi * 0.22 * t)
-        f0 = 41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0)
+        f0 = 38.9 if _eh_video_06(ev) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
         # Sub organico quente + ar grave filtrado por FFT (sem zumbido eletronico)
         sub_l = 0.56 * np.sin(2.0 * np.pi * f0 * t) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.498) * t + 0.4)
         sub_r = 0.56 * np.sin(2.0 * np.pi * (f0 + 0.31) * t + 0.7) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.494) * t)
@@ -618,7 +714,7 @@ def sintetizar_cama_drone(duracao: float, ev: dict, ganhos_cat: dict[str, float]
     rng = random.Random(43)
     lp = 0.0
     two_pi = 2.0 * math.pi
-    f0 = 41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0)
+    f0 = 38.9 if _eh_video_06(ev) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
     for i in range(n):
         t = i / SR
         bi = i // passo
@@ -1465,6 +1561,172 @@ def sfx_corrente_porta_hd(duracao: float = 1.10):
     return sfx_porta_impacto_hd(duracao)
 
 
+def sfx_porta_elevador_hd(duracao: float = 1.10):
+    """Portas de aco inox de elevador deslizando no trilho e travando com clique eletromecanico."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rosa_a = _ruido_rosa_np(n, 6061)
+        rosa_b = _ruido_rosa_np(n, 6062)
+        # Rolamento no trilho (75..280 Hz) + atrito escovado de aco inox (650..2600 Hz)
+        trilho = _filtrar_banda_np(rosa_a, 75.0, 290.0, ordem=2.0)
+        atrito = _filtrar_banda_np(rosa_b, 650.0, 2600.0, ordem=2.0)
+
+        t_fim_deslize = min(duracao - 0.24, 0.78)
+        env_slide = (
+            np.minimum(1.0, t / 0.08)
+            * np.where(t <= t_fim_deslize, 1.0, np.exp(-(t - t_fim_deslize) / 0.04))
+        )
+        pulso_rol = 0.85 + 0.15 * np.sin(2.0 * np.pi * 7.5 * t)
+        mono = (trilho * 0.95 + atrito * 0.42) * env_slide * pulso_rol
+
+        # Batida firme no encontro das duas folhas + trava eletromecanica
+        d_bat = t - t_fim_deslize
+        m_bat = (d_bat >= 0.0) & (d_bat <= 0.26)
+        if np.any(m_bat):
+            dd = d_bat[m_bat]
+            thud = np.sin(2.0 * np.pi * (62.0 + 48.0 * np.exp(-dd / 0.015)) * dd) * np.exp(-dd / 0.055) * 1.05
+            mono[m_bat] += (thud + trilho[m_bat] * np.exp(-dd / 0.032) * 0.85) * np.minimum(1.0, dd / 0.004)
+
+        imp = np.zeros(n, dtype=np.float64)
+        idx_tr = min(n - 1, int((t_fim_deslize + 0.03) * SR))
+        imp[idx_tr] += 1.45
+        idx_cl = min(n - 1, int((t_fim_deslize + 0.11) * SR))
+        imp[idx_cl] += 0.85
+        trava_aco = (
+            _ressonador_np(imp, 1680.0, 11.0) * 0.80
+            + _ressonador_np(imp, 2940.0, 13.0) * 0.62
+        )
+
+        mono = np.tanh((mono + trava_aco * 1.9) * 1.2) * np.minimum(1.0, (duracao - t) / 0.035)
+        esq, dir_ = _aplicar_sala_curta(mono, [(11.0, 0.24, 0.20), (24.0, 0.14, 0.17), (41.0, 0.08, 0.09)])
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.86)
+
+    return sfx_porta_impacto_hd(duracao)
+
+
+def sfx_tranco_elevador_hd(duracao: float = 1.20):
+    """Tranco seco nos cabos de aco, freio mecanico brusco e estalo de rele da luz na cabine."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rng = np.random.default_rng(6063)
+        rosa_a = _ruido_rosa_np(n, 6064)
+        rosa_b = _ruido_rosa_np(n, 6065)
+        corpo_grave = _filtrar_banda_np(rosa_a, 45.0, 340.0, ordem=2.0)
+        faixa_eletr = _filtrar_banda_np(rosa_b, 900.0, 4800.0, ordem=2.0)
+
+        mono = np.zeros(n, dtype=np.float64)
+        # 1. Choque sub-grave do freio travando o carro no poco (t=0.04s)
+        d0 = t - 0.04
+        m0 = (d0 >= 0.0) & (d0 <= 0.72)
+        if np.any(m0):
+            dd = d0[m0]
+            f_sub = 30.0 + 48.0 * np.exp(-dd / 0.030)
+            sub_hit = np.sin(2.0 * np.pi * f_sub * dd) * np.exp(-dd / 0.15) * 1.25
+            mono[m0] += (sub_hit + corpo_grave[m0] * np.exp(-dd / 0.12) * 1.35) * np.minimum(1.0, dd / 0.004)
+
+        # 2. Estiramento de cabos de aco e rangido metalico no contrapeso (t=0.05..0.85s)
+        imp_cabos = np.zeros(n, dtype=np.float64)
+        for tk, amp in [(0.05, 1.55), (0.11, 1.05), (0.19, 0.80), (0.31, 0.65), (0.44, 0.52), (0.61, 0.38)]:
+            idx = int(tk * SR)
+            if 0 <= idx < n:
+                imp_cabos[idx] += amp * rng.uniform(0.9, 1.1)
+        cabos = (
+            _ressonador_np(imp_cabos, 420.0, 9.5) * 0.90
+            + _ressonador_np(imp_cabos, 890.0, 12.0) * 0.78
+            + _ressonador_np(imp_cabos, 1740.0, 14.0) * 0.60
+            + _ressonador_np(imp_cabos, 2980.0, 14.0) * 0.36
+        )
+
+        # 3. Estalo eletrico curto do rele/lampada fluorescente caindo (t=0.22..0.34s)
+        d_el = t - 0.22
+        env_el = np.where((d_el >= 0.0) & (d_el <= 0.14), np.exp(-d_el / 0.032), 0.0)
+        arco = faixa_eletr * env_el * (0.55 + 0.45 * np.sign(np.sin(2.0 * np.pi * 120.0 * t))) * 0.62
+
+        mono = np.tanh((mono + cabos * 1.75 + arco) * 1.25) * np.minimum(1.0, (duracao - t) / 0.05)
+        esq, dir_ = _aplicar_sala_curta(
+            mono, [(15.0, 0.26, 0.21), (38.0, 0.17, 0.20), (82.0, 0.11, 0.10), (145.0, 0.06, 0.07)]
+        )
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.94)
+
+    return sfx_porta_impacto_hd(duracao)
+
+
+def sfx_alarme_interfone_hd(duracao: float = 1.10):
+    """Cliques desesperados no botao vermelho + campainha metalica abafada de emergencia."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rng = np.random.default_rng(6066)
+        rosa = _ruido_rosa_np(n, 6067)
+        clique_banda = _filtrar_banda_np(rosa, 1200.0, 5600.0, ordem=2.0)
+        mono = np.zeros(n, dtype=np.float64)
+
+        # 1. Tres pressionadas rapidas no botao de emergencia (t=0.04, 0.21, 0.38s)
+        for tk in (0.04, 0.21, 0.38):
+            d = t - tk
+            m = (d >= 0.0) & (d <= 0.055)
+            if np.any(m):
+                dd = d[m]
+                mono[m] += clique_banda[m] * np.exp(-dd / 0.008) * 1.25
+                mono[m] += np.sin(2.0 * np.pi * 240.0 * dd) * np.exp(-dd / 0.012) * 0.42
+
+        # 2. Campainha/buzzer eletromecanico metalico abafado na caixa do elevador (0.14..0.52 e 0.64..1.00s)
+        martelo = np.zeros(n, dtype=np.float64)
+        for t_ini, t_fim in [(0.14, 0.50), (0.62, min(duracao - 0.06, 1.02))]:
+            cur = t_ini
+            while cur < t_fim:
+                idx = int(cur * SR)
+                if 0 <= idx < n:
+                    martelo[idx] += rng.uniform(0.75, 1.15)
+                cur += 1.0 / 21.0  # percussao mecanica de campainha (~21 golpes/s)
+
+        campainha = (
+            _ressonador_np(martelo, 790.0, 15.0) * 0.85
+            + _ressonador_np(martelo, 1485.0, 18.0) * 0.95
+            + _ressonador_np(martelo, 2340.0, 16.0) * 0.62
+        )
+        campainha = _filtrar_banda_np(campainha, 480.0, 3400.0, ordem=2.0)
+
+        env = np.minimum(1.0, t / 0.010) * np.minimum(1.0, (duracao - t) / 0.040)
+        mono = np.tanh((mono + campainha * 1.65) * 1.18) * env
+        esq, dir_ = _aplicar_sala_curta(mono, [(13.0, 0.22, 0.18), (31.0, 0.12, 0.15)])
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.86)
+
+    return sfx_interfone_hd(duracao)
+
+
+def sfx_glitch_cta_hd(duracao: float = 0.36):
+    """Corte seco editorial (tape-stop + micro-estatica analogica + golpe sub limpo) para CTA tela cheia V5."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rosa = _ruido_rosa_np(n, 6068)
+        estatica = _filtrar_banda_np(rosa, 950.0, 5400.0, ordem=2.0)
+
+        # Micro-rajadas analogicas de corte de sinal + freio grave rapido
+        gate = (
+            ((t >= 0.00) & (t <= 0.045)).astype(np.float64) * 1.0
+            + ((t >= 0.065) & (t <= 0.115)).astype(np.float64) * 0.85
+            + ((t >= 0.145) & (t <= 0.205)).astype(np.float64) * 0.45
+        )
+        estalo = estatica * gate * np.exp(-t / 0.14) * 0.92
+
+        # Tape-stop curto descendo de 260 Hz -> 42 Hz em 0.18s
+        f_drop = 42.0 + 220.0 * np.exp(-t / 0.048)
+        fase = 2.0 * np.pi * np.cumsum(f_drop) / SR
+        freio = np.sin(fase) * np.exp(-t / 0.095) * np.minimum(1.0, t / 0.004) * 0.95
+
+        env = np.minimum(1.0, t / 0.004) * np.minimum(1.0, (duracao - t) / 0.03)
+        mono = np.tanh((estalo + freio) * 1.25) * env
+        esq = mono * 0.98
+        dir_ = np.roll(mono, int(0.002 * SR)) * 0.96
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.84)
+
+    return sfx_cta_pop()
+
+
 # ============================================================
 # COMPOSICAO DE SFX SINCRONIZADA COM eventos.json
 # ============================================================
@@ -1480,6 +1742,117 @@ def sintetizar_sfx(
 
     def pegar(nome: str, fn_fb, dur_max: float | None = None):
         return obter_sfx(nome, fn_fb, duracao_max=dur_max, ganhos_cat=ganhos_cat, relatorio=relatorio)
+
+    if _eh_video_06(ev):
+        # 1. Clique discreto ao apertar o botao do terreo
+        if "aperta_terreo" in ev:
+            cl, cr = pegar("cta_pop", sfx_cta_pop, dur_max=0.22)
+            _misturar_trecho(esq, dir_, float(ev["aperta_terreo"]) + 0.12, cl, cr, 0.36)
+
+        # 2. Bloco SFX puro [SFX:porta_elevador:1.1]: portas de aco inox fechando
+        if "porta_elevador" in ev:
+            dur_pe = float(ev.get("porta_elevador_duracao", 1.1))
+            pl, pr = pegar("porta_elevador", lambda: sfx_porta_elevador_hd(dur_pe), dur_max=dur_pe + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["porta_elevador"]), pl, pr, 0.96)
+
+        # 3. Katana Hit 1 ("TRAVOU"): sub_boom seco + estalo de luz piscando
+        if "trava_seco" in ev:
+            t_tr = max(0.0, float(ev["trava_seco"]) - 0.03)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.95), dur_max=1.05)
+            _misturar_trecho(esq, dir_, t_tr, bl, br, 0.84)
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.32), dur_max=0.35)
+            _misturar_trecho(esq, dir_, t_tr, gl, gr, 0.42)
+
+        # 4. Bloco SFX puro [SFX:tranco_elevador:1.2]: tranco pesado nos cabos e freio
+        if "tranco_elevador" in ev:
+            dur_te = float(ev.get("tranco_elevador_duracao", 1.2))
+            tl, tr = pegar("tranco_elevador", lambda: sfx_tranco_elevador_hd(dur_te), dur_max=dur_te + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["tranco_elevador"]), tl, tr, 1.0)
+
+        # 5. Reflexo atrasado no espelho: whoosh sombrio sutil
+        if "reflexo_atrasado" in ev:
+            wl, wr = pegar("whoosh", lambda: sfx_whoosh_sombrio(0.70), dur_max=0.75)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["reflexo_atrasado"]) - 0.04), wl, wr, 0.64)
+
+        # 6. CTA Dedicada em Tela Cheia V5 ([CTA_PAUSA]): freio/glitch na entrada e volta limpa na saida
+        if "cta_meio_inicio" in ev:
+            t_ci = float(ev["cta_meio_inicio"])
+            gl, gr = pegar("glitch_cta", lambda: sfx_glitch_cta_hd(0.36), dur_max=0.40)
+            _misturar_trecho(esq, dir_, max(0.0, t_ci - 0.02), gl, gr, 0.86)
+            cl, cr = pegar("cta_pop", sfx_cta_pop, dur_max=0.24)
+            _misturar_trecho(esq, dir_, t_ci + 0.12, cl, cr, 0.56)
+        if "cta_meio_fim" in ev:
+            t_cf = float(ev["cta_meio_fim"])
+            gl2, gr2 = pegar("glitch_cta", lambda: sfx_glitch_cta_hd(0.28), dur_max=0.32)
+            _misturar_trecho(esq, dir_, max(0.0, t_cf - 0.16), gl2, gr2, 0.72)
+
+        # 7. Bloco SFX puro [SFX:alarme_interfone:1.1]: cliques desesperados + campainha abafada
+        if "alarme_interfone" in ev:
+            dur_al = float(ev.get("alarme_interfone_duracao", 1.1))
+            al, ar = pegar("alarme_interfone", lambda: sfx_alarme_interfone_hd(dur_al), dur_max=dur_al + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["alarme_interfone"]), al, ar, 0.96)
+
+        # 8. Katana Hit 2 ("S3"): sub_boom seco + interferencia no visor
+        if "visor_s3" in ev:
+            t_s3 = max(0.0, float(ev["visor_s3"]) - 0.03)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.95), dur_max=1.05)
+            _misturar_trecho(esq, dir_, t_s3, bl, br, 0.86)
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.34), dur_max=0.38)
+            _misturar_trecho(esq, dir_, t_s3, gl, gr, 0.44)
+
+        # 9. Portas abrindo no S3 (final da Parte 1, garantindo terminar antes de corte_parte_2)
+        if "portas_abrem_s3" in ev:
+            t_pa = float(ev["portas_abrem_s3"])
+            t_corte = float(ev.get("corte_parte_2", t_pa + 1.5))
+            lim_p = max(0.35, min(1.05, (t_corte - 0.08) - t_pa))
+            pl, pr = pegar("porta_elevador", lambda: sfx_porta_elevador_hd(lim_p), dur_max=lim_p)
+            _misturar_trecho(esq, dir_, t_pa, pl, pr, 0.64)
+
+        # 10. Bloco SFX puro [SFX:interfone:1.2] na Parte 2: chiado analogico abrindo voz do porteiro
+        if "interfone" in ev:
+            dur_i = float(ev.get("interfone_duracao", 1.2))
+            il, ir = pegar("interfone", lambda: sfx_interfone_hd(dur_i), dur_max=dur_i + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["interfone"]), il, ir, 0.96)
+
+        # 11. Katana Hit 3 ("5 MINUTOS"): sub_boom + micro glitch CCTV
+        if "cinco_minutos" in ev:
+            t_5m = max(0.0, float(ev["cinco_minutos"]) - 0.03)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.95), dur_max=1.05)
+            _misturar_trecho(esq, dir_, t_5m, bl, br, 0.86)
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.32), dur_max=0.35)
+            _misturar_trecho(esq, dir_, t_5m, gl, gr, 0.42)
+
+        # 12. Celular vibra com mensagem do amigo
+        if "celular_vibra" in ev:
+            vl, vr = sfx_vibracao_celular(0.46, 0.96)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["celular_vibra"]) - 0.03), vl, vr, 0.84)
+        if "msg_amigo" in ev:
+            pl, pr = sfx_pix_notificacao(2)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["msg_amigo"]) - 0.04), pl, pr, 0.68)
+
+        # 13. Riser tenso antes do impacto_twist
+        if "igual_voce" in ev and "impacto_twist" in ev:
+            t_ig = float(ev["igual_voce"])
+            t_it = float(ev["impacto_twist"])
+            dur_r = (t_it - 0.02) - t_ig
+            if dur_r >= 0.55:
+                rl, rr = pegar("riser", lambda: sfx_riser(min(3.4, dur_r)), dur_max=min(3.4, dur_r))
+                _misturar_trecho(esq, dir_, max(t_ig, t_it - 0.02 - min(3.4, dur_r)), rl, rr, 0.72)
+
+        # 14. Bloco SFX puro [SFX:impacto_twist:1.4]: terror cinematografico no silencio do drone
+        if "impacto_twist" in ev:
+            dur_it = float(ev.get("impacto_twist_duracao", 1.4))
+            il, ir = pegar("impacto_twist", lambda: sfx_impacto_twist_hd(dur_it), dur_max=dur_it + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["impacto_twist"]), il, ir, 1.0)
+
+        # 15. Katana Hit 4 ("SORRIU"): golpe sub-grave seco encerrando no sorriso do espelho (loop seco)
+        if "plot_twist" in ev:
+            t_tw = max(0.0, float(ev["plot_twist"]) - 0.02)
+            rem = max(0.42, duracao - t_tw)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(min(1.05, rem)), dur_max=rem)
+            _misturar_trecho(esq, dir_, t_tw, bl, br, 0.94)
+
+        return esq, dir_
 
     if _eh_video_05(ev):
         # 1. Celular vibra as 02:15 + notificacao de app de entrega
@@ -1863,15 +2236,19 @@ def main() -> None:
     duracao = max(medir_duracao_ffprobe(VOZ_LIMPA_MP3), float(eventos.get("duracao_total", 0.0)))
     backend = "numpy" if np is not None else "stdlib"
     perfil = (
-        "Video 05 (O Pedido das 02h15)"
-        if _eh_video_05(eventos)
+        "Video 06 (O Elevador do Subsolo 2)"
+        if _eh_video_06(eventos)
         else (
-            "Video 04 (A Baba Eletronica)"
-            if _eh_video_04(eventos)
+            "Video 05 (O Pedido das 02h15)"
+            if _eh_video_05(eventos)
             else (
-                "Video 03 (O Pix de 1 Centavo)"
-                if _eh_video_03(eventos)
-                else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+                "Video 04 (A Baba Eletronica)"
+                if _eh_video_04(eventos)
+                else (
+                    "Video 03 (O Pix de 1 Centavo)"
+                    if _eh_video_03(eventos)
+                    else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+                )
             )
         )
     )
@@ -1883,7 +2260,7 @@ def main() -> None:
     ganhos_cat = _carregar_ganhos_catalogo()
     relatorio_sfx: dict[str, str] = {}
 
-    with tempfile.TemporaryDirectory(prefix="sfx-v4-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="sfx-v5-") as tmp:
         tmp_dir = Path(tmp)
         drone_wav = tmp_dir / "cama_drone.wav"
         sfx_wav = tmp_dir / "sfx_eventos.wav"

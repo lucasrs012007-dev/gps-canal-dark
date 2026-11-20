@@ -1,16 +1,17 @@
-"""Estacao 4 (v3 otimizada): renderiza player.html (1080x1920, 30 fps) para a proxima numeracao livre.
+"""Estacao 4 (v5 otimizada): renderiza player.html (1080x1920, 30 fps) e fatia Parte 1 / Parte 2.
 
 Uso (na raiz do repositorio):
-    python3 render/renderizar.py           # render completo (output/short_03.mp4, short_04.mp4...)
+    python3 render/renderizar.py           # render completo (output/short_06.mp4 + parte1 + parte2)
     python3 render/renderizar.py --teste   # render rapido de 2s para validacao
     python3 render/renderizar.py --legendas
     python3 render/renderizar.py --png     # transporte PNG lossless (mais lento na CPU)
 
-Melhorias V3 (video-director + trava blindada):
-- Valida obrigatoriamente video_id, titulo, roteiro_sha256 e CTA final 'COMENTE EU QUERO'
+Recursos V5 (video-director + trava blindada + corte automatico):
+- Valida obrigatoriamente video_id, titulo, roteiro_sha256, CTA ('COMENTE EU QUERO') e corte_parte_2
   via pipeline/historico.py antes de iniciar o render quando houver audio/JSONs em audio/.
-- Transporte MJPEG q=0.96 por padrao (muito mais rapido que toDataURL PNG em CPU) com
-  codificacao final H.264 CRF 18 (-preset fast -tune animation) e grao sutil no ffmpeg.
+- Transporte MJPEG q=0.96 por padrao com codificacao H.264 CRF 18 (-preset fast -tune animation).
+- Quando corte_parte_2 estiver definido (videos longos de 2 partes) e nao for --teste,
+  fatia automaticamente short_NN_parte1.mp4 e short_NN_parte2.mp4 via FFmpeg sem re-renderizar o Chromium.
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ if str(RAIZ) not in sys.path:
 
 from pipeline.historico import (  # noqa: E402
     caminho_saida_atual,
+    caminhos_partes_atual,
     obter_video_atual,
     validar_artefatos_audio,
 )
@@ -48,7 +50,7 @@ AUDIO_MIX = PASTA_AUDIO / "mix_final.mp3"
 AUDIO_MP3 = PASTA_AUDIO / "narracao.mp3"
 LARGURA = 1080
 ALTURA = 1920
-DURACAO_PREVIA = 43.0
+DURACAO_PREVIA = 109.0
 FOLGA_AUDIO = 0.3
 
 
@@ -383,6 +385,83 @@ def selecionar_audio() -> Path | None:
     return None
 
 
+def fatiar_partes_ffmpeg(
+    saida_completa: Path,
+    corte_parte_2: float,
+    saidas_partes: list[Path] | None = None,
+) -> tuple[Path, Path]:
+    """Fatia o MP4 completo em Parte 1 (0..corte) e Parte 2 (corte..fim) com precisao de quadro sem re-renderizar."""
+    if not saida_completa.is_file():
+        raise RuntimeError(f"Arquivo de entrada ausente para fatiamento: {saida_completa}")
+
+    dur_total = duracao_audio_ffprobe(saida_completa)
+    if corte_parte_2 <= 0.2 or corte_parte_2 >= dur_total - 0.2:
+        raise RuntimeError(
+            f"corte_parte_2={corte_parte_2:.3f}s invalido para duracao total {dur_total:.3f}s."
+        )
+
+    if saidas_partes and len(saidas_partes) >= 2:
+        p1, p2 = Path(saidas_partes[0]), Path(saidas_partes[1])
+    else:
+        p1 = saida_completa.with_name(f"{saida_completa.stem}_parte1{saida_completa.suffix}")
+        p2 = saida_completa.with_name(f"{saida_completa.stem}_parte2{saida_completa.suffix}")
+
+    p1.parent.mkdir(parents=True, exist_ok=True)
+    p2.parent.mkdir(parents=True, exist_ok=True)
+
+    args_encode = [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-tune",
+        "animation",
+        "-crf",
+        "18",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+        "-movflags",
+        "+faststart",
+    ]
+
+    cmd_p1 = [
+        "ffmpeg",
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        str(saida_completa),
+        "-t",
+        f"{corte_parte_2:.3f}",
+        *args_encode,
+        str(p1),
+    ]
+    cmd_p2 = [
+        "ffmpeg",
+        "-y",
+        "-loglevel",
+        "error",
+        "-ss",
+        f"{corte_parte_2:.3f}",
+        "-i",
+        str(saida_completa),
+        *args_encode,
+        str(p2),
+    ]
+
+    subprocess.run(cmd_p1, check=True)
+    subprocess.run(cmd_p2, check=True)
+    return p1, p2
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Renderiza player.html para MP4 9:16 (1080x1920).")
     parser.add_argument("--teste", action="store_true", help="Renderiza apenas os 2 primeiros segundos.")
@@ -410,13 +489,18 @@ def main() -> None:
 
     # Trava blindada: sempre que houver audio ou JSONs em audio/, exige integridade 100% com video_atual + CTA.
     cta_modo = str(video_ativo.get("cta_modo", "final")).strip().lower() or "final"
+    corte_parte_2: float | None = None
     if audio_alvo is not None or tem_artefato_json:
         val = validar_artefatos_audio(PASTA_AUDIO)
         c = val["carimbo"]
         cta_modo = c["cta_modo"]
+        ev_corte = val["eventos"].get("corte_parte_2")
+        if ev_corte is not None:
+            corte_parte_2 = float(ev_corte)
+        extra_p2 = f", corte_parte_2={corte_parte_2:.2f}s" if corte_parte_2 is not None else ""
         print(
             f"Trava de audio OK: Video {c['video_id']:02d} '{c['titulo']}' "
-            f"(sha256={c['roteiro_sha256'][:12]}, CTA confirmada [modo={cta_modo}])."
+            f"(sha256={c['roteiro_sha256'][:12]}, CTA confirmada [modo={cta_modo}{extra_p2}])."
         )
 
     saida_padrao = caminho_saida_atual()
@@ -468,9 +552,17 @@ def main() -> None:
         if status_player:
             print(f"Player: {status_player}", flush=True)
 
-        dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 43"))
+        if corte_parte_2 is None:
+            corte_js = avaliar_js(
+                cdp,
+                "typeof window.getCorteParte2 === 'function' ? window.getCorteParte2() : null",
+            )
+            if corte_js is not None:
+                corte_parte_2 = float(corte_js)
+
+        dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 109"))
         if audio_alvo is not None:
-            folga = 0.05 if cta_modo == "meio" else FOLGA_AUDIO
+            folga = 0.05 if cta_modo in ("meio", "pausa_meio") else FOLGA_AUDIO
             duracao_real = duracao_audio_ffprobe(audio_alvo) + folga
             modo = f"com audio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {folga}s)"
         else:
@@ -527,6 +619,19 @@ def main() -> None:
             raise RuntimeError(f"ffmpeg falhou (codigo {ret}): {stderr_ff}")
 
         print(f"Concluido em {time.monotonic() - inicio:.1f}s: {saida} ({saida.stat().st_size / 1024:.1f} KB)")
+
+        if (not args.teste) and (corte_parte_2 is not None) and (0.5 < corte_parte_2 < duracao - 0.5):
+            saidas_partes = caminhos_partes_atual() if args.saida is None else None
+            t_fat = time.monotonic()
+            p1, p2 = fatiar_partes_ffmpeg(saida, corte_parte_2, saidas_partes=saidas_partes)
+            d1 = duracao_audio_ffprobe(p1)
+            d2 = duracao_audio_ffprobe(p2)
+            print(
+                f"Corte automatico Parte 1 / Parte 2 concluido em {time.monotonic() - t_fat:.1f}s "
+                f"(corte={corte_parte_2:.3f}s):"
+            )
+            print(f"  Parte 1: {p1} ({d1:.2f}s, {p1.stat().st_size / 1024:.1f} KB)")
+            print(f"  Parte 2: {p2} ({d2:.2f}s, {p2.stat().st_size / 1024:.1f} KB)")
     finally:
         if ff and ff.poll() is None:
             ff.kill()

@@ -268,7 +268,77 @@ def validar_artefatos_audio(
 
     if exigir_cta:
         modo_esperado = esperado["cta_modo"]
-        if modo_esperado == "meio":
+        if modo_esperado == "pausa_meio":
+            dur_ref = float(ev_dados.get("duracao_total") or ts_dados.get("duracao_total") or 0.0)
+            janela_ok: tuple[float, float] | None = None
+            for nome_arq, dados in (("timestamps.json", ts_dados), ("eventos.json", ev_dados)):
+                modo_arq = str(dados.get("cta_modo", "")).strip().lower()
+                if modo_arq != "pausa_meio":
+                    erros.append(
+                        f"{nome_arq}: cta_modo={modo_arq!r} difere do esperado 'pausa_meio' (V5)"
+                    )
+                cta_txt = normalizar_texto(dados.get("cta_texto", ""))
+                if CTA_OBRIGATORIA not in cta_txt:
+                    erros.append(
+                        f"{nome_arq}: cta_texto obrigatorio 'COMENTE EU QUERO' ausente ou invalido "
+                        f"(recebido: {dados.get('cta_texto')!r})"
+                    )
+                ini = dados.get("cta_meio_inicio")
+                fim = dados.get("cta_meio_fim")
+                try:
+                    ini_f = float(ini)
+                    fim_f = float(fim)
+                except (TypeError, ValueError):
+                    erros.append(
+                        f"{nome_arq}: cta_meio_inicio={ini!r} / cta_meio_fim={fim!r} invalidos"
+                    )
+                else:
+                    perm = fim_f - ini_f
+                    if ini_f <= 1.0 or fim_f <= ini_f or (dur_ref > 0 and fim_f >= dur_ref - 1.0):
+                        erros.append(
+                            f"{nome_arq}: janela cta_meio ({ini_f:.3f}s..{fim_f:.3f}s) fora do meio do video (dur={dur_ref:.3f}s)"
+                        )
+                    elif perm < 2.2 or perm > 5.5:
+                        erros.append(
+                            f"{nome_arq}: permanencia da CTA tela cheia ({perm:.2f}s) fora da faixa [2.2s, 5.5s]"
+                        )
+                    elif janela_ok is None:
+                        janela_ok = (ini_f, fim_f)
+
+                corte = dados.get("corte_parte_2")
+                try:
+                    corte_f = float(corte)
+                except (TypeError, ValueError):
+                    erros.append(f"{nome_arq}: corte_parte_2 ausente ou invalido ({corte!r})")
+                else:
+                    if dur_ref > 0:
+                        frac = corte_f / dur_ref
+                        if frac < 0.35 or frac > 0.65:
+                            erros.append(
+                                f"{nome_arq}: corte_parte_2={corte_f:.3f}s ({frac * 100:.1f}%) "
+                                "fora da faixa obrigatoria [35%, 65%]"
+                            )
+                    if janela_ok is not None and janela_ok[1] > corte_f + 0.05:
+                        erros.append(
+                            f"{nome_arq}: CTA do meio termina ({janela_ok[1]:.3f}s) apos corte_parte_2 ({corte_f:.3f}s)"
+                        )
+
+            if janela_ok is not None:
+                ini_j, fim_j = janela_ok
+                palavras = ts_dados.get("palavras") or []
+                na_janela = [
+                    str(p.get("palavra", ""))
+                    for p in palavras
+                    if float(p.get("inicio", -1.0)) >= (ini_j - 0.15)
+                    and float(p.get("fim", p.get("inicio", 9e9))) <= (fim_j + 0.15)
+                ]
+                trecho_j = normalizar_texto(" ".join(na_janela))
+                if CTA_OBRIGATORIA not in trecho_j:
+                    erros.append(
+                        "timestamps.json: palavras reais 'COMENTE EU QUERO' nao encontradas dentro da "
+                        f"janela CTA [{ini_j:.2f}s..{fim_j:.2f}s] (lido: {' '.join(na_janela)!r})"
+                    )
+        elif modo_esperado == "meio":
             dur_ref = float(ev_dados.get("duracao_total") or ts_dados.get("duracao_total") or 0.0)
             for nome_arq, dados in (("timestamps.json", ts_dados), ("eventos.json", ev_dados)):
                 modo_arq = str(dados.get("cta_modo", "")).strip().lower()
@@ -325,6 +395,19 @@ def validar_artefatos_audio(
     }
 
 
+def caminhos_partes_atual() -> list[Path]:
+    """Retorna os caminhos configurados em saidas_partes do video atual (ou deriva parte1/parte2)."""
+    atual = obter_video_atual(validar=True)
+    partes = atual.get("saidas_partes")
+    if isinstance(partes, list) and len(partes) >= 2:
+        return [RAIZ / str(p) for p in partes[:2]]
+    saida = caminho_saida_atual()
+    return [
+        saida.with_name(f"{saida.stem}_parte1{saida.suffix}"),
+        saida.with_name(f"{saida.stem}_parte2{saida.suffix}"),
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Valida e consulta historico_videos.json.")
     parser.add_argument(
@@ -347,11 +430,19 @@ def main() -> None:
         res = validar_artefatos_audio()
         c = res["carimbo"]
         ev = res["eventos"]
-        det_cta = (
-            f"CTA 'COMENTE EU QUERO' confirmada [modo=meio, {float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s]"
-            if c["cta_modo"] == "meio"
-            else "CTA 'COMENTE EU QUERO' confirmada [modo=final]"
-        )
+        if c["cta_modo"] == "pausa_meio":
+            det_cta = (
+                f"CTA tela cheia 'COMENTE EU QUERO' confirmada [modo=pausa_meio, "
+                f"{float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s, "
+                f"corte_parte_2={float(ev['corte_parte_2']):.2f}s]"
+            )
+        elif c["cta_modo"] == "meio":
+            det_cta = (
+                f"CTA 'COMENTE EU QUERO' confirmada [modo=meio, "
+                f"{float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s]"
+            )
+        else:
+            det_cta = "CTA 'COMENTE EU QUERO' confirmada [modo=final]"
         print(
             f"Integridade de audio OK: Video {c['video_id']:02d} '{c['titulo']}' "
             f"(sha256={c['roteiro_sha256'][:12]}, {det_cta})."

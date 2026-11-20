@@ -76,6 +76,11 @@ PADRAO_SFX = re.compile(
     r"^\[\s*SFX\s*:\s*([a-zA-Z0-9_]+)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*\]$",
     re.IGNORECASE,
 )
+PADRAO_CORTE_P2 = re.compile(r"^\[\s*CORTE_PARTE_2\s*\]$", re.IGNORECASE)
+PADRAO_CTA_PAUSA = re.compile(
+    r"^\[\s*CTA_PAUSA\s*\]([\s\S]*?)\[\s*/\s*CTA_PAUSA\s*\]$",
+    re.IGNORECASE,
+)
 PADRAO_BATIDAS = re.compile(
     r"(?:^|\s)(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?(?=\s|$)",
     re.IGNORECASE,
@@ -163,7 +168,7 @@ def _interpretar_coluna_eventos(espec: str) -> tuple[list[str], list[tuple[str, 
 
 
 def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
-    """Extrai falas e blocos silenciosos de SFX na ordem do roteiro."""
+    """Extrai falas, blocos silenciosos de SFX e marcadores V5 ([CTA_PAUSA], [CORTE_PARTE_2])."""
     linhas_bloco: list[list[str]] = []
     for linha in caminho.read_text(encoding="utf-8").splitlines():
         if LINHA_BLOCO.match(linha):
@@ -181,6 +186,56 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
         narracao = colunas[1]
         espec_eventos = colunas[3] if len(colunas) >= 4 else ""
         ev_inicio, ev_palavra, pausa_explicita = _interpretar_coluna_eventos(espec_eventos)
+
+        if PADRAO_CORTE_P2.match(narracao):
+            itens.append(
+                {
+                    "tipo": "corte_parte_2",
+                    "bloco": bloco_idx,
+                    "evento": "corte_parte_2",
+                    "duracao": 0.16,
+                    "pausa_antes": 0.0,
+                }
+            )
+            continue
+
+        m_cta = PADRAO_CTA_PAUSA.match(narracao)
+        if m_cta:
+            texto_cta = m_cta.group(1).strip()
+            frases_cta = [f.strip() for f in SEPARADOR_FRASES.split(texto_cta) if f.strip()]
+            itens.append(
+                {
+                    "tipo": "silencio",
+                    "bloco": bloco_idx,
+                    "evento": "cta_pausa_in",
+                    "duracao": 0.22,
+                    "pausa_antes": 0.06,
+                    "interno_cta": True,
+                }
+            )
+            for f_idx, frase in enumerate(frases_cta):
+                itens.append(
+                    {
+                        "tipo": "fala",
+                        "bloco": bloco_idx,
+                        "texto": frase,
+                        "eventos_inicio": ev_inicio if f_idx == 0 else [],
+                        "eventos_palavra": ev_palavra,
+                        "pausa_antes": 0.0 if f_idx == 0 else 0.14,
+                        "eh_cta_pausa": True,
+                    }
+                )
+            itens.append(
+                {
+                    "tipo": "silencio",
+                    "bloco": bloco_idx,
+                    "evento": "cta_pausa_out",
+                    "duracao": 0.22,
+                    "pausa_antes": 0.0,
+                    "interno_cta": True,
+                }
+            )
+            continue
 
         m_sfx = PADRAO_SFX.match(narracao)
         if m_sfx:
@@ -240,7 +295,9 @@ def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
     atual = itens[idx]
     if atual.get("pausa_antes") is not None:
         return float(atual["pausa_antes"])
-    if anterior["tipo"] == "silencio":
+    if anterior["tipo"] in ("silencio", "corte_parte_2"):
+        return 0.0
+    if atual["tipo"] == "corte_parte_2":
         return 0.0
     if atual["tipo"] == "silencio":
         return 0.08
@@ -716,7 +773,13 @@ def main() -> None:
         "roteiro_sha256": roteiro_sha256,
     }
 
-    with tempfile.TemporaryDirectory(prefix="voz-v3-") as tmp:
+    cta_modo = str(video_ativo.get("cta_modo", "final")).strip().lower() or "final"
+    cta_pausa_inicio: float | None = None
+    cta_pausa_fim: float | None = None
+    cta_fala_inicio: float | None = None
+    cta_fala_fim: float | None = None
+
+    with tempfile.TemporaryDirectory(prefix="voz-v5-") as tmp:
         tmp_dir = Path(tmp)
         wavs_concat: list[Path] = []
         cursor = 0.0
@@ -730,6 +793,27 @@ def main() -> None:
                 wavs_concat.append(p_wav)
                 cursor += dur_p
 
+            if item["tipo"] == "corte_parte_2":
+                c_wav = tmp_dir / f"corte_p2_{idx:02d}.wav"
+                t_ini = round(cursor, 3)
+                dur_s = gerar_wav_silencio(c_wav, item["duracao"])
+                wavs_concat.append(c_wav)
+                t_corte = round(cursor + dur_s * 0.5, 3)
+                eventos["corte_parte_2"] = t_corte
+                eventos["corte_parte_2_duracao"] = round(dur_s, 3)
+                frases_log.append(
+                    {
+                        "tipo": "corte_parte_2",
+                        "evento": "corte_parte_2",
+                        "inicio": t_ini,
+                        "corte": t_corte,
+                        "fim": round(cursor + dur_s, 3),
+                        "duracao": round(dur_s, 3),
+                    }
+                )
+                cursor += dur_s
+                continue
+
             if item["tipo"] == "silencio":
                 s_wav = tmp_dir / f"silencio_{idx:02d}.wav"
                 t_ini = round(cursor, 3)
@@ -738,6 +822,10 @@ def main() -> None:
                 ev_nome = item["evento"]
                 eventos[ev_nome] = t_ini
                 eventos[f"{ev_nome}_duracao"] = round(dur_s, 3)
+                if ev_nome == "cta_pausa_in":
+                    cta_pausa_inicio = t_ini
+                elif ev_nome == "cta_pausa_out":
+                    cta_pausa_fim = round(cursor + dur_s, 3)
                 if ev_nome == "batidas_porta":
                     eventos["batidas_tempos"] = [
                         round(t_ini + 0.0, 3),
@@ -785,6 +873,11 @@ def main() -> None:
             wavs_concat.append(limpa_wav)
 
             t_ini = cursor
+            if item.get("eh_cta_pausa"):
+                if cta_fala_inicio is None:
+                    cta_fala_inicio = round(t_ini, 3)
+                cta_fala_fim = round(t_ini + dur_frase, 3)
+
             palavras_frase = alinhar_palavras_na_frase(texto, t_ini, dur_frase, raw_words)
 
             evento_principal = None
@@ -875,9 +968,10 @@ def main() -> None:
             cursor += dur_frase
             frase_idx += 1
 
-        if CAUDA_FINAL > 0:
+        cauda = 0.22 if cta_modo in ("meio", "pausa_meio") else CAUDA_FINAL
+        if cauda > 0:
             cauda_wav = tmp_dir / "cauda_final.wav"
-            cursor += gerar_wav_silencio(cauda_wav, CAUDA_FINAL)
+            cursor += gerar_wav_silencio(cauda_wav, cauda)
             wavs_concat.append(cauda_wav)
 
         wav_mestre = tmp_dir / "voz_limpa_mestre.wav"
@@ -886,14 +980,31 @@ def main() -> None:
     duracao_total = round(dur_mp3, 3)
     eventos["duracao_total"] = duracao_total
     eventos["frases"] = frases_log
-
-    cta_modo = str(video_ativo.get("cta_modo", "final")).strip().lower() or "final"
     eventos["cta_modo"] = cta_modo
+
     cta_meio_inicio: float | None = None
     cta_meio_fim: float | None = None
     cta_texto = "COMENTE EU QUERO"
 
-    if cta_modo == "meio":
+    if cta_modo == "pausa_meio":
+        if cta_pausa_inicio is None or cta_pausa_fim is None:
+            raise RuntimeError(
+                "cta_modo='pausa_meio' (V5) exige bloco [CTA_PAUSA]...[/CTA_PAUSA] no roteiro."
+            )
+        if "corte_parte_2" not in eventos:
+            raise RuntimeError(
+                "cta_modo='pausa_meio' (V5) exige marcador [CORTE_PARTE_2] no roteiro."
+            )
+        cta_meio_inicio = cta_pausa_inicio
+        cta_meio_fim = cta_pausa_fim
+        eventos["cta_meio_inicio"] = cta_meio_inicio
+        eventos["cta_meio_fim"] = cta_meio_fim
+        if cta_fala_inicio is not None:
+            eventos["cta_fala_inicio"] = cta_fala_inicio
+        if cta_fala_fim is not None:
+            eventos["cta_fala_fim"] = cta_fala_fim
+        eventos["cta_texto"] = cta_texto
+    elif cta_modo == "meio":
         if "cta_meio" in eventos:
             alvo_ini = float(eventos["cta_meio"])
             # Garante posicionamento na janela do meio (~44% a 58% da duracao) sem atropelar o hit anterior
@@ -937,6 +1048,22 @@ def main() -> None:
             "sacola_mesa", "mesa_cozinha", "foto_corredor", "atras_dela",
             "plot_twist", "duracao_total",
         ],
+        "roteiro_06.txt": [
+            "gancho", "entra_elevador", "andar_12", "aperta_terreo",
+            "portas_fecham", "porta_elevador", "painel_desce",
+            "num_11", "num_10", "num_09", "luz_pisca", "trava_seco",
+            "andar_06", "tranco_elevador", "painel_apaga", "olha_espelho",
+            "reflexo_atrasado", "cta_pausa", "cta_meio_inicio", "cta_meio_fim",
+            "luz_volta", "passa_terreo", "passa_g1", "passa_g2",
+            "botao_emergencia", "alarme_interfone", "dois_subsolos",
+            "visor_s3", "portas_abrem_s3", "corredor_escuro", "corte_parte_2",
+            "lado_fora", "cadeira_metal", "esmaga_botao", "interfone_chia",
+            "interfone", "voz_porteiro", "nao_sai", "cinco_minutos",
+            "alguem_dentro", "olha_camera", "espelho_novo", "voltou_terreo",
+            "celular_vibra", "msg_amigo", "igual_voce", "camera_hall",
+            "impacto_twist", "final_espelho", "reflexo_sorri", "plot_twist",
+            "duracao_total",
+        ],
     }
     if roteiro_path.name in obrigatorios_por_roteiro:
         faltando = [k for k in obrigatorios_por_roteiro[roteiro_path.name] if k not in eventos]
@@ -962,10 +1089,17 @@ def main() -> None:
         "grupos": grupos_todos,
         "palavras": palavras_todas,
     }
-    if cta_modo == "meio":
+    if cta_modo in ("meio", "pausa_meio"):
         dados_timestamps["cta_meio_inicio"] = cta_meio_inicio
         dados_timestamps["cta_meio_fim"] = cta_meio_fim
         dados_timestamps["cta_texto"] = cta_texto
+        if cta_modo == "pausa_meio":
+            if cta_fala_inicio is not None:
+                dados_timestamps["cta_fala_inicio"] = cta_fala_inicio
+            if cta_fala_fim is not None:
+                dados_timestamps["cta_fala_fim"] = cta_fala_fim
+    if "corte_parte_2" in eventos:
+        dados_timestamps["corte_parte_2"] = eventos["corte_parte_2"]
 
     TIMESTAMPS_JSON.write_text(
         json.dumps(dados_timestamps, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -982,7 +1116,14 @@ def main() -> None:
         f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | motor final={motor} | "
         f"{len(palavras_todas)} palavras em {len(grupos_todos)} grupos de legenda"
     )
-    if cta_modo == "meio" and cta_meio_inicio is not None and cta_meio_fim is not None:
+    if cta_modo == "pausa_meio" and cta_meio_inicio is not None and cta_meio_fim is not None:
+        corte_p2 = float(eventos.get("corte_parte_2", 0.0))
+        pct_corte = (corte_p2 / max(0.1, duracao_total)) * 100.0
+        print(
+            f"CTA tela cheia V5 em {cta_meio_inicio:.2f}s..{cta_meio_fim:.2f}s ({cta_meio_fim - cta_meio_inicio:.2f}s) | "
+            f"Corte Parte 2 em {corte_p2:.2f}s ({pct_corte:.1f}%) | Plot twist em {eventos.get('plot_twist')}s"
+        )
+    elif cta_modo == "meio" and cta_meio_inicio is not None and cta_meio_fim is not None:
         pct0 = (cta_meio_inicio / max(0.1, duracao_total)) * 100.0
         pct1 = (cta_meio_fim / max(0.1, duracao_total)) * 100.0
         print(

@@ -1,0 +1,59 @@
+ROTEIRO 06: "O ELEVADOR DO SUBSOLO 2"
+Formato: YouTube Shorts / Reels 9:16 (1080x1920) | Serie em 2 Partes (~1m40 total)
+Duracao alvo: 95 a 112 segundos | Motor: V5 (Katana + CTA Tela Cheia no Meio + Corte Automatico Parte 1 / Parte 2)
+Personagem: Rafael (jaqueta verde-petroleo/cinza #0F766E flat em capsula, cabelo escuro curto)
+Selo dinamico: "PARTE 1" antes de [CORTE_PARTE_2], oculto durante [CTA_PAUSA], e "PARTE 2" a partir de [CORTE_PARTE_2].
+CTA dedicada: bloco [CTA_PAUSA] em tela cheia (~3s) no meio da Parte 1; zero CTA no final da Parte 1 e da Parte 2 para loop seco.
+Regra visual: cortes dinamicos a cada 1,0s a 1,8s; hits Katana em "TRAVOU", "S3", "5 MINUTOS" e "SORRIU".
+
+Estrutura de cada bloco:
+[Tempo em Segundos] | [Texto Exato da Narracao] | [Direcao visual e relogio] | [Eventos e pausas]
+
+============================================================
+
+PARTE 1: O ANDAR QUE NAO EXISTE (01:42)
+
+[00 - 07] | Uma e quarenta e dois da manhã. Rafael entra sozinho no elevador do prédio, no décimo segundo andar, voltando da casa de um amigo. | Hall escuro do 12o andar e interior de elevador brasileiro com espelho amplo; selo PARTE 1 em (64, 165) e relogio 01:42; visor vermelho marcando 12. | gancho, entra_elevador@entra, andar_12@decimo
+[07 - 10] | Ele aperta o térreo. As portas fecham devagar. | Close na botoeira metalica (12..T, G1, G2) acendendo o botao T; portas de aco inox comecam a fechar. | aperta_terreo, portas_fecham@portas
+[10 - 11] | [SFX:porta_elevador:1.1] | Bloco SFX puro: portas metalicas deslizam fechando com trava eletromecanica firme e reflexo frio de inox. | porta_elevador
+[11 - 16] | No painel vermelho, os números começam a descer: onze, dez, nove. | Close dramatico no visor digital vermelho descendo 11 -> 10 -> 09 com seta para baixo e cabine tremendo leve. | painel_desce, num_11@onze, num_10@dez, num_09@nove
+[16 - 21] | Do nada, a luz pisca e o elevador trava seco no sexto andar. | Luz fluorescente do teto pisca freneticamente; visor crava em 06; KATANA HIT 1 "TRAVOU" com flash branco/preto/vermelho e punch-in. | luz_pisca, trava_seco@trava, andar_06@sexto
+[21 - 22] | [SFX:tranco_elevador:1.2] | Bloco SFX puro: tranco pesado nos cabos e freio mecanico com screen shake forte e queda de energia na cabine. | tranco_elevador
+[22 - 30] | O painel inteiro apaga. Rafael olha pro espelho atrás dele... e percebe que o reflexo demorou meio segundo a mais pra virar a cabeça. | Visor vermelho apaga; plano medio na cabine sombria: Rafael vira a cabeca para o espelho grande atras dele, mas seu reflexo ainda encara para frente por 0,5s antes de virar devagar! | painel_apaga, olha_espelho@espelho, reflexo_atrasado@reflexo, pausa=0.18
+
+------------------------------------------------------------
+
+BLOCO DEDICADO DE CTA EM TELA CHEIA (~3s NO MEIO DA PARTE 1)
+[30 - 34] | [CTA_PAUSA] Quer aprender a fazer vídeos assim no automático? Comente EU QUERO. [/CTA_PAUSA] | Interrupcao seca com glitch_cta: cartao dedicado ocupando 100% da tela (fundo escuro cinematografico, titulo "QUER FAZER VIDEOS ASSIM NO AUTOMATICO?", pilula amarela gigante "COMENTE EU QUERO", selo PARTE 1 oculto). | cta_pausa
+
+------------------------------------------------------------
+
+ESCALADA FINAL DA PARTE 1: DESCIDA ATE O S3
+[34 - 43] | A luz volta fraca, piscando. O elevador volta a descer, mas passa direto pelo térreo. Passa pelo subsolo um. Passa pelo subsolo dois. | Luz fraca retorna; visor vermelho desce rapido sem parar: T -> G1 -> G2 enquanto o fundo pulsa em vermelho-alerta (#3B0A0A). | luz_volta, passa_terreo@terreo, passa_g1@um, passa_g2@dois
+[43 - 46] | Rafael aperta o botão de emergência desesperado. | Close na mao de Rafael pressionando o botao vermelho de emergencia/alarme repetidamente na botoeira. | botao_emergencia
+[46 - 47] | [SFX:alarme_interfone:1.1] | Bloco SFX puro: cliques desesperados e alarme/campainha metalica abafada dentro da cabine. | alarme_interfone
+[47 - 54] | O prédio só tem dois subsolos. Mesmo assim, o visor vermelho acende uma letra que não existe no painel: S três. | Macro no visor digital vermelho piscando a letra impossivel "S3" sob pulso vermelho intenso; KATANA HIT 2 "S3". | dois_subsolos, visor_s3@tres
+[54 - 58] | As portas começam a abrir num corredor completamente escuro. | Portas metalicas deslizando abertas revelando o breu absoluto do S3 a frente de Rafael (gancho seco da Parte 1). | portas_abrem_s3, corredor_escuro@corredor
+
+============================================================
+[58 - 58] | [CORTE_PARTE_2] | Ponto exato do corte automatico FFmpeg: encerra short_06_parte1.mp4 seco e inicia short_06_parte2.mp4 com selo "PARTE 2". | corte_parte_2
+============================================================
+
+PARTE 2: A CAMERA DO HALL
+
+[58 - 66] | Do lado de fora não tem garagem nem carro. Só uma parede de concreto úmido e uma cadeira de metal bem no meio do corredor, de frente pro elevador. | Selo muda para PARTE 2: enquadramento de dentro da cabine olhando para o corredor de concreto umido com uma cadeira de metal isolada sob luz fraca piscando. | lado_fora, cadeira_metal@cadeira
+[66 - 72] | Rafael esmaga o botão de fechar a porta, mas o painel não responde. O interfone do elevador chia sozinho. | Rafael apertando desesperado o botao de fechar apagado; corte para a grade metalica do interfone da cabine chiando com ondas de audio. | esmaga_botao, interfone_chia@interfone
+[72 - 73] | [SFX:interfone:1.2] | Bloco SFX puro: chiado analogico e estalo do interfone da cabine abrindo comunicacao com a portaria. | interfone
+[73 - 85] | É a voz do porteiro, tremendo: Seu Rafael, não sai daí. Eu tô vendo a câmera agora. O elevador tá parado no térreo há cinco minutos... e tem alguém parado dentro dele olhando pra câmera. | Close tenso em Rafael ouvindo o interfone + corte para a tela CCTV da portaria mostrando o elevador parado no terreo com figura encarando a lente; KATANA HIT 3 "5 MINUTOS". | voz_porteiro, nao_sai@nao, cinco_minutos@cinco, alguem_dentro@alguem
+[85 - 94] | Rafael olha pro teto, pro pontinho vermelho da câmera. Ele olha pro espelho de novo. O corredor escuro sumiu, a porta fechou, e o elevador tá no térreo. | Contra-plongee da camera dome no teto com LED vermelho piscando; corte para Rafael olhando o espelho e a porta fechada com o visor marcando T. | olha_camera, espelho_novo@espelho, voltou_terreo@sumiu
+[94 - 104] | Só que o celular dele vibra com uma mensagem do amigo lá de cima: Cara, você esqueceu a mochila aqui... e quem é esse cara igual a você que acabou de sair do elevador na câmera do hall? | Close no celular com notificacao realista de mensagem do amigo ("Cara, voce esqueceu a mochila aqui... quem e esse cara igual a voce na camera do hall?") com DOF atras. | celular_vibra, msg_amigo@cara, igual_voce@igual, camera_hall@hall, pausa=0.22
+[104 - 105] | [SFX:impacto_twist:1.4] | Bloco SFX puro: drone corta seco; modulo bigFace de Rafael em choque extremo com suor frio e pulso vermelho (#3B0A0A). | impacto_twist
+[105 - 110] | No espelho atrás do Rafael, o reflexo sorri primeiro. | Close duplo: Rafael paralisado de costas com rosto em choque enquanto, no espelho a frente/atras dele, seu proprio reflexo abre um sorriso largo e sinistro primeiro -> KATANA HIT 4 "SORRIU" -> corte seco no sorriso do espelho para loop imediato. | final_espelho, reflexo_sorri@sorri, plot_twist@sorri, pausa=0.16
+
+============================================================
+
+NOTAS TECNICAS
+- Selo dinamico: "PARTE 1" (0 ate corte_parte_2, oculto durante CTA tela cheia), "PARTE 2" (corte_parte_2 ate o final).
+- CTA dedicada: [CTA_PAUSA] em tela cheia no meio da Parte 1 (cta_modo="pausa_meio"); zero CTA no fim da Parte 1 e da Parte 2.
+- Corte automatico: [CORTE_PARTE_2] gera short_06.mp4 (completo), short_06_parte1.mp4 e short_06_parte2.mp4.
+- Integridade: validado por video_id=6, roteiro_sha256, COMENTE EU QUERO dentro da janela da CTA e corte_parte_2 em [35%, 65%].
