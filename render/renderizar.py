@@ -409,12 +409,14 @@ def main() -> None:
     tem_artefato_json = (PASTA_AUDIO / "timestamps.json").is_file() or (PASTA_AUDIO / "eventos.json").is_file()
 
     # Trava blindada: sempre que houver audio ou JSONs em audio/, exige integridade 100% com video_atual + CTA.
+    cta_modo = str(video_ativo.get("cta_modo", "final")).strip().lower() or "final"
     if audio_alvo is not None or tem_artefato_json:
         val = validar_artefatos_audio(PASTA_AUDIO)
         c = val["carimbo"]
+        cta_modo = c["cta_modo"]
         print(
             f"Trava de audio OK: Video {c['video_id']:02d} '{c['titulo']}' "
-            f"(sha256={c['roteiro_sha256'][:12]}, CTA confirmada)."
+            f"(sha256={c['roteiro_sha256'][:12]}, CTA confirmada [modo={cta_modo}])."
         )
 
     saida_padrao = caminho_saida_atual()
@@ -468,8 +470,9 @@ def main() -> None:
 
         dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 43"))
         if audio_alvo is not None:
-            duracao_real = duracao_audio_ffprobe(audio_alvo) + FOLGA_AUDIO
-            modo = f"com audio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {FOLGA_AUDIO}s)"
+            folga = 0.05 if cta_modo == "meio" else FOLGA_AUDIO
+            duracao_real = duracao_audio_ffprobe(audio_alvo) + folga
+            modo = f"com audio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {folga}s)"
         else:
             duracao_real = dur_player or DURACAO_PREVIA
             modo = f"mudo / Modo Previa ({duracao_real:.1f}s)"

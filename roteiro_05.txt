@@ -1,0 +1,59 @@
+ROTEIRO 05: "O PEDIDO DAS 02H15"
+Formato: YouTube Shorts 9:16 (1080x1920) | Micro-Suspense psicologico no Brasil
+Duracao alvo: 32 a 38 segundos | Motor: V4.1 (Katana + Parte 1 + CTA Unica no Meio + Loop Seco)
+Personagem: Camila (moletom violeta-indigo #7C3AED flat em capsula, cabelo escuro ate os ombros)
+Selo fixo: "PARTE 1" em (64, 165), oculto brevemente apenas durante os 2,2s da CTA visual do meio.
+CTA visual unica: ~48% a 56% da duracao (~2,2s, zona superior-central, "QUER FAZER NO AUTOMATICO? COMENTE EU QUERO"). Zero CTA no final para loop seco imediato.
+Regra visual: cortes a cada 1,0s a 1,7s; hits Katana em "NAO PEDIU", "SUMIU" e "ATRAS DELA".
+
+Estrutura de cada bloco:
+[Tempo em Segundos] | [Texto Exato da Narracao] | [Direcao visual e relogio] | [Eventos e pausas]
+
+============================================================
+
+BLOCO 1: GANCHO E NOTIFICACAO DE DELIVERY (02:15)
+[00 - 04] | Duas e quinze da manhã. O celular da Camila vibra: Seu pedido chegou na portaria. | Apartamento escuro (#0A0F1D / #130926), selo PARTE 1 em (64, 165); celular vibra com notificacao realista de app de entrega as 02:15: "SEU PEDIDO CHEGOU NA PORTARIA". | gancho, vibra_1@vibra, pedido_chegou@pedido
+
+------------------------------------------------------------
+
+BLOCO 2: CONGELA (KATANA HIT 1: "NAO PEDIU")
+[04 - 07] | Ela congela. Ela não pediu nada. | Piscada -> expressao congelada ('fear') de Camila olhando o celular; KATANA HIT "NAO PEDIU" com flash curto branco/preto/vermelho e punch-in. | congela, nao_pediu@nao, pausa=0.18
+
+------------------------------------------------------------
+
+BLOCO 3: INTERFONE / CCTV NA CHUVA + ENTREGADOR DE CAPACETE
+[07 - 11] | Na tela do interfone, um entregador de capacete encara a câmera sem piscar. | Close na tela realista do interfone/CCTV predial com chuva noturna, scanlines, 02:15 e entregador de capacete escuro parado encarando direto a lente. | tela_interfone, entregador@entregador, sem_piscar@piscar
+[11 - 12] | [SFX:interfone:1.2] | Bloco SFX puro: toque abafado/zumbido do interfone predial com chiado de microfone e chuva la fora enquanto o entregador nao se move na lente. | interfone
+
+------------------------------------------------------------
+
+BLOCO 4: CORRENTE METALICA NA PORTA DA SALA
+[12 - 15] | Ela corre e passa a corrente na porta da sala. | Corpo inteiro com pes firmes no piso: Camila corre ate a porta de entrada e desliza a corrente metalica na trava de seguranca. | corre_porta, passa_corrente@corrente
+[15 - 16] | [SFX:porta_impacto:1.1] | Bloco SFX puro: macro na porta trancando e corrente metalica encaixando firme com screen shake seco. | porta_impacto
+
+------------------------------------------------------------
+
+BLOCO 5: PORTARIA VAZIA (KATANA HIT 2: "SUMIU") + CTA VISUAL UNICA NO MEIO
+[16 - 19] | Quando olha de volta pra tela, a portaria está vazia. | Tela do interfone mostra apenas a chuva caindo na portaria completamente deserta; KATANA HIT "SUMIU" na palavra "vazia". | olha_volta, portaria_vazia@vazia
+[19 - 23] | O celular vibra outra vez: Pedido entregue. Foto de confirmação em anexo. | Entrada rapida (glitch/pop) da CTA VISUAL UNICA NO MEIO (~2,2s, zona superior-central): "QUER FAZER NO AUTOMATICO? COMENTE EU QUERO". Celular vibra com banner "PEDIDO ENTREGUE - VER FOTO". | vibra_2, cta_meio, pedido_entregue@entregue, foto_anexo@foto, pausa=0.22
+
+------------------------------------------------------------
+
+BLOCO 6: ABERTURA DA FOTO + IMPACTO DO TWIST
+[23 - 25] | Camila abre a imagem. | Close no dedo tocando "VER FOTO" no celular; fundo comeca a pulsar em vermelho-alerta (#3B0A0A). | abre_imagem, pausa=0.24
+[25 - 26] | [SFX:impacto_twist:1.4] | Bloco SFX puro: drone corta seco; flash de revelacao da foto no celular + modulo bigFace de Camila em choque extremo. | impacto_twist
+
+------------------------------------------------------------
+
+BLOCO 7: REVELACAO DA SACOLA NA COZINHA + FOTO DO CORREDOR (KATANA HIT 3: "ATRAS DELA" + LOOP SECO)
+[26 - 30] | A sacola não está na portaria... está em cima da mesa da cozinha dela. | Foto em tela cheia do app de entrega: sacola parda lacrada com recibo em cima da mesa da propria cozinha da Camila. | sacola_mesa, mesa_cozinha@mesa, pausa=0.14
+[30 - 34] | E a foto... foi tirada do corredor, bem atrás dela. | Camera da foto puxa para tras revelando o enquadramento do corredor escuro atras de Camila de costas com o celular; KATANA HIT "ATRAS DELA" -> corte seco imediato no frame final de terror (capacete escuro no breu logo atras do ombro dela) para loop instantaneo sem CTA final. | foto_corredor, atras_dela@atras, plot_twist@atras, pausa=0.34
+
+============================================================
+
+NOTAS TECNICAS
+- Selo permanente: "PARTE 1" em (64, 165), oculto brevemente apenas durante os 2,2s da CTA visual do meio.
+- CTA unica no meio: cta_modo="meio", ~48% a 56% da duracao (~2,2s), texto obrigatorio "COMENTE EU QUERO". Sem CTA falada nem cartao final.
+- Relogio unico: 02:15 exibido uma unica vez por quadro (no celular/interfone ou no topo central; oculto durante a CTA do meio e hits Katana).
+- Zero onomatopeias faladas: interfone, corrente/porta e impacto entram em [SFX:interfone:1.2], [SFX:porta_impacto:1.1] e [SFX:impacto_twist:1.4].
+- Integridade: validado por video_id=5, roteiro_sha256 e CTA obrigatoria "COMENTE EU QUERO" no modo meio.

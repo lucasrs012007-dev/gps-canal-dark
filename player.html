@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A Baba Eletronica: player V4 Katana</title>
+<title>O Pedido das 02h15: player V4.1 Katana</title>
 <link rel="icon" href="data:,">
 <style>
 /* Camada unica de tokens, espelhando tokens/colors.json (dark), spacing, typography, motion, borders, opacity. */
@@ -49,14 +49,14 @@ canvas{display:block;width:100%;height:100%;border-radius:var(--radius-card);bac
 </head>
 <body>
 <main class="app">
-  <h1 class="sr-only">Previa do Short V4 Katana: A Baba Eletronica</h1>
-  <div class="stage"><canvas id="c" width="1080" height="1920" role="img" aria-label="Animacao do Short A Baba Eletronica"></canvas></div>
+  <h1 class="sr-only">Previa do Short V4.1 Katana: O Pedido das 02h15</h1>
+  <div class="stage"><canvas id="c" width="1080" height="1920" role="img" aria-label="Animacao do Short O Pedido das 02h15"></canvas></div>
   <div class="controls" role="group" aria-label="Controles do player">
     <button id="play" class="btn btn-primary" type="button" disabled aria-busy="true">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path id="playIcon" d="M4 2l10 6-10 6z"/></svg><span id="playLbl">Carregando</span>
     </button>
-    <input id="seek" class="seek" type="range" min="0" max="40" step="0.01" value="0" aria-label="Progresso" disabled>
-    <output id="time" class="time" for="seek">0,0 / 40,0</output>
+    <input id="seek" class="seek" type="range" min="0" max="34" step="0.01" value="0" aria-label="Progresso" disabled>
+    <output id="time" class="time" for="seek">0,0 / 34,0</output>
     <button id="cc" class="btn" type="button" aria-pressed="false">Legendas</button>
   </div>
   <p id="status" class="status" aria-live="polite">Procurando audio/mix_final.mp3 e audio/eventos.json...</p>
@@ -69,50 +69,50 @@ const cv = document.getElementById('c');
 const main = cv.getContext('2d');
 let g = main;
 
-/* Paleta V4 (Dopamina Visual + Visao Noturna + Katana) - Video 04 "A Baba Eletronica" */
+/* Paleta V4.1 (Dopamina Visual + Delivery/CCTV + Katana) - Video 05 "O Pedido das 02h15" */
 const PAL = {
   bgNavy: '#0A0F1D',
   bgViolet: '#130926',
   bgRed: '#3B0A0A',
   bgYellow: '#261E0A',
   bgDeep: '#04060D',
-  bgWarmTop: '#33251A',
-  bgWarmBot: '#1E1510',
   wall: '#12182B',
   wallDark: '#090D18',
-  wallWarm: '#3E2F23',
-  wallWarmTrim: '#574333',
+  wallKitchen: '#1F2536',
+  tileLine: '#2C344A',
   floor: '#080B14',
-  floorWarm: '#241A13',
   wood: '#2B1D16',
-  woodLight: '#6B4E3B',
-  woodLine: '#422D23',
-  cribWarm: '#E7DFD3',
-  cribShade: '#C4B6A4',
-  blanketBlue: '#5BA4CF',
-  blanketShade: '#3D7CA3',
-  skin: '#DEB08E',
-  skinShadow: '#B58462',
-  babySkin: '#ECC4A6',
-  hair: '#171923',
+  woodLight: '#4A3327',
+  woodLine: '#3D2920',
+  tableTop: '#6B4D38',
+  tableDark: '#473224',
+  bagPaper: '#C59B6D',
+  bagFold: '#9C754B',
+  bagDeep: '#755534',
+  skin: '#E2B595',
+  skinShadow: '#BA8968',
+  hair: '#15141F',
   ink: '#080A11',
-  /* Cor de destaque fixa do protagonista Tiago: camiseta azul-petroleo vibrante */
-  top: '#0EA5A4',
-  topShade: '#0B7C7B',
-  topDeep: '#064E4E',
-  pants: '#1D253D',
+  /* Cor de destaque fixa da protagonista Camila: moletom violeta-indigo vibrante */
+  top: '#7C3AED',
+  topShade: '#5B21B6',
+  topDeep: '#3B0764',
+  pants: '#1E253D',
   pantsDark: '#12182A',
-  /* Visao noturna da baba eletronica */
-  nvBg: '#09140D',
-  nvMid: '#152A1D',
-  nvBright: '#4ADE80',
-  nvPale: '#BBF7D0',
-  nvDim: '#1E3A28',
-  nvCase: '#161C2B',
-  nvBezel: '#2C3752',
+  /* App delivery & interfone CCTV */
+  appRed: '#EA1D2C',
+  appRedDark: '#99111B',
+  cctvBg: '#0B1418',
+  cctvMid: '#15252C',
+  cctvBright: '#7DD3FC',
+  cctvPale: '#E0F2FE',
+  steel: '#94A3B8',
+  steelDark: '#475569',
+  steelLight: '#E2E8F0',
+  phone: '#0B0F1A',
+  phoneEdge: '#2D3A54',
   cyan: '#38D9FF',
   violet: '#8B5CF6',
-  warmGlow: '#FDE68A',
   yellow: '#FFD400',
   alert: '#FF3B30',
   alertKatana: '#E11D2E',
@@ -215,10 +215,7 @@ function drawFittedText(text, x, y, maxW, maxFs, family, weight='900', align='ce
 }
 
 /* ============================================================
-   OTIMIZACAO V3/V4 (video-director):
-   1) Depth of Field ultrarrapido em 1/8 resolucao (135x240)
-   2) Vinheta pre-renderizada 1 unica vez em offscreen (vigCv)
-   3) Padrao de scanlines de visao noturna pre-renderizado 1 vez
+   OTIMIZACAO V3/V4.1: DOF 1/8 + VINHETA E SCANLINES PRE-RENDER
    ============================================================ */
 const DOF_SCALE = 0.125;
 const DOF_PAD = 4;
@@ -274,7 +271,6 @@ vigCv.width = W; vigCv.height = H;
   vx.fillRect(0, 0, W, H);
 })();
 
-/* Scanlines pre-renderizadas para a tela da baba eletronica (zero loop pesado por quadro) */
 const scanCv = document.createElement('canvas');
 scanCv.width = 760; scanCv.height = 560;
 (() => {
@@ -284,42 +280,46 @@ scanCv.width = 760; scanCv.height = 560;
 })();
 
 /* ============================================================
-   TIMELINE ORIENTADA A eventos.json + FALLBACK MODO PREVIA V4
+   TIMELINE ORIENTADA A eventos.json + FALLBACK MODO PREVIA V4.1
    ============================================================ */
 const EV_PREVIEW = {
-  video_id: 4,
-  slug: 'a-baba-eletronica',
-  titulo: 'A Baba Eletronica',
+  video_id: 5,
+  slug: 'o-pedido-das-02h15',
+  titulo: 'O Pedido das 02h15',
   parte_label: 'PARTE 1',
+  cta_modo: 'meio',
+  cta_texto: 'COMENTE EU QUERO',
   gancho: 0.0,
-  acorda_sussurro: 1.9,
-  baba_som: 2.6,
-  sussurro: 4.2,
-  sussurro_duracao: 1.2,
-  olha_tela: 5.5,
-  berco_vazio: 8.2,
-  coracao_dispara: 9.0,
-  sombra_corredor: 11.2,
-  passos_corredor: 12.8,
-  passos_corredor_duracao: 1.3,
-  corre_quarto: 14.1,
-  abre_porta: 15.8,
-  acende_luz: 17.1,
-  bebe_dormindo: 18.2,
-  alivio: 20.9,
-  olha_volta: 22.7,
-  camera_vazio: 24.4,
-  alguem_parado: 26.2,
-  atras_porta: 27.1,
-  plot_twist: 27.1,
-  olha_lente: 28.4,
-  impacto_twist: 28.9,
+  vibra_1: 2.3,
+  pedido_chegou: 2.9,
+  congela: 4.5,
+  nao_pediu: 5.7,
+  tela_interfone: 6.7,
+  entregador: 7.9,
+  sem_piscar: 9.8,
+  interfone: 10.4,
+  interfone_duracao: 1.2,
+  corre_porta: 11.7,
+  passa_corrente: 13.0,
+  porta_impacto: 14.3,
+  porta_impacto_duracao: 1.1,
+  olha_volta: 15.5,
+  portaria_vazia: 17.5,
+  vibra_2: 18.0,
+  cta_meio: 18.0,
+  cta_meio_inicio: 18.0,
+  cta_meio_fim: 20.2,
+  pedido_entregue: 19.6,
+  foto_anexo: 20.4,
+  abre_imagem: 22.3,
+  impacto_twist: 23.6,
   impacto_twist_duracao: 1.4,
-  luz_apaga: 30.4,
-  apaga_hit: 31.3,
-  cta: 32.8,
-  cta_acao: 35.1,
-  duracao_total: 36.8
+  sacola_mesa: 25.1,
+  mesa_cozinha: 27.6,
+  foto_corredor: 29.1,
+  atras_dela: 31.3,
+  plot_twist: 31.3,
+  duracao_total: 32.3
 };
 
 let EV = { ...EV_PREVIEW };
@@ -331,24 +331,27 @@ let EXPR_CUES = [];
 let SHOTS = [];
 let KATANA_HITS = [];
 
-const MONITOR_SCENES = new Set([
-  'baba_sussurro_fx',
-  'baba_berco_vazio',
-  'baba_berco_zoom',
-  'baba_sombra',
-  'baba_sombra_zoom',
-  'baba_passos_fx',
-  'baba_ainda_vazio',
-  'baba_vulto_porta',
-  'baba_olhos_lente'
+const DEVICE_SCENES = new Set([
+  'celular_pedido_chegou',
+  'celular_pedido_zoom',
+  'interfone_portaria',
+  'interfone_capacete_zoom',
+  'interfone_fx',
+  'interfone_vazia',
+  'celular_entregue',
+  'celular_ver_foto',
+  'dedo_abre_foto',
+  'foto_sacola_cozinha',
+  'foto_sacola_zoom',
+  'foto_pullout_corredor'
 ]);
 
-/* Divide cada segmento em sub-planos garantidos entre ~1.0s e 1.7s (Motor V4) */
+/* Divide cada segmento em sub-planos garantidos entre ~1.0s e 1.7s */
 function splitShots(a, b, specs){
   const span = Math.max(0.05, b - a);
   let count = Math.ceil(span / 1.66);
   if (count < 1) count = 1;
-  while (count > 1 && (span / count) < 0.90) count--;
+  while (count > 1 && (span / count) < 0.92) count--;
   const out = [];
   for (let i = 0; i < count; i++) {
     const s0 = a + (span * i) / count;
@@ -369,132 +372,116 @@ function buildShots(e){
   const raw = [];
   const push = arr => { for (const s of arr) raw.push(s); };
 
-  // 1. 02:40 Tiago acorda com sussurro vindo da baba eletronica
-  push(splitShots(0, e.sussurro, [
-    { scene: 'quarto_tiago_acorda', mood: 'navy',   vig: 0.56, cam0: [1.00, 540, 960], cam1: [1.10, 525, 935] },
-    { scene: 'baba_cabeceira',      mood: 'violet', vig: 0.60, cam0: [1.02, 540, 940], cam1: [1.14, 540, 910] },
-    { scene: 'tiago_escuta',        mood: 'violet', vig: 0.62, cam0: [1.04, 540, 945], cam1: [1.15, 555, 920] }
+  // 1. 02:15 Celular da Camila vibra: Seu pedido chegou na portaria
+  push(splitShots(0, e.congela, [
+    { scene: 'sala_sofa_vibra',       mood: 'navy',   vig: 0.56, cam0: [1.00, 540, 960], cam1: [1.10, 525, 935] },
+    { scene: 'celular_pedido_chegou', mood: 'violet', vig: 0.60, cam0: [1.00, 540, 935], cam1: [1.12, 540, 910] },
+    { scene: 'celular_pedido_zoom',   mood: 'violet', vig: 0.64, cam0: [1.08, 540, 915], cam1: [1.18, 540, 890] }
   ]));
 
-  // 2. Bloco SFX puro [SFX:sussurro:1.2]: macro na baba eletronica chiando em visao noturna
-  push(splitShots(e.sussurro, e.olha_tela, [
-    { scene: 'baba_sussurro_fx', mood: 'nv', vig: 0.66, cam0: [1.00, 540, 930], cam1: [1.14, 540, 905] }
+  // 2. Ela congela. Ela nao pediu nada. (+ Katana Hit 1 "NAO PEDIU")
+  push(splitShots(e.congela, e.tela_interfone, [
+    { scene: 'camila_congela',      mood: 'violet', vig: 0.64, cam0: [1.02, 540, 945], cam1: [1.14, 540, 920] },
+    { scene: 'camila_congela_zoom', mood: 'red',    vig: 0.70, cam0: [1.10, 540, 925], cam1: [1.22, 540, 900] }
   ]));
 
-  // 3. Ele olha a tela -> berco do filho de 2 anos esta vazio (+ Katana Hit "VAZIO")
-  push(splitShots(e.olha_tela, e.coracao_dispara, [
-    { scene: 'tiago_olha_tela',  mood: 'navy', vig: 0.60, cam0: [1.00, 540, 945], cam1: [1.11, 540, 920] },
-    { scene: 'baba_berco_vazio', mood: 'nv',   vig: 0.66, cam0: [1.00, 540, 925], cam1: [1.13, 540, 895] },
-    { scene: 'baba_berco_zoom',  mood: 'red',  vig: 0.72, cam0: [1.08, 540, 910], cam1: [1.20, 540, 885] }
+  // 3. Na tela do interfone, entregador de capacete encara a camera sem piscar
+  push(splitShots(e.tela_interfone, e.interfone, [
+    { scene: 'interfone_portaria',      mood: 'cctv', vig: 0.66, cam0: [1.00, 540, 935], cam1: [1.12, 540, 910] },
+    { scene: 'interfone_capacete_zoom', mood: 'red',  vig: 0.72, cam0: [1.08, 540, 910], cam1: [1.22, 540, 885] }
   ]));
 
-  // 4. O coracao dispara -> na tela, uma sombra cruza o corredor escuro (+ Katana Hit "SOMBRA")
-  push(splitShots(e.coracao_dispara, e.passos_corredor, [
-    { scene: 'tiago_coracao',    mood: 'red', vig: 0.68, cam0: [1.04, 540, 935], cam1: [1.15, 540, 910] },
-    { scene: 'baba_sombra',      mood: 'nv',  vig: 0.72, cam0: [1.00, 540, 925], cam1: [1.13, 540, 895] },
-    { scene: 'baba_sombra_zoom', mood: 'red', vig: 0.74, cam0: [1.08, 540, 915], cam1: [1.19, 540, 890] }
+  // 4. Bloco SFX puro [SFX:interfone:1.2]: interfone tocando na chuva
+  push(splitShots(e.interfone, e.corre_porta, [
+    { scene: 'interfone_fx', mood: 'cctv', vig: 0.72, cam0: [1.04, 540, 920], cam1: [1.16, 540, 895] }
   ]));
 
-  // 5. Bloco SFX puro [SFX:passos_corredor:1.3]: sombra caminhando no corredor na camera
-  push(splitShots(e.passos_corredor, e.corre_quarto, [
-    { scene: 'baba_passos_fx', mood: 'nv', vig: 0.76, cam0: [1.02, 540, 920], cam1: [1.16, 540, 895] }
+  // 5. Ela corre e passa a corrente na porta da sala
+  push(splitShots(e.corre_porta, e.porta_impacto, [
+    { scene: 'camila_corre_porta',    mood: 'red',  vig: 0.68, cam0: [1.00, 515, 965], cam1: [1.12, 565, 940] },
+    { scene: 'camila_passa_corrente', mood: 'navy', vig: 0.66, cam0: [1.02, 540, 955], cam1: [1.14, 540, 930] }
   ]));
 
-  // 6. Ele corre ate o quarto, abre a porta com forca e acende a luz
-  push(splitShots(e.corre_quarto, e.bebe_dormindo, [
-    { scene: 'tiago_corre_corredor', mood: 'red',  vig: 0.70, cam0: [1.00, 510, 965], cam1: [1.12, 570, 940] },
-    { scene: 'porta_abre_forca',     mood: 'warm', vig: 0.50, cam0: [1.02, 540, 955], cam1: [1.14, 540, 925] },
-    { scene: 'luz_acende_quarto',    mood: 'warm', vig: 0.44, cam0: [1.00, 540, 950], cam1: [1.10, 540, 925] }
+  // 6. Bloco SFX puro [SFX:porta_impacto:1.1]: macro corrente metalica travando
+  push(splitShots(e.porta_impacto, e.olha_volta, [
+    { scene: 'macro_corrente_trava', mood: 'red', vig: 0.70, cam0: [1.02, 540, 940], cam1: [1.16, 540, 915] }
   ]));
 
-  // 7. O filho esta dormindo tranquilo no berco (contraste quente de alivio)
-  push(splitShots(e.bebe_dormindo, e.alivio, [
-    { scene: 'bebe_berco_paz',   mood: 'warm', vig: 0.42, cam0: [1.00, 540, 950], cam1: [1.10, 540, 925] },
-    { scene: 'bebe_berco_close', mood: 'warm', vig: 0.44, cam0: [1.06, 540, 935], cam1: [1.16, 540, 910] }
+  // 7. Quando olha de volta pra tela, a portaria esta vazia (+ Katana Hit 2 "SUMIU")
+  push(splitShots(e.olha_volta, e.vibra_2, [
+    { scene: 'camila_olha_interfone', mood: 'navy', vig: 0.64, cam0: [1.00, 540, 950], cam1: [1.11, 540, 925] },
+    { scene: 'interfone_vazia',       mood: 'cctv', vig: 0.70, cam0: [1.00, 540, 935], cam1: [1.14, 540, 905] }
   ]));
 
-  // 8. Tiago respira aliviado e olha de volta pra tela na sua mao
-  push(splitShots(e.alivio, e.camera_vazio, [
-    { scene: 'tiago_alivio',   mood: 'warm', vig: 0.46, cam0: [1.00, 540, 945], cam1: [1.09, 540, 925] },
-    { scene: 'tiago_olha_mao', mood: 'navy', vig: 0.60, cam0: [1.04, 540, 940], cam1: [1.15, 540, 910] }
+  // 8. Celular vibra outra vez: Pedido entregue. Foto em anexo. (CTA UNICA NO MEIO entra aqui!)
+  push(splitShots(e.vibra_2, e.abre_imagem, [
+    { scene: 'celular_entregue',   mood: 'yellow', vig: 0.62, cam0: [1.00, 540, 950], cam1: [1.10, 540, 930] },
+    { scene: 'celular_ver_foto',   mood: 'yellow', vig: 0.64, cam0: [1.06, 540, 940], cam1: [1.16, 540, 920] },
+    { scene: 'camila_encara_tela', mood: 'violet', vig: 0.68, cam0: [1.02, 540, 955], cam1: [1.14, 540, 930] }
   ]));
 
-  // 9. Na camera o quarto ainda aparece vazio... e alguem esta parado atras da porta, olhando pra lente
-  push(splitShots(e.camera_vazio, e.impacto_twist, [
-    { scene: 'baba_ainda_vazio', mood: 'nv',  vig: 0.70, cam0: [1.00, 540, 925], cam1: [1.12, 540, 900] },
-    { scene: 'baba_vulto_porta', mood: 'red', vig: 0.76, cam0: [1.04, 540, 915], cam1: [1.17, 540, 890] },
-    { scene: 'baba_olhos_lente', mood: 'red', vig: 0.80, cam0: [1.12, 540, 895], cam1: [1.26, 540, 870] }
+  // 9. Camila abre a imagem
+  push(splitShots(e.abre_imagem, e.impacto_twist, [
+    { scene: 'dedo_abre_foto', mood: 'red', vig: 0.72, cam0: [1.04, 540, 935], cam1: [1.18, 540, 905] }
   ]));
 
-  // 10. Bloco SFX puro [SFX:impacto_twist:1.4]: modulo bigFace de Tiago em choque extremo
-  push(splitShots(e.impacto_twist, e.luz_apaga, [
+  // 10. Bloco SFX puro [SFX:impacto_twist:1.4]: modulo bigFace de Camila em choque extremo
+  push(splitShots(e.impacto_twist, e.sacola_mesa, [
     { scene: 'big_face', mood: 'red', vig: 0.80, cam0: [1.04, 540, 930], cam1: [1.19, 540, 900] }
   ]));
 
-  // 11. A luz do quarto apaga sozinha (+ Katana Hit "APAGA" -> blecaute total + olhos)
-  push(splitShots(e.luz_apaga, e.cta, [
-    { scene: 'quarto_blecaute', mood: 'dark', vig: 0.84, cam0: [1.00, 540, 940], cam1: [1.12, 540, 915] },
-    { scene: 'blecaute_olhos',  mood: 'dark', vig: 0.88, cam0: [1.08, 540, 915], cam1: [1.22, 540, 885] }
+  // 11. A sacola nao esta na portaria... esta em cima da mesa da cozinha dela
+  push(splitShots(e.sacola_mesa, e.foto_corredor, [
+    { scene: 'foto_sacola_cozinha', mood: 'red', vig: 0.72, cam0: [1.00, 540, 935], cam1: [1.12, 540, 910] },
+    { scene: 'foto_sacola_zoom',    mood: 'red', vig: 0.76, cam0: [1.10, 540, 910], cam1: [1.22, 540, 885] }
   ]));
 
-  // 12. CTA final (ultimos ~3.5s, selo PARTE 1 e relogio ocultos, pilula amarela blindada)
-  push(splitShots(e.cta, end, [
-    { scene: 'cta_engine',        mood: 'violet', vig: 0.48, cam0: [1.00, 540, 940], cam1: [1.07, 540, 925] },
-    { scene: 'cta_comente',       mood: 'yellow', vig: 0.46, cam0: [1.01, 540, 940], cam1: [1.08, 540, 925] },
-    { scene: 'cta_comente_pulse', mood: 'yellow', vig: 0.44, cam0: [1.04, 540, 935], cam1: [1.10, 540, 920] }
+  // 12. E a foto... foi tirada do corredor, bem atras dela (+ Katana Hit 3 "ATRAS DELA" + corte seco loop!)
+  push(splitShots(e.foto_corredor, end, [
+    { scene: 'foto_pullout_corredor', mood: 'red',  vig: 0.78, cam0: [1.16, 540, 910], cam1: [1.00, 540, 945] },
+    { scene: 'final_capacete_atras',  mood: 'dark', vig: 0.86, cam0: [1.06, 540, 920], cam1: [1.22, 540, 885] }
   ]));
 
   return raw.map((s, idx) => ({ id: idx + 1, ...s }));
 }
 
 /* ============================================================
-   MOTOR V4 KATANA: TIPOGRAFIA CINETICA DE IMPACTO REUTILIZAVEL
+   MOTOR V4.1 KATANA: 3 HITS CIRURGICOS ("NAO PEDIU", "SUMIU", "ATRAS DELA")
    ============================================================ */
 function buildKatanaHits(e){
   const list = [
     {
-      id: 'katana_vazio',
-      start: +Number(e.berco_vazio).toFixed(3),
+      id: 'katana_nao_pediu',
+      start: +Number(e.nao_pediu).toFixed(3),
       dur: 0.44,
-      lines: ['VAZIO'],
-      accentIdx: 0,
+      lines: ['NÃO', 'PEDIU'],
+      accentIdx: 1,
       accent: PAL.alertKatana,
       tilt: -0.044,
       punch: 0.18,
       shake: 20
     },
     {
-      id: 'katana_sombra',
-      start: +Number(e.sombra_corredor).toFixed(3),
+      id: 'katana_sumiu',
+      start: +Number(e.portaria_vazia).toFixed(3),
       dur: 0.42,
-      lines: ['SOMBRA'],
+      lines: ['SUMIU'],
       accentIdx: 0,
       accent: PAL.alertKatana,
-      tilt: 0.038,
-      punch: 0.16,
-      shake: 18
+      tilt: 0.040,
+      punch: 0.18,
+      shake: 20
     },
     {
-      id: 'katana_atras_da_porta',
-      start: +Number(e.atras_porta).toFixed(3),
-      dur: 0.50,
-      lines: ['ATRÁS', 'DA PORTA'],
+      id: 'katana_atras_dela',
+      start: +Number(e.atras_dela).toFixed(3),
+      dur: 0.42,
+      lines: ['ATRÁS', 'DELA'],
       accentIdx: 1,
       accent: PAL.alertKatana,
-      tilt: -0.036,
+      tilt: -0.042,
       punch: 0.22,
       shake: 26
-    },
-    {
-      id: 'katana_apaga',
-      start: +Number(e.apaga_hit).toFixed(3),
-      dur: 0.42,
-      lines: ['APAGA'],
-      accentIdx: 0,
-      accent: PAL.alertKatana,
-      tilt: 0.046,
-      punch: 0.20,
-      shake: 24
     }
   ];
   return list.map(h => ({ ...h, end: +(h.start + h.dur).toFixed(3) }));
@@ -515,7 +502,6 @@ function drawKatanaOverlay(t){
   const frame = Math.floor(dt * 30);
   const p = clamp(dt / hit.dur);
 
-  /* Flashes curtos de 2 a 4 quadros (frames 0..3): branco -> preto -> vermelho -> branco -> carvao */
   let bg = '#05070E';
   let mainTextCol = '#FFFFFF';
   let accentTextCol = PAL.alert;
@@ -524,34 +510,19 @@ function drawKatanaOverlay(t){
   let borderGlow = true;
 
   if (frame === 0) {
-    bg = '#F8FAFC';
-    mainTextCol = '#05070E';
-    accentTextCol = '#05070E';
-    slashCol = PAL.alertKatana;
-    strokeCol = 'transparent';
-    borderGlow = false;
+    bg = '#F8FAFC'; mainTextCol = '#05070E'; accentTextCol = '#05070E';
+    slashCol = PAL.alertKatana; strokeCol = 'transparent'; borderGlow = false;
   } else if (frame === 1) {
-    bg = '#05070E';
-    mainTextCol = '#FFFFFF';
-    accentTextCol = PAL.yellow;
-    slashCol = '#FFFFFF';
-    borderGlow = false;
+    bg = '#05070E'; mainTextCol = '#FFFFFF'; accentTextCol = PAL.yellow;
+    slashCol = '#FFFFFF'; borderGlow = false;
   } else if (frame === 2) {
-    bg = PAL.alertKatana;
-    mainTextCol = '#FFFFFF';
-    accentTextCol = '#FFFFFF';
-    slashCol = '#05070E';
-    borderGlow = false;
+    bg = PAL.alertKatana; mainTextCol = '#FFFFFF'; accentTextCol = '#FFFFFF';
+    slashCol = '#05070E'; borderGlow = false;
   } else if (frame === 3) {
-    bg = '#F8FAFC';
-    mainTextCol = PAL.alertKatana;
-    accentTextCol = '#05070E';
-    slashCol = '#05070E';
-    strokeCol = 'transparent';
-    borderGlow = false;
+    bg = '#F8FAFC'; mainTextCol = PAL.alertKatana; accentTextCol = '#05070E';
+    slashCol = '#05070E'; strokeCol = 'transparent'; borderGlow = false;
   }
 
-  /* Fundo de impacto em tela cheia */
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = bg;
@@ -566,7 +537,6 @@ function drawKatanaOverlay(t){
     g.fillRect(0, 0, W, H);
   }
 
-  /* Barras cinematicas superior/inferior + linhas diagonais estilo corte de lamina Katana */
   const slashProg = easeOut(clamp(dt / 0.12));
   g.save();
   g.translate(540, 960);
@@ -576,13 +546,11 @@ function drawKatanaOverlay(t){
   g.fillStyle = slashCol;
   g.globalAlpha = frame <= 3 ? 0.95 : 0.72;
   g.fillRect(-slashW / 2, -slashH / 2, slashW, slashH);
-  /* Segundo risco fino paralelo */
   g.globalAlpha = frame <= 3 ? 0.65 : 0.35;
   g.fillRect(-slashW * 0.44, -slashH / 2 - 220, slashW * 0.88, 6);
   g.fillRect(-slashW * 0.44, slashH / 2 + 214, slashW * 0.88, 6);
   g.restore();
 
-  /* Animacao elastica com overshoot e squash-and-stretch derivada exclusivamente de dt */
   let scaleX = 1, scaleY = 1;
   if (dt < 0.11) {
     const k = easeOut(dt / 0.11);
@@ -594,7 +562,6 @@ function drawKatanaOverlay(t){
     scaleX = 1.0 + 0.11 * osc;
     scaleY = 1.0 - 0.08 * osc;
   }
-  /* Snap rapido nos ultimos 2 quadros */
   const rem = hit.dur - dt;
   if (rem < 0.06) {
     const ek = 1 - rem / 0.06;
@@ -611,8 +578,8 @@ function drawKatanaOverlay(t){
 
   const lines = hit.lines;
   const maxW = 920;
-  const maxFs = lines.length === 1 ? 265 : 192;
-  const stepY = lines.length === 1 ? 0 : 186;
+  const maxFs = lines.length === 1 ? 265 : 196;
+  const stepY = lines.length === 1 ? 0 : 190;
   const startY = lines.length === 1 ? 0 : -stepY * 0.5;
 
   g.textAlign = 'center';
@@ -630,9 +597,8 @@ function drawKatanaOverlay(t){
       g.font = `900 ${fs}px ${COND}`;
     }
     const ly = startY + i * stepY;
-    const col = (i === hit.accentIdx && frame >= 4) ? accentTextCol : (i === hit.accentIdx ? accentTextCol : mainTextCol);
+    const col = (i === hit.accentIdx) ? accentTextCol : mainTextCol;
 
-    /* Sombra dura deslocada para legibilidade extrema em celular */
     if (frame >= 4) {
       g.fillStyle = 'rgba(0,0,0,0.82)';
       g.fillText(txt, 10, ly + 12);
@@ -650,6 +616,79 @@ function drawKatanaOverlay(t){
   return true;
 }
 
+/* ============================================================
+   REGRA V4.1: CTA VISUAL UNICA NO MEIO (~48% A 56%, ~2.2s)
+   Zona segura superior-central sem tampar rosto nem legendas
+   ============================================================ */
+function isMidCtaActive(t){
+  const a = Number(EV.cta_meio_inicio);
+  const b = Number(EV.cta_meio_fim);
+  return isFinite(a) && isFinite(b) && t >= a && t < b && katanaStateAt(t) === null;
+}
+
+function drawMidCta(t){
+  if (!isMidCtaActive(t)) return false;
+  const a = Number(EV.cta_meio_inicio);
+  const b = Number(EV.cta_meio_fim);
+  const dt = t - a;
+  const rem = b - t;
+
+  /* Entrada rapida com glitch/pop elastico + saida limpa */
+  let sc = popScale(dt, 0.14);
+  let alpha = clamp(dt / 0.08);
+  let gx = 0;
+  if (dt < 0.11) {
+    const fr = Math.floor(dt * 30);
+    gx = (fr % 2 === 0 ? 1 : -1) * (1 - dt / 0.11) * 22;
+  }
+  if (rem < 0.14) {
+    const ek = clamp(rem / 0.14);
+    sc = lerp(0.86, 1.0, easeOut(ek));
+    alpha = ek;
+  }
+
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = alpha;
+  /* Zona segura superior-central (y: 148..294), longe do rosto/celular e das legendas (y: 1495) */
+  g.translate(540 + gx, 222);
+  g.scale(sc, sc);
+
+  const cardW = 884, cardH = 146;
+  /* Sombra projetada e halo amarelo discreto */
+  g.fillStyle = 'rgba(0,0,0,0.62)';
+  rr(-cardW / 2 + 6, -cardH / 2 + 10, cardW, cardH, 26); g.fill();
+
+  /* Glitch split ciano/vermelho somente nos 3 primeiros quadros da entrada */
+  if (dt < 0.10) {
+    g.fillStyle = rgba(PAL.alert, 0.45);
+    rr(-cardW / 2 - 8, -cardH / 2, cardW, cardH, 26); g.fill();
+    g.fillStyle = rgba(PAL.cyan, 0.40);
+    rr(-cardW / 2 + 8, -cardH / 2, cardW, cardH, 26); g.fill();
+  }
+
+  /* Card principal preto com borda amarela de alto contraste */
+  g.fillStyle = '#090B12';
+  rr(-cardW / 2, -cardH / 2, cardW, cardH, 26); g.fill();
+  g.strokeStyle = PAL.yellow;
+  g.lineWidth = 5;
+  rr(-cardW / 2, -cardH / 2, cardW, cardH, 26); g.stroke();
+
+  /* Linha 1: pergunta curta em caixa alta com folga lateral ampla */
+  g.fillStyle = PAL.text;
+  drawFittedText('QUER FAZER NO AUTOMÁTICO?', 0, -34, cardW - 96, 36, COND, '900', 'center');
+
+  /* Linha 2: pilula amarela interna com padding lateral >= 44px de cada lado */
+  const pillW = 680, pillH = 56, pillY = 2;
+  g.fillStyle = PAL.yellow;
+  rr(-pillW / 2, pillY, pillW, pillH, pillH / 2); g.fill();
+  g.fillStyle = PAL.ink;
+  drawFittedText('COMENTE EU QUERO', 0, pillY + pillH / 2 + 2, pillW - 96, 36, COND, '900', 'center');
+
+  g.restore();
+  return true;
+}
+
 function normalizeEvents(raw, audioDur){
   const e = { ...EV_PREVIEW, ...(raw || {}) };
   const dur = Math.max(audioDur || 0, Number(e.duracao_total) || EV_PREVIEW.duracao_total);
@@ -658,6 +697,8 @@ function normalizeEvents(raw, audioDur){
     for (const k of Object.keys(EV_PREVIEW)) {
       if (typeof EV_PREVIEW[k] === 'number' && raw[k] !== undefined) e[k] = Number(raw[k]);
     }
+    if (typeof raw.cta_modo === 'string') e.cta_modo = raw.cta_modo;
+    if (typeof raw.cta_texto === 'string') e.cta_texto = raw.cta_texto;
     if (URL_PARTE === null && typeof window.parteLabel !== 'string' && typeof raw.parte_label === 'string' && raw.parte_label.trim()) {
       parteLabel = raw.parte_label.trim();
     }
@@ -667,14 +708,13 @@ function normalizeEvents(raw, audioDur){
   SHOTS = buildShots(EV);
   KATANA_HITS = buildKatanaHits(EV);
 
-  /* Troca de expressao escondida na piscada 2 frames (0.067s) antes do evento */
+  /* Expressao da Camila troca escondida na piscada 2 frames (0.067s) antes do evento */
   EXPR_CUES = [
     [0, 'neutral'],
-    [EV.acorda_sussurro, 'worry'],
-    [EV.berco_vazio, 'shock'],
-    [EV.coracao_dispara, 'fear'],
-    [EV.alivio, 'relief'],
-    [EV.camera_vazio, 'worry'],
+    [EV.congela, 'fear'],
+    [EV.entregador, 'fear'],
+    [EV.portaria_vazia, 'worry'],
+    [EV.impacto_twist, 'shock'],
     [EV.plot_twist, 'shock']
   ];
   const bl = [];
@@ -695,10 +735,10 @@ function faceAt(t){
 }
 
 /* ============================================================
-   FUNDOS VIBRANTES PULSANTES + PARTICULAS CONTINUAS (V4)
+   FUNDOS VIBRANTES PULSANTES + PARTICULAS CONTINUAS (V4.1)
    ============================================================ */
 const PARTICLES = (() => {
-  const rng = mulberry(202604);
+  const rng = mulberry(202605);
   const arr = [];
   for (let i = 0; i < 40; i++) {
     arr.push({
@@ -718,11 +758,9 @@ const PARTICLES = (() => {
 function drawParticles(t, mood){
   const colPrimary = mood === 'red' ? PAL.alert
     : (mood === 'yellow' ? PAL.yellow
-      : (mood === 'nv' ? PAL.nvBright
-        : (mood === 'warm' ? PAL.warmGlow : PAL.cyan)));
+      : (mood === 'cctv' ? PAL.cctvBright : PAL.cyan));
   const colAlt = mood === 'red' ? '#FF8A5B'
-    : (mood === 'nv' ? PAL.nvPale
-      : (mood === 'warm' ? '#FBBF24' : PAL.violet));
+    : (mood === 'cctv' ? PAL.cctvPale : PAL.violet);
   g.save();
   g.globalCompositeOperation = 'lighter';
   for (let i = 0; i < PARTICLES.length; i++) {
@@ -743,38 +781,33 @@ function drawParticles(t, mood){
 function drawBackdrop(t, mood){
   const pulseSlow = 0.5 + 0.5 * Math.sin(t * 3.6);
   const pulseFast = 0.5 + 0.5 * Math.sin(t * 7.8);
-  let top = PAL.bgNavy, bot = PAL.bgViolet, glowCol = PAL.cyan, glowA = 0.14;
+  let top = PAL.bgNavy, bot = PAL.bgViolet, glowCol = PAL.cyan, glowA = 0.15;
 
-  if (mood === 'nv') {
-    top = mixHex('#07130C', PAL.bgNavy, pulseSlow * 0.35);
-    bot = '#030806';
-    glowCol = PAL.nvBright;
+  if (mood === 'cctv') {
+    top = mixHex('#071217', PAL.bgNavy, pulseSlow * 0.35);
+    bot = '#03070B';
+    glowCol = PAL.cctvBright;
     glowA = 0.18;
-  } else if (mood === 'warm') {
-    top = PAL.bgWarmTop;
-    bot = PAL.bgWarmBot;
-    glowCol = PAL.warmGlow;
-    glowA = 0.24;
   } else if (mood === 'violet') {
     top = mixHex(PAL.bgViolet, PAL.bgNavy, pulseSlow * 0.35);
     bot = PAL.bgNavy;
     glowCol = PAL.violet;
-    glowA = 0.20;
+    glowA = 0.22;
   } else if (mood === 'yellow') {
-    top = mixHex(PAL.bgNavy, PAL.bgYellow, 0.48 + 0.46 * pulseFast);
-    bot = mixHex(PAL.bgViolet, PAL.bgYellow, 0.36 + 0.42 * pulseFast);
+    top = mixHex(PAL.bgNavy, PAL.bgYellow, 0.46 + 0.44 * pulseFast);
+    bot = mixHex(PAL.bgViolet, PAL.bgYellow, 0.32 + 0.38 * pulseFast);
     glowCol = PAL.yellow;
-    glowA = 0.24;
+    glowA = 0.22;
   } else if (mood === 'red') {
     top = mixHex(PAL.bgViolet, PAL.bgRed, 0.54 + 0.46 * pulseFast);
     bot = mixHex(PAL.bgNavy, PAL.bgRed, 0.44 + 0.46 * pulseFast);
     glowCol = PAL.alert;
     glowA = 0.28 + 0.12 * pulseFast;
   } else if (mood === 'dark') {
-    top = PAL.bgDeep;
-    bot = '#020307';
-    glowCol = PAL.nvBright;
-    glowA = 0.06;
+    top = '#05060C';
+    bot = '#020306';
+    glowCol = PAL.alert;
+    glowA = 0.10;
   } else {
     top = mixHex(PAL.bgNavy, PAL.bgViolet, pulseSlow * 0.35);
     bot = PAL.bgDeep;
@@ -786,11 +819,11 @@ function drawBackdrop(t, mood){
 }
 
 /* ============================================================
-   RIG FLAT EM CAPSULA (10 PONTOS IK) - TIAGO (CAMISETA #0EA5A4)
+   RIG FLAT EM CAPSULA (10 PONTOS IK) - CAMILA (MOLETOM #7C3AED)
    ============================================================ */
 function drawEyes(cx, cy, r, ex, closed, lookX=0){
-  const lift = { neutral: 0, relief: -0.02, worry: 0.07, fear: 0.13, shock: 0.21 }[ex] || 0;
-  const tilt = { neutral: 0, relief: -0.04, worry: 0.12, fear: 0.11, shock: 0.05 }[ex] || 0;
+  const lift = { neutral: 0, worry: 0.07, fear: 0.13, shock: 0.21 }[ex] || 0;
+  const tilt = { neutral: 0, worry: 0.12, fear: 0.11, shock: 0.05 }[ex] || 0;
   const eyePositions = [[cx + r * 0.06, 1], [cx + r * 0.52, -1]];
   g.lineCap = 'round';
 
@@ -798,7 +831,7 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0){
     const y = cy - r * 0.05;
     const browY = y - r * (0.28 + lift);
     g.strokeStyle = PAL.ink;
-    g.lineWidth = r * 0.072;
+    g.lineWidth = r * 0.066;
     g.beginPath();
     g.moveTo(x - inner * r * 0.14, browY + (ex === 'worry' || ex === 'fear' ? r * 0.04 : 0));
     g.lineTo(x + inner * r * 0.14, browY - tilt * r);
@@ -808,13 +841,6 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0){
       g.strokeStyle = PAL.ink;
       g.lineWidth = r * 0.055;
       g.beginPath(); g.moveTo(x - r * 0.11, y); g.lineTo(x + r * 0.11, y); g.stroke();
-      continue;
-    }
-
-    if (ex === 'relief') {
-      g.strokeStyle = PAL.ink;
-      g.lineWidth = r * 0.064;
-      g.beginPath(); g.arc(x, y + r * 0.05, r * 0.11, Math.PI * 1.12, Math.PI * 1.88); g.stroke();
       continue;
     }
 
@@ -842,14 +868,9 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0){
     g.restore();
   }
 
-  if (ex === 'relief') {
-    g.strokeStyle = PAL.ink;
-    g.lineWidth = r * 0.052;
-    g.beginPath(); g.arc(cx + r * 0.30, cy + r * 0.24, r * 0.16, Math.PI * 0.14, Math.PI * 0.78); g.stroke();
-  } else if (ex === 'shock') {
+  if (ex === 'shock') {
     g.fillStyle = rgba(PAL.ink, 0.85);
     ell(cx + r * 0.29, cy + r * 0.40, r * 0.095, r * 0.13);
-    /* Gota de suor frio */
     g.fillStyle = rgba(PAL.sweat, 0.92);
     const sx = cx + r * 0.82, sy = cy - r * 0.34;
     g.beginPath();
@@ -859,7 +880,7 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0){
     g.fill();
   } else if (ex === 'fear' || ex === 'worry') {
     g.strokeStyle = rgba(PAL.ink, 0.72);
-    g.lineWidth = r * 0.050;
+    g.lineWidth = r * 0.048;
     g.beginPath();
     g.moveTo(cx + r * 0.18, cy + r * 0.36);
     g.lineTo(cx + r * 0.40, cy + r * (ex === 'fear' ? 0.33 : 0.36));
@@ -867,13 +888,17 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0){
   }
 }
 
-function drawHeadTiago(cx, cy, r, ex, closed, o={}){
+function drawHeadCamila(cx, cy, r, ex, closed, o={}){
   const tilt = o.tilt || 0;
   g.save();
   g.translate(cx, cy);
   g.rotate(tilt);
 
-  /* Cabeca redonda flat sem contorno preto pesado */
+  /* Cabelo escuro comprido ate os ombros atras da cabeca (silhueta propria de Camila) */
+  g.fillStyle = PAL.hair;
+  rr(-r * 1.08, -r * 0.18, r * 1.12, r * 1.56, r * 0.46); g.fill();
+
+  /* Cabeca redonda flat limpa */
   g.fillStyle = PAL.skin;
   circ(0, 0, r);
 
@@ -883,19 +908,14 @@ function drawHeadTiago(cx, cy, r, ex, closed, o={}){
   circ(-r * 1.08, r * 0.16, r * 0.96);
   g.restore();
 
-  /* Cabelo curto masculino limpo sem costura (zero efeito capacete) */
+  /* Franja lateral sem costura */
   g.fillStyle = PAL.hair;
   g.beginPath();
-  g.arc(-r * 0.06, -r * 0.08, r * 1.03, Math.PI * 0.82, -Math.PI * 0.16, false);
-  g.quadraticCurveTo(r * 0.52, -r * 0.52, -r * 0.10, -r * 0.58);
-  g.quadraticCurveTo(-r * 0.56, -r * 0.50, -r * 0.68, -r * 0.08);
-  g.quadraticCurveTo(-r * 0.76, r * 0.22, -r * 0.84, r * 0.46);
+  g.arc(-r * 0.04, -r * 0.05, r * 1.04, Math.PI * 0.72, -Math.PI * 0.15, false);
+  g.quadraticCurveTo(r * 0.54, -r * 0.56, -r * 0.12, -r * 0.54);
+  g.quadraticCurveTo(-r * 0.58, -r * 0.44, -r * 0.64, 0);
+  g.quadraticCurveTo(-r * 0.66, r * 0.46, -r * 0.78, r * 0.96);
   g.closePath();
-  g.fill();
-
-  /* Topete curto natural */
-  g.beginPath();
-  g.ellipse(r * 0.22, -r * 0.82, r * 0.36, r * 0.18, -0.22, 0, Math.PI * 2);
   g.fill();
 
   /* Orelha flat limpa */
@@ -908,7 +928,7 @@ function drawHeadTiago(cx, cy, r, ex, closed, o={}){
     g.save();
     g.globalCompositeOperation = 'lighter';
     g.lineCap = 'round';
-    g.strokeStyle = rgba(o.rimColor || PAL.nvBright, o.rimA);
+    g.strokeStyle = rgba(o.rimColor || PAL.cyan, o.rimA);
     g.lineWidth = r * 0.078;
     g.beginPath();
     g.arc(0, 0, r * 0.97, (o.rimAng || 0) - 0.85, (o.rimAng || 0) + 0.85);
@@ -937,551 +957,512 @@ function drawLimb(s, h, l1, l2, w, col, handCol, flip=1){
 }
 const mix = (a, b, k) => { if (k) { a[0] = lerp(a[0], b[0], k); a[1] = lerp(a[1], b[1], k); } };
 
-/* Tiago corpo inteiro (rig 10 pontos IK com pes travados no chao gy) */
-function drawTiagoStanding(x, gy, s, o){
+/* Camila corpo inteiro (rig 10 pontos IK com pes travados no chao gy) */
+function drawCamilaStanding(x, gy, s, o){
   const t = o.t, P = o.pose || {};
   const run = P.run || 0;
   const br = Math.sin(t * 2 * Math.PI / (o.fastBreath ? 1.35 : 3.0));
-  const step = Math.sin(t * 11.2) * run;
+  const step = Math.sin(t * 11.0) * run;
 
   g.save();
   g.translate(x, gy);
   g.scale(s * (o.face || 1), s);
 
-  /* Sombra de contato firme no plano do chao (y = 0) */
   g.fillStyle = 'rgba(0,0,0,.55)';
-  ell(4, 0, 118, 15);
+  ell(4, 0, 114, 15);
 
-  const hipY = -226 - Math.abs(step) * 10;
-  const shY = -438 - br * 5;
+  const hipY = -224 - Math.abs(step) * 10;
+  const shY = -430 - br * 5;
   const hx = 6, hy = shY - 102 - br * 2;
 
-  const footF = [-24 - step * 52, -14];
-  const footN = [24 + step * 52, -14];
-  drawLimb([-16, hipY + 8], footF, 110, 108, 35, PAL.pantsDark, null, -1);
-  drawLimb([16, hipY + 8], footN, 110, 108, 37, PAL.pants, null, -1);
+  const footF = [-24 - step * 50, -14];
+  const footN = [24 + step * 50, -14];
+  drawLimb([-16, hipY + 8], footF, 108, 106, 34, PAL.pantsDark, null, -1);
+  drawLimb([16, hipY + 8], footN, 108, 106, 36, PAL.pants, null, -1);
 
   for (const [fx, fy, dark] of [[footF[0] + 10, -11, true], [footN[0] + 10, -11, false]]) {
-    g.fillStyle = dark ? '#161B2B' : '#252E47';
-    ell(fx, fy, 42, 12);
+    g.fillStyle = dark ? '#181426' : '#2A2340';
+    ell(fx, fy, 40, 12);
   }
 
   const SN = [-8, shY + 46], SF = [24, shY + 44];
   const hn = [-4, hipY + 26], hf = [38, hipY + 24];
-  mix(hn, [94, shY + 132], P.monitor); mix(hf, [68, shY + 142], P.monitor);
-  mix(hn, [152, shY + 52], P.push);    mix(hf, [126, shY + 95], P.push);
-  mix(hn, [72 + step * 44, hipY - 14], run); mix(hf, [-34 - step * 44, hipY - 14], run);
+  mix(hn, [88, shY + 132], P.phone); mix(hf, [62, shY + 142], P.phone);
+  mix(hn, [148, shY + 48], P.reach); mix(hf, [118, shY + 92], P.reach);
+  mix(hn, [68 + step * 44, hipY - 14], run); mix(hf, [-32 - step * 44, hipY - 14], run);
   const handMinY = hy + 96;
   hn[1] = Math.max(hn[1], handMinY);
   hf[1] = Math.max(hf[1], handMinY);
 
-  drawLimb(SF, hf, 114, 110, 34, PAL.topShade, PAL.skinShadow, 1);
+  drawLimb(SF, hf, 112, 108, 32, PAL.topShade, PAL.skinShadow, 1);
 
-  /* Tronco em capsula flat limpo (camiseta azul-petroleo fixa) */
+  /* Tronco em capsula flat limpo (moletom violeta-indigo fixo) */
   g.fillStyle = PAL.top;
-  rr(-68, shY - 10, 136, (hipY - shY) + 34, 62); g.fill();
+  rr(-64, shY - 10, 128, (hipY - shY) + 34, 60); g.fill();
   g.save();
-  rr(-68, shY - 10, 136, (hipY - shY) + 34, 62); g.clip();
-  g.fillStyle = rgba(PAL.topDeep, 0.36);
-  g.fillRect(-76, shY - 18, 44, 290);
+  rr(-64, shY - 10, 128, (hipY - shY) + 34, 60); g.clip();
+  g.fillStyle = rgba(PAL.topDeep, 0.40);
+  g.fillRect(-72, shY - 18, 42, 280);
   g.restore();
 
   g.fillStyle = PAL.skinShadow;
-  rr(-11, shY - 36, 32, 36, 12); g.fill();
+  rr(-10, shY - 36, 30, 36, 12); g.fill();
 
-  drawHeadTiago(hx, hy, 78, o.ex, o.closed, {
+  drawHeadCamila(hx, hy, 78, o.ex, o.closed, {
     tilt: (o.tilt || 0) + br * 0.015,
     rimA: o.rimA ?? 0.72,
-    rimColor: o.rimColor || PAL.nvBright,
+    rimColor: o.rimColor || PAL.cyan,
     rimAng: o.rimAng ?? 0.1,
     lookX: o.lookX || 0
   });
 
-  drawLimb(SN, hn, 114, 110, 34, PAL.top, PAL.skin, 1);
+  drawLimb(SN, hn, 112, 108, 32, PAL.top, PAL.skin, 1);
 
-  /* Monitor portatil da baba eletronica na mao de Tiago */
-  if (P.monitor > 0.5) {
-    g.fillStyle = PAL.nvCase; rr(hn[0] - 24, hn[1] - 32, 62, 46, 10); g.fill();
-    g.fillStyle = PAL.nvMid; rr(hn[0] - 18, hn[1] - 26, 50, 34, 5); g.fill();
-    g.fillStyle = rgba(PAL.nvBright, 0.82); rr(hn[0] - 15, hn[1] - 23, 44, 28, 4); g.fill();
-    glow(hn[0] + 8, hn[1] - 8, 220, PAL.nvBright, 0.32);
+  if (P.phone > 0.5) {
+    g.fillStyle = PAL.phone; rr(hn[0] - 18, hn[1] - 42, 38, 72, 9); g.fill();
+    g.fillStyle = rgba(PAL.cyan, 0.92); rr(hn[0] - 13, hn[1] - 36, 28, 58, 5); g.fill();
+    glow(hn[0], hn[1] - 10, 220, o.rimColor || PAL.cyan, 0.35);
   }
-  g.restore();
-}
-
-/* Tiago na cama acordando de madrugada */
-function drawTiagoBed(x, y, s, o){
-  const t = o.t;
-  const br = Math.sin(t * 2 * Math.PI / (o.fastBreath ? 1.35 : 3.0));
-  g.save();
-  g.translate(x, y);
-  g.scale(s, s);
-
-  /* Cabeceira e travesseiro */
-  g.fillStyle = PAL.wood; rr(-255, -320, 440, 380, 28); g.fill();
-  g.fillStyle = '#2B3659'; rr(-195, -210, 220, 155, 42); g.fill();
-
-  const shY = -175 - br * 5;
-  const hx = 10, hy = shY - 98;
-  const SN = [-18, shY + 46], SF = [28, shY + 44];
-  const hold = o.holdMonitor ? 1 : 0;
-  const hn = [lerp(52, 134, hold), lerp(shY + 135, shY + 104, hold)];
-  const hf = [lerp(90, 158, hold), lerp(shY + 138, shY + 108, hold)];
-
-  drawLimb(SF, hf, 106, 100, 33, PAL.topShade, PAL.skinShadow, 1);
-
-  /* Tronco em capsula */
-  g.fillStyle = PAL.top;
-  rr(-68, shY - 10, 136, 225, 62); g.fill();
-  g.save();
-  rr(-68, shY - 10, 136, 225, 62); g.clip();
-  g.fillStyle = rgba(PAL.topDeep, 0.36);
-  g.fillRect(-76, shY - 14, 44, 240);
-  g.restore();
-
-  g.fillStyle = PAL.skinShadow;
-  rr(-10, shY - 34, 32, 34, 12); g.fill();
-
-  drawHeadTiago(hx, hy, 80, o.ex, o.closed, {
-    tilt: (o.tilt || 0) + br * 0.015,
-    rimA: o.rimA ?? 0.85,
-    rimColor: o.rimColor || PAL.nvBright,
-    rimAng: 0.14,
-    lookX: o.lookX || 0.15
-  });
-
-  drawLimb(SN, hn, 106, 100, 33, PAL.top, PAL.skin, 1);
-
-  if (hold) {
-    g.fillStyle = PAL.nvCase; rr(hn[0] - 10, hn[1] - 42, 74, 54, 12); g.fill();
-    g.fillStyle = PAL.nvMid; rr(hn[0] - 2, hn[1] - 34, 58, 38, 6); g.fill();
-    g.fillStyle = rgba(PAL.nvBright, 0.85); rr(hn[0] + 2, hn[1] - 30, 50, 30, 4); g.fill();
-    glow(hn[0] + 25, hn[1] - 14, 280, PAL.nvBright, 0.42);
-  }
-
-  /* Lencol por cima das pernas */
-  g.fillStyle = '#1E2744'; rr(-290, 15, 660, 260, 44); g.fill();
-  g.fillStyle = '#2B3860'; rr(-290, 15, 660, 56, 28); g.fill();
   g.restore();
 }
 
 /* ============================================================
-   CENARIOS: QUARTO CASAL, CORREDOR, QUARTO DO BEBE E BABA ELETRONICA
+   CENARIOS & PROPS DO VIDEO 05 ("O Pedido das 02h15")
    ============================================================ */
-function drawParentBedroom(t, o={}){
-  g.fillStyle = o.red ? '#1F0C12' : PAL.wall;
-  g.fillRect(-200, -100, W + 400, 1420);
-  g.fillStyle = PAL.floor;
-  g.fillRect(-200, 1300, W + 400, 820);
-
-  /* Janela noturna a esquerda com fresta de luar */
-  g.fillStyle = '#070E1F'; rr(64, 300, 240, 450, 10); g.fill();
-  g.fillStyle = rgba(PAL.cyan, 0.14);
-  g.fillRect(74, 310, 220, 430);
-  g.strokeStyle = '#1D2944'; g.lineWidth = 10;
-  g.beginPath();
-  g.moveTo(184, 300); g.lineTo(184, 750);
-  g.moveTo(64, 520); g.lineTo(304, 520);
-  g.stroke();
-
-  /* Mesa de cabeceira a direita com a baba eletronica */
-  g.fillStyle = PAL.wood; rr(740, 1040, 250, 260, 16); g.fill();
-  g.strokeStyle = PAL.woodLine; g.lineWidth = 4;
-  g.strokeRect(760, 1070, 210, 88);
-  g.strokeRect(760, 1176, 210, 96);
-
-  if (o.monitorOnTable !== false) {
-    /* Baba eletronica em cima da mesa com brilho verde */
-    g.fillStyle = PAL.nvCase; rr(805, 956, 124, 86, 14); g.fill();
-    g.fillStyle = PAL.nvCase; rr(910, 898, 12, 64, 6); g.fill();
-    g.fillStyle = PAL.nvMid; rr(817, 968, 86, 62, 6); g.fill();
-    g.fillStyle = rgba(PAL.nvBright, 0.72 + 0.20 * Math.sin(t * 7));
-    rr(821, 972, 78, 54, 4); g.fill();
-    glow(860, 998, 280, PAL.nvBright, 0.34);
-
-    if (o.whisperWaves) {
-      g.save();
-      g.strokeStyle = rgba(PAL.nvBright, 0.65);
-      g.lineWidth = 5;
-      for (let i = 0; i < 3; i++) {
-        const wP = (t * 2.1 + i * 0.33) % 1;
-        g.globalAlpha = (1 - wP) * 0.72;
-        g.beginPath();
-        g.arc(860, 992, 46 + wP * 140, Math.PI * 0.95, Math.PI * 1.65);
-        g.stroke();
-      }
-      g.restore();
-    }
-  }
-}
-
-/* Quarto REAL do bebe (iluminado quente de alivio OU em blecaute total) */
-function drawRealNursery(t, o={}){
-  const dark = !!o.dark;
-  g.fillStyle = dark ? '#04060C' : PAL.wallWarm;
+function drawLivingRoom(t, o={}){
+  g.fillStyle = o.red ? '#200B14' : PAL.wall;
   g.fillRect(-200, -100, W + 400, 1460);
-  g.fillStyle = dark ? '#020308' : PAL.floorWarm;
+  g.fillStyle = PAL.floor;
   g.fillRect(-200, 1340, W + 400, 780);
 
-  if (!dark) {
-    /* Faixa decorativa infantil calma + lustre quente aceso no teto */
-    g.fillStyle = rgba(PAL.wallWarmTrim, 0.55);
-    g.fillRect(-200, 1140, W + 400, 200);
-    g.fillStyle = '#4B3A2C';
-    g.fillRect(-200, 1136, W + 400, 12);
+  /* Porta de entrada da sala a direita */
+  g.fillStyle = PAL.wood; rr(750, 560, 236, 780, 10); g.fill();
+  g.strokeStyle = PAL.woodLine; g.lineWidth = 6; rr(774, 600, 188, 320, 6); g.stroke();
+  g.fillStyle = PAL.steel; circ(792, 980, 12);
 
-    /* Lustre pendente deslocado para longe do relogio central */
-    g.strokeStyle = '#6B5544'; g.lineWidth = 6;
-    g.beginPath(); g.moveTo(815, 0); g.lineTo(815, 340); g.stroke();
-    g.fillStyle = '#FEF3C7';
-    g.beginPath(); g.arc(815, 380, 60, Math.PI, 0, false); g.closePath(); g.fill();
-    glow(720, 420, 760, PAL.warmGlow, 0.36);
+  /* Video-porteiro / interfone montado na parede ao lado da porta */
+  g.fillStyle = '#192234'; rr(628, 770, 96, 134, 12); g.fill();
+  g.fillStyle = PAL.cctvMid; rr(640, 784, 72, 72, 6); g.fill();
+  glow(676, 820, 180, PAL.cctvBright, 0.25);
 
-    /* Porta aberta a esquerda */
-    g.fillStyle = '#2B1F17'; g.fillRect(42, 460, 210, 880);
-    g.fillStyle = '#533B2A'; rr(48, 468, 175, 872, 6); g.fill();
-    g.fillStyle = '#D4AF37'; circ(194, 920, 11);
-  } else {
-    /* Blecaute total: contorno quase invisivel da porta atras */
-    g.fillStyle = '#080B14'; g.fillRect(42, 460, 220, 880);
+  /* Sofa a esquerda */
+  if (o.sofa) {
+    g.fillStyle = '#1B2038'; rr(40, 1020, 480, 320, 34); g.fill();
+    g.fillStyle = '#252C4C'; rr(64, 1060, 432, 180, 26); g.fill();
   }
+}
 
-  /* Berco real a direita/centro com o bebe dormindo tranquilo */
-  const bx = o.cribX ?? 540, by = o.cribY ?? 1090, bs = o.cribScale ?? 1.0;
+/* Smartphone com notificacao realista de app de delivery brasileiro as 02:15 */
+function drawDeliveryPhone(t, mode, localP){
+  const pw = 660, ph = 1120;
+  const px = 540 - pw / 2, py = 365;
+  const vib = (mode === 'chegou' || mode === 'entregue') ? Math.sin(t * 72) * 5 * Math.exp(-localP * 3.5) : 0;
+
   g.save();
-  g.translate(bx, by);
-  g.scale(bs, bs);
+  g.translate(vib, 0);
+  /* Sombra + corpo do celular */
+  g.fillStyle = 'rgba(0,0,0,0.62)'; rr(px + 16, py + 24, pw, ph, 64); g.fill();
+  g.fillStyle = PAL.phone; rr(px, py, pw, ph, 64); g.fill();
+  g.strokeStyle = PAL.phoneEdge; g.lineWidth = 6; rr(px, py, pw, ph, 64); g.stroke();
 
-  /* Sombra do berco */
-  g.fillStyle = 'rgba(0,0,0,0.42)';
-  ell(0, 250, 270, 26);
+  const sx = px + 26, sy = py + 28, sw = pw - 52, sh = ph - 56;
+  g.save();
+  rr(sx, sy, sw, sh, 44); g.clip();
 
-  /* Fundo e cabeceiras do berco */
-  const cMain = dark ? '#111622' : PAL.cribWarm;
-  const cShade = dark ? '#090D16' : PAL.cribShade;
-  g.fillStyle = cShade;
-  rr(-240, -140, 480, 340, 24); g.fill();
+  /* Wallpaper escuro da tela de bloqueio */
+  const wg = g.createLinearGradient(0, sy, 0, sy + sh);
+  wg.addColorStop(0, mode === 'abrindo' ? '#2A0B14' : '#10182E');
+  wg.addColorStop(1, '#050812');
+  g.fillStyle = wg; g.fillRect(sx, sy, sw, sh);
 
-  /* Colchao + bebe dormindo tranquilo */
-  g.fillStyle = dark ? '#0D1320' : '#F8FAFC';
-  rr(-215, 25, 430, 120, 18); g.fill();
+  /* Dynamic island + hora 02:15 (UNICO relogio visivel neste quadro!) */
+  g.fillStyle = '#03050A'; rr(540 - 78, sy + 18, 156, 34, 17); g.fill();
+  g.fillStyle = PAL.text;
+  drawFittedText('02:15', 540, sy + 142, 340, 108, SANS, '800', 'center');
+  g.fillStyle = PAL.dim;
+  drawFittedText('QUINTA-FEIRA, MADRUGADA', 540, sy + 214, 440, 22, MONO, '700', 'center');
 
-  if (o.showBaby !== false && !dark) {
-    const breath = Math.sin(t * 2.1) * 5;
-    /* Travesseirinho */
-    g.fillStyle = '#FFFFFF'; rr(-195, 18, 110, 64, 24); g.fill();
-    /* Cabecinha calma do bebe de 2 anos dormindo */
-    g.fillStyle = PAL.babySkin;
-    circ(-125, 36, 46);
-    /* Cabelinho ralo macio */
-    g.fillStyle = '#2D241F';
-    g.beginPath(); g.arc(-132, 26, 44, Math.PI * 0.9, Math.PI * 1.85); g.fill();
-    /* Olhos fechados serenos */
-    g.strokeStyle = PAL.ink; g.lineWidth = 4; g.lineCap = 'round';
-    g.beginPath(); g.arc(-112, 38, 9, Math.PI * 0.12, Math.PI * 0.88); g.stroke();
-    g.beginPath(); g.arc(-94, 38, 8, Math.PI * 0.12, Math.PI * 0.88); g.stroke();
-    /* Sorrisinho calmo */
-    g.beginPath(); g.arc(-104, 54, 7, Math.PI * 0.15, Math.PI * 0.82); g.stroke();
+  /* Cartao de notificacao do app de delivery */
+  const cardX = sx + 28, cardY = sy + 292, cardW = sw - 56;
+  const cardH = mode === 'chegou' ? 255 : 445;
+  const cardPop = popScale(localP * 1.1, 0.25);
 
-    /* Cobertor azul claro subindo e descendo com a respiracao */
-    g.fillStyle = PAL.blanketBlue;
-    rr(-88, 14 - breath, 270, 122 + breath, 36); g.fill();
-    g.fillStyle = PAL.blanketShade;
-    rr(-88, 76, 270, 60, 24); g.fill();
+  g.save();
+  g.translate(540, cardY + cardH / 2);
+  g.scale(cardPop, cardPop);
+  g.translate(-540, -(cardY + cardH / 2));
 
-    /* Ursinho de pelucia encostado no canto do berco */
-    g.fillStyle = '#9C6B43';
-    circ(160, 12, 26);
-    circ(142, -10, 10); circ(178, -10, 10);
-    ell(160, 46, 28, 30);
+  g.fillStyle = 'rgba(20, 27, 45, 0.96)';
+  rr(cardX, cardY, cardW, cardH, 30); g.fill();
+  g.strokeStyle = mode === 'chegou' ? PAL.appRed : PAL.alert;
+  g.lineWidth = 4;
+  rr(cardX, cardY, cardW, cardH, 30); g.stroke();
+
+  /* Icone do app de entrega (sacola estilizada em quadrado vermelho) */
+  g.fillStyle = PAL.appRed;
+  rr(cardX + 26, cardY + 26, 68, 68, 18); g.fill();
+  g.fillStyle = PAL.white;
+  rr(cardX + 43, cardY + 50, 34, 30, 5); g.fill();
+  g.strokeStyle = PAL.white; g.lineWidth = 4;
+  g.beginPath(); g.arc(cardX + 60, cardY + 50, 10, Math.PI, 0); g.stroke();
+
+  g.fillStyle = PAL.dim;
+  drawFittedText('ENTREGAS EXPRESS  •  AGORA', cardX + 112, cardY + 46, 380, 21, MONO, '700', 'left');
+  g.fillStyle = PAL.white;
+  const titulo = mode === 'chegou' ? 'SEU PEDIDO CHEGOU!' : 'PEDIDO ENTREGUE';
+  drawFittedText(titulo, cardX + 112, cardY + 80, 390, 32, SANS, '900', 'left');
+
+  if (mode === 'chegou') {
+    g.fillStyle = '#E2E8F0';
+    drawFittedText('Seu pedido chegou na portaria.', cardX + 28, cardY + 148, cardW - 56, 30, SANS, '600', 'left');
+    g.fillStyle = rgba(PAL.appRed, 0.22);
+    rr(cardX + 28, cardY + 184, cardW - 56, 48, 14); g.fill();
+    g.fillStyle = '#FCA5A5';
+    drawFittedText('ENTREGADOR AGUARDANDO NO INTERFONE', 540, cardY + 208, cardW - 84, 22, MONO, '800', 'center');
+  } else {
+    g.fillStyle = '#E2E8F0';
+    drawFittedText('Pedido entregue. Foto de confirmação', cardX + 28, cardY + 138, cardW - 56, 26, SANS, '600', 'left');
+    drawFittedText('em anexo.', cardX + 28, cardY + 172, cardW - 56, 26, SANS, '600', 'left');
+
+    /* Miniatura misteriosa da foto em anexo (sacola na mesa escura) */
+    const tx = cardX + 28, ty = cardY + 202, tw = cardW - 56, th = 148;
+    g.fillStyle = '#0D1322'; rr(tx, ty, tw, th, 16); g.fill();
+    g.fillStyle = PAL.tableDark; g.fillRect(tx, ty + 104, tw, 44);
+    g.fillStyle = PAL.bagPaper; rr(tx + tw / 2 - 28, ty + 38, 56, 72, 6); g.fill();
+    g.fillStyle = rgba('#000000', 0.35); rr(tx, ty, tw, th, 16); g.fill();
+    g.fillStyle = PAL.text;
+    drawFittedText('IMG_0215.JPG', tx + 20, ty + th - 22, 220, 20, MONO, '700', 'left');
+
+    /* Botao "VER FOTO" com efeito de toque no modo 'abrindo' */
+    const bx = cardX + 28, by = cardY + 368, bw = cardW - 56, bh = 58;
+    g.fillStyle = mode === 'abrindo' ? PAL.alert : PAL.appRed;
+    rr(bx, by, bw, bh, 18); g.fill();
+    g.fillStyle = PAL.white;
+    drawFittedText('VER FOTO DE CONFIRMAÇÃO', 540, by + bh / 2 + 1, bw - 48, 26, COND, '900', 'center');
+
+    if (mode === 'abrindo') {
+      const tapP = easeOut(clamp(localP * 1.4));
+      g.strokeStyle = rgba(PAL.white, (1 - tapP) * 0.9);
+      g.lineWidth = 6;
+      g.beginPath(); g.arc(540, by + bh / 2, 18 + tapP * 68, 0, Math.PI * 2); g.stroke();
+    }
   }
+  g.restore();
 
-  /* Grades frontais do berco */
-  g.fillStyle = cMain;
-  rr(-246, -152, 28, 405, 12); g.fill();
-  rr(218, -152, 28, 405, 12); g.fill();
-  rr(-246, -106, 492, 24, 10); g.fill();
-  rr(-246, 152, 492, 28, 10); g.fill();
-  for (let gx = -185; gx <= 185; gx += 46) {
-    rr(gx - 7, -92, 14, 250, 6); g.fill();
-  }
-
-  /* Mobile infantil acima do berco */
-  if (!dark) {
-    const sw = Math.sin(t * 1.4) * 14;
-    g.strokeStyle = PAL.cribShade; g.lineWidth = 6;
-    g.beginPath(); g.moveTo(228, -150); g.quadraticCurveTo(220, -320, 40, -305); g.stroke();
-    g.strokeStyle = '#94A3B8'; g.lineWidth = 3;
-    g.beginPath(); g.moveTo(40, -305); g.lineTo(40 + sw, -245); g.stroke();
-    g.fillStyle = '#FBBF24'; circ(40 + sw, -236, 15);
-    g.fillStyle = '#60A5FA'; circ(40 + sw - 38, -225, 12);
-    g.fillStyle = '#F472B6'; circ(40 + sw + 38, -225, 12);
-  }
+  g.restore();
   g.restore();
 }
 
-/* ============================================================
-   TELA REALISTA DE BABA ELETRONICA (VISAO NOTURNA VERDE/CINZA)
-   ============================================================ */
-function drawBabyMonitor(t, mode, localP){
+/* Tela realista de interfone/CCTV na chuva com entregador de capacete escuro */
+function drawIntercomScreen(t, mode, localP){
   const mw = 880, mh = 760;
-  const mx = 540 - mw / 2, my = 505;
+  const mx = 540 - mw / 2, my = 490;
 
   g.save();
-  /* Antena fisica dobravel no canto superior direito */
-  g.fillStyle = '#1D2538';
-  rr(mx + mw - 86, my - 190, 32, 210, 16); g.fill();
-  g.fillStyle = '#334155';
-  circ(mx + mw - 70, my - 186, 18);
+  /* Chassi metalico escuro do video-porteiro */
+  g.fillStyle = 'rgba(0,0,0,0.62)'; rr(mx + 14, my + 24, mw, mh, 44); g.fill();
+  g.fillStyle = '#151B29'; rr(mx, my, mw, mh, 44); g.fill();
+  g.strokeStyle = '#334155'; g.lineWidth = 6; rr(mx, my, mw, mh, 44); g.stroke();
 
-  /* Corpo arredondado do aparelho portatil */
-  g.fillStyle = 'rgba(0,0,0,0.62)';
-  rr(mx + 14, my + 24, mw, mh, 56); g.fill();
-  g.fillStyle = PAL.nvCase;
-  rr(mx, my, mw, mh, 56); g.fill();
-  g.strokeStyle = PAL.nvBezel; g.lineWidth = 6;
-  rr(mx, my, mw, mh, 56); g.stroke();
-
-  /* LEDs de status e marca no topo do chassi */
-  const ledPulse = 0.55 + 0.45 * Math.sin(t * 7);
-  const dangerLed = (mode === 'vulto_porta' || mode === 'olhos_lente' || mode === 'berco_vazio');
-  g.fillStyle = dangerLed ? PAL.alert : PAL.nvBright;
-  circ(mx + 74, my + 48, 10);
-  glow(mx + 74, my + 48, 42, dangerLed ? PAL.alert : PAL.nvBright, 0.55 * ledPulse);
-
-  /* Barra de nivel de som (LEDs piscando no sussurro/passos) */
-  const audioHot = (mode === 'sussurro' || mode === 'passos' || mode === 'vulto_porta');
-  for (let i = 0; i < 5; i++) {
-    const active = audioHot ? (i < Math.floor(2 + 3.5 * Math.abs(Math.sin(t * 14 + i)))) : (i === 0);
-    g.fillStyle = active ? (i >= 3 ? PAL.alert : PAL.nvBright) : '#263147';
-    rr(mx + 116 + i * 24, my + 40, 16, 16, 4); g.fill();
-  }
+  /* LED de chamada + titulo no topo da moldura */
+  const blink = Math.floor(t * 4) % 2 === 0;
+  g.fillStyle = mode === 'vazia' ? PAL.yellow : (blink ? PAL.alert : '#7F1D1D');
+  circ(mx + 68, my + 46, 10);
   g.fillStyle = PAL.dim;
-  drawFittedText('BABÁ CAM HD', mx + mw - 72, my + 48, 220, 22, MONO, '700', 'right');
+  drawFittedText('VIDEO PORTEIRO // PORTARIA', mx + 96, my + 46, 520, 23, MONO, '700', 'left');
 
-  /* Area da tela de visao noturna */
   const sx = mx + 52, sy = my + 86, sw = mw - 104, sh = 550;
   g.save();
-  rr(sx, sy, sw, sh, 22); g.clip();
+  rr(sx, sy, sw, sh, 18); g.clip();
 
-  /* Fundo verde/cinza infravermelho */
-  const ng = g.createRadialGradient(sx + sw * 0.5, sy + sh * 0.48, 40, sx + sw * 0.5, sy + sh * 0.5, sw * 0.72);
-  ng.addColorStop(0, '#223A2B');
-  ng.addColorStop(0.55, '#112117');
-  ng.addColorStop(1, '#050C08');
-  g.fillStyle = ng;
-  g.fillRect(sx, sy, sw, sh);
+  /* Fundo CCTV cinza-azulado noturno da portaria */
+  const cg = g.createRadialGradient(sx + sw * 0.5, sy + sh * 0.25, 30, sx + sw * 0.5, sy + sh * 0.5, sw * 0.78);
+  cg.addColorStop(0, '#223642');
+  cg.addColorStop(0.55, '#111E26');
+  cg.addColorStop(1, '#060C10');
+  g.fillStyle = cg; g.fillRect(sx, sy, sw, sh);
 
-  /* Conteudo interno da camera conforme o momento da historia */
-  if (mode === 'sussurro' || mode === 'berco_vazio' || mode === 'ainda_vazio' || mode === 'vulto_porta' || mode === 'olhos_lente') {
-    const isClose = (mode === 'olhos_lente');
-    const zoomIn = isClose ? lerp(1.28, 1.55, ease(localP)) : (mode === 'vulto_porta' ? lerp(1.06, 1.20, ease(localP)) : 1.0);
+  /* Grade do portao da portaria ao fundo + luz do poste */
+  g.fillStyle = '#0B141A'; g.fillRect(sx, sy + sh - 115, sw, 120);
+  g.strokeStyle = '#1F3542'; g.lineWidth = 6;
+  for (let gx = sx + 48; gx < sx + sw; gx += 72) {
+    g.beginPath(); g.moveTo(gx, sy + 60); g.lineTo(gx, sy + sh - 115); g.stroke();
+  }
+  glow(sx + sw * 0.5, sy + 70, 260, PAL.cctvPale, 0.22);
 
+  /* ENTREGADOR DE CAPACETE ESCURO ENCARANDO A LENTE SEM PISCAR */
+  if (mode === 'entregador' || mode === 'interfone_fx') {
+    const zEnt = mode === 'interfone_fx' ? lerp(1.12, 1.24, ease(localP)) : lerp(0.96, 1.08, ease(localP));
     g.save();
-    g.translate(sx + sw * (isClose ? 0.28 : 0.5), sy + sh * (isClose ? 0.52 : 0.5));
-    g.scale(zoomIn, zoomIn);
-    g.translate(-(sx + sw * 0.5), -(sy + sh * 0.5));
+    g.translate(sx + sw / 2, sy + 305);
+    g.scale(zEnt, zEnt);
 
-    /* Parede e piso em visao noturna */
-    g.fillStyle = '#0D1B12'; g.fillRect(sx, sy + sh - 120, sw, 140);
-    g.strokeStyle = '#254231'; g.lineWidth = 3;
-    g.beginPath(); g.moveTo(sx, sy + sh - 120); g.lineTo(sx + sw, sy + sh - 120); g.stroke();
+    /* Mochila termica de entrega nas costas */
+    g.fillStyle = '#2B1115'; rr(-136, -34, 272, 230, 20); g.fill();
+    g.strokeStyle = '#6B1C24'; g.lineWidth = 5; rr(-136, -34, 272, 230, 20); g.stroke();
 
-    /* Porta do quarto a esquerda na camera */
-    const dx = sx + 56, dy = sy + 95, dw = 178, dh = 338;
-    g.fillStyle = '#040906'; g.fillRect(dx, dy, dw, dh);
-    g.strokeStyle = '#2D4F3B'; g.lineWidth = 4; g.strokeRect(dx, dy, dw, dh);
-    /* Folha da porta entreaberta */
-    g.fillStyle = '#193022';
+    /* Ombros de jaqueta de chuva escura */
+    g.fillStyle = '#090E14';
+    rr(-150, 26, 300, 250, 88); g.fill();
+    /* Faixa refletiva sutil da jaqueta */
+    g.fillStyle = rgba(PAL.cctvPale, 0.32);
+    g.fillRect(-135, 118, 270, 12);
+
+    /* Capacete de moto preto encarando reto a camera */
+    g.fillStyle = '#06090F';
+    circ(0, -68, 96);
+    g.strokeStyle = rgba(PAL.cctvBright, 0.35); g.lineWidth = 4;
+    g.beginPath(); g.arc(0, -68, 95, -Math.PI * 0.85, -Math.PI * 0.15); g.stroke();
+
+    /* Viseira escura espelhada com reflexo frio da chuva + olhar quase invisivel por tras */
+    g.fillStyle = '#020408';
+    rr(-72, -104, 144, 66, 22); g.fill();
+    g.strokeStyle = rgba(PAL.cctvPale, 0.48); g.lineWidth = 3;
+    rr(-72, -104, 144, 66, 22); g.stroke();
+    /* Brilho diagonal na viseira */
+    g.fillStyle = rgba(PAL.cctvPale, 0.16);
     g.beginPath();
-    g.moveTo(dx, dy); g.lineTo(dx + 74, dy + 22); g.lineTo(dx + 74, dy + dh - 14); g.lineTo(dx, dy + dh);
-    g.closePath(); g.fill();
-
-    /* Berco do bebe a direita: SEMPRE VAZIO na visao noturna! */
-    const cx = sx + 475, cy = sy + 325;
-    g.fillStyle = '#162B1E'; rr(cx - 175, cy - 88, 350, 200, 12); g.fill();
-    /* Lencol amassado vazio (sem bebe!) */
-    g.fillStyle = '#2A4A36';
-    g.beginPath();
-    g.moveTo(cx - 155, cy + 52);
-    g.quadraticCurveTo(cx - 60, cy + 16, cx + 22, cy + 44);
-    g.quadraticCurveTo(cx + 105, cy + 68, cx + 155, cy + 32);
-    g.lineTo(cx + 155, cy + 95); g.lineTo(cx - 155, cy + 95); g.closePath(); g.fill();
-    /* Grades claras em infravermelho */
-    g.fillStyle = '#4B7A5D';
-    rr(cx - 180, cy - 95, 16, 225, 6); g.fill();
-    rr(cx + 164, cy - 95, 16, 225, 6); g.fill();
-    rr(cx - 180, cy - 72, 360, 14, 5); g.fill();
-    rr(cx - 180, cy + 90, 360, 16, 5); g.fill();
-    for (let bar = -140; bar <= 140; bar += 35) {
-      g.fillRect(cx + bar - 4, cy - 62, 8, 155);
-    }
-
-    /* Mobile balancando sozinho no quarto vazio */
-    const mb = Math.sin(t * 2.2) * 12;
-    g.strokeStyle = '#3C664C'; g.lineWidth = 3;
-    g.beginPath(); g.moveTo(cx + 160, cy - 95); g.quadraticCurveTo(cx + 145, cy - 205, cx + 15, cy - 195); g.stroke();
-    g.beginPath(); g.moveTo(cx + 15, cy - 195); g.lineTo(cx + 15 + mb, cy - 148); g.stroke();
-    g.fillStyle = '#6EE7B7'; circ(cx + 15 + mb, cy - 142, 8);
-
-    /* Etiqueta de alerta no berco vazio nos momentos de descoberta */
-    if (mode === 'berco_vazio' || mode === 'ainda_vazio') {
-      const blink = Math.sin(t * 12) > -0.2;
-      if (blink) {
-        g.strokeStyle = rgba(PAL.alert, 0.85); g.lineWidth = 4;
-        g.setLineDash([16, 10]);
-        g.strokeRect(cx - 195, cy - 108, 390, 232);
-        g.setLineDash([]);
-      }
-    }
-
-    /* CLIMAX: ALGUEM PARADO ATRAS DA PORTA OLHANDO DIRETO PRA LENTE! */
-    if (mode === 'vulto_porta' || mode === 'olhos_lente') {
-      const vx = dx + 124, vy = dy + 122;
-      /* Silhueta escura alta atras da folha da porta */
-      g.fillStyle = '#020503';
-      ell(vx, vy + 150, 56, 128);
-      circ(vx, vy, 44);
-      /* Mao longa agarrando a borda da porta */
-      g.fillStyle = '#0A160F';
-      for (let f = 0; f < 4; f++) rr(dx + 64, dy + 178 + f * 15, 22, 10, 5);
-      g.fill();
-      /* Dois olhos refletindo infravermelho direto na lente */
-      const eyeGlow = mode === 'olhos_lente' ? 1.0 : lerp(0.5, 1.0, easeOut(localP));
-      glow(vx - 15, vy - 4, 38, PAL.nvPale, 0.72 * eyeGlow);
-      glow(vx + 15, vy - 4, 38, PAL.nvPale, 0.72 * eyeGlow);
-      g.fillStyle = '#ECFDF5';
-      ell(vx - 15, vy - 4, 10, 6);
-      ell(vx + 15, vy - 4, 10, 6);
-      g.fillStyle = '#040906';
-      circ(vx - 15, vy - 4, 3);
-      circ(vx + 15, vy - 4, 3);
-    }
-
+    g.moveTo(-58, -98); g.lineTo(-18, -98); g.lineTo(-42, -44); g.lineTo(-66, -44); g.closePath(); g.fill();
+    /* Dois pontos sutis de olhos fixos por dentro da viseira sem piscar */
+    g.fillStyle = rgba(PAL.cctvPale, 0.55);
+    circ(-24, -72, 4.5);
+    circ(24, -72, 4.5);
     g.restore();
-  } else if (mode === 'sombra' || mode === 'passos') {
-    /* Corredor escuro captado pela camera com sombra alta cruzando */
-    g.fillStyle = '#07110B'; g.fillRect(sx, sy, sw, sh);
-    /* Perspectiva do corredor */
-    g.strokeStyle = '#254431'; g.lineWidth = 4;
-    g.beginPath();
-    g.moveTo(sx, sy); g.lineTo(sx + 210, sy + 130); g.lineTo(sx + 210, sy + 420); g.lineTo(sx, sy + sh);
-    g.moveTo(sx + sw, sy); g.lineTo(sx + sw - 210, sy + 130); g.lineTo(sx + sw - 210, sy + 420); g.lineTo(sx + sw, sy + sh);
-    g.stroke();
-    g.fillStyle = '#122419';
-    g.beginPath(); g.moveTo(sx, sy + sh); g.lineTo(sx + 210, sy + 420); g.lineTo(sx + sw - 210, sy + 420); g.lineTo(sx + sw, sy + sh); g.closePath(); g.fill();
-
-    /* Sombra humana caminhando da esquerda para a direita */
-    const shadowX = mode === 'sombra'
-      ? lerp(sx + 160, sx + 470, ease(localP))
-      : lerp(sx + 380, sx + 640, ease(localP));
-    const stride = Math.sin(t * 7.8) * 30;
-    const bob = Math.abs(Math.sin(t * 7.8)) * 9;
-    g.fillStyle = '#020604';
-    ell(shadowX, sy + 432, 76, 14);
-    /* Pernas caminhando em passo firme */
-    g.strokeStyle = '#020604'; g.lineWidth = 28; g.lineCap = 'round';
-    g.beginPath();
-    g.moveTo(shadowX - 16, sy + 318 - bob); g.lineTo(shadowX - 18 - stride, sy + 424);
-    g.moveTo(shadowX + 16, sy + 318 - bob); g.lineTo(shadowX + 18 + stride, sy + 424);
-    g.stroke();
-    /* Tronco e cabeca da silhueta */
-    rr(shadowX - 54, sy + 188 - bob, 108, 152, 44); g.fill();
-    circ(shadowX + 4, sy + 140 - bob, 44);
-    /* Contorno infravermelho sutil nas costas da sombra */
-    g.strokeStyle = rgba(PAL.nvBright, 0.28); g.lineWidth = 4;
-    g.beginPath(); g.arc(shadowX + 4, sy + 140 - bob, 45, -0.7, 0.7); g.stroke();
   }
 
-  /* Ondas de audio posicionadas com folga limpa acima do rodape HUD */
-  if (mode === 'sussurro') {
-    const wx = sx + 178, wy = sy + sh - 178, ww = sw - 356, wh = 76;
-    g.fillStyle = rgba('#040A06', 0.78);
-    rr(wx, wy, ww, wh, 16); g.fill();
-    g.strokeStyle = rgba(PAL.nvBright, 0.65); g.lineWidth = 3;
-    rr(wx, wy, ww, wh, 16); g.stroke();
-    const bars = 19;
-    for (let i = 0; i < bars; i++) {
-      const h = 10 + 44 * Math.abs(Math.sin(t * 16 + i * 0.75)) * (0.4 + 0.6 * hash(Math.floor(t * 15) * 31 + i));
-      g.fillStyle = h > 39 ? PAL.alert : PAL.nvBright;
+  /* Chuva caindo em diagonais deterministicas na portaria */
+  g.save();
+  g.strokeStyle = rgba(PAL.cctvPale, 0.28);
+  g.lineWidth = 2.5;
+  for (let i = 0; i < 42; i++) {
+    const rx = sx + ((hash(i * 11.3) * (sw + 160) - t * 140) % (sw + 160) + (sw + 160)) % (sw + 160) - 80;
+    const ry = sy + ((hash(i * 7.7) * sh + t * 520) % sh);
+    g.beginPath(); g.moveTo(rx, ry); g.lineTo(rx - 10, ry + 34); g.stroke();
+  }
+  g.restore();
+
+  /* Ondas do interfone posicionadas com folga acima do rodape HUD */
+  if (mode === 'interfone_fx') {
+    const wx = sx + 178, wy = sy + sh - 178, ww = sw - 356, wh = 72;
+    g.fillStyle = rgba('#04080D', 0.80); rr(wx, wy, ww, wh, 16); g.fill();
+    g.strokeStyle = rgba(PAL.cctvBright, 0.65); g.lineWidth = 3; rr(wx, wy, ww, wh, 16); g.stroke();
+    for (let i = 0; i < 19; i++) {
+      const h = 10 + 42 * Math.abs(Math.sin(t * 17 + i * 0.8)) * (0.4 + 0.6 * hash(Math.floor(t * 15) * 29 + i));
+      g.fillStyle = h > 36 ? PAL.alert : PAL.cctvBright;
       rr(wx + 24 + i * 19.5, wy + wh / 2 - h / 2, 10, h, 4); g.fill();
     }
   }
 
-  /* Chuvisco / estatica deterministica leve (apenas 26 micropontos + faixa de glitch) */
-  const fr = Math.floor(t * 30);
-  g.fillStyle = rgba(PAL.nvPale, 0.16);
-  for (let i = 0; i < 26; i++) {
-    const nx = sx + hash(fr * 19 + i * 7.3) * sw;
-    const ny = sy + hash(fr * 23 + i * 11.7) * sh;
-    g.fillRect(nx, ny, 4 + hash(i) * 14, 3);
-  }
-  if (mode === 'sussurro' || mode === 'passos' || mode === 'vulto_porta' || mode === 'olhos_lente') {
-    if (hash(fr * 3.7) > 0.62) {
-      const gy = sy + hash(fr * 13.1) * (sh - 34);
-      g.fillStyle = rgba(PAL.nvPale, 0.20);
-      g.fillRect(sx, gy, sw, 8 + hash(fr * 5.9) * 18);
-    }
-  }
-
-  /* Scanlines pre-renderizadas */
+  /* Scanlines pre-renderizadas + micro-glitch */
   g.drawImage(scanCv, sx, sy, sw, sh);
-
-  /* HUD autentico de visao noturna dentro do visor (UNICO relogio 02:40 neste quadro!) */
-  g.strokeStyle = rgba(PAL.nvPale, 0.58); g.lineWidth = 4;
-  const brk = 28;
-  for (const [cx, cy, dx, dy] of [
-    [sx + 20, sy + 20, 1, 1],
-    [sx + sw - 20, sy + 20, -1, 1],
-    [sx + 20, sy + sh - 20, 1, -1],
-    [sx + sw - 20, sy + sh - 20, -1, -1]
-  ]) {
-    g.beginPath();
-    g.moveTo(cx, cy + dy * brk); g.lineTo(cx, cy); g.lineTo(cx + dx * brk, cy);
-    g.stroke();
+  const fr = Math.floor(t * 30);
+  if (hash(fr * 4.1) > 0.65) {
+    const gy = sy + hash(fr * 13.7) * (sh - 28);
+    g.fillStyle = rgba(PAL.cctvPale, 0.18);
+    g.fillRect(sx, gy, sw, 6 + hash(fr * 9.3) * 14);
   }
 
-  /* Ponto REC piscando + CAM 01 + horario 02:40 */
+  /* HUD do interfone (UNICO relogio 02:15 neste quadro!) */
+  g.strokeStyle = rgba(PAL.cctvPale, 0.56); g.lineWidth = 4;
+  const brk = 26;
+  for (const [cx, cy, dx, dy] of [
+    [sx + 20, sy + 20, 1, 1], [sx + sw - 20, sy + 20, -1, 1],
+    [sx + 20, sy + sh - 20, 1, -1], [sx + sw - 20, sy + sh - 20, -1, -1]
+  ]) {
+    g.beginPath(); g.moveTo(cx, cy + dy * brk); g.lineTo(cx, cy); g.lineTo(cx + dx * brk, cy); g.stroke();
+  }
+
   if (Math.floor(t * 2.2) % 2 === 0) {
     g.fillStyle = PAL.alert; circ(sx + 52, sy + 52, 10);
   }
-  g.fillStyle = PAL.nvPale;
-  drawFittedText('REC  CAM 01', sx + 74, sy + 52, 230, 26, MONO, '800', 'left');
-  drawFittedText('02:40', sx + sw - 34, sy + 52, 150, 32, MONO, '900', 'right');
-  drawFittedText('IR NIGHT  22C', sx + 34, sy + sh - 36, 260, 22, MONO, '700', 'left');
-  const statusTag = (mode === 'vulto_porta' || mode === 'olhos_lente') ? 'MOVIMENTO' : (mode === 'berco_vazio' || mode === 'ainda_vazio' ? 'BERÇO VAZIO' : 'SINAL OK');
-  g.fillStyle = (mode === 'vulto_porta' || mode === 'olhos_lente' || mode === 'berco_vazio' || mode === 'ainda_vazio') ? PAL.alert : PAL.nvBright;
-  drawFittedText(statusTag, sx + sw - 34, sy + sh - 36, 230, 24, MONO, '800', 'right');
-
+  g.fillStyle = PAL.cctvPale;
+  drawFittedText('CAM PORTARIA', sx + 74, sy + 52, 240, 26, MONO, '800', 'left');
+  drawFittedText('02:15', sx + sw - 34, sy + 52, 150, 32, MONO, '900', 'right');
+  drawFittedText('CHUVA  17C', sx + 34, sy + sh - 36, 220, 22, MONO, '700', 'left');
+  const tag = mode === 'vazia' ? 'PORTARIA VAZIA' : 'CHAMANDO...';
+  g.fillStyle = mode === 'vazia' ? PAL.yellow : PAL.alert;
+  drawFittedText(tag, sx + sw - 34, sy + sh - 36, 260, 24, MONO, '800', 'right');
   g.restore();
 
-  /* Borda interna da tela + grade do alto-falante + botoes na base do aparelho */
-  g.strokeStyle = '#090D16'; g.lineWidth = 5; rr(sx, sy, sw, sh, 22); g.stroke();
-  g.fillStyle = '#0D121F';
-  for (let i = 0; i < 7; i++) circ(mx + 120 + i * 24, my + mh - 58, 6);
-  g.fillStyle = '#25304A';
-  circ(mx + mw / 2, my + mh - 58, 28);
-  g.strokeStyle = PAL.nvBright; g.lineWidth = 3;
-  g.beginPath(); g.arc(mx + mw / 2, my + mh - 58, 13, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = '#25304A';
-  rr(mx + mw - 230, my + mh - 74, 62, 32, 16); g.fill();
-  rr(mx + mw - 146, my + mh - 74, 62, 32, 16); g.fill();
+  /* Borda da tela e botoes do interfone */
+  g.strokeStyle = '#090D16'; g.lineWidth = 5; rr(sx, sy, sw, sh, 18); g.stroke();
+  g.fillStyle = '#0D1320';
+  for (let i = 0; i < 6; i++) circ(mx + 120 + i * 24, my + mh - 56, 6);
+  g.fillStyle = '#25314B'; rr(mx + mw - 270, my + mh - 74, 105, 36, 18); g.fill();
+  g.fillStyle = PAL.alert; rr(mx + mw - 148, my + mh - 74, 90, 36, 18); g.fill();
   g.restore();
 }
 
+/* Macro na corrente metalica deslizando na trava da porta da sala */
+function drawChainLockMacro(t, localP){
+  vgrad('#161013', '#07080F');
+  /* Batente esquerdo + folha da porta a direita cobrindo todo o quadro mesmo sob zoom */
+  g.fillStyle = PAL.wood; g.fillRect(-200, -220, 520, H + 440);
+  g.fillStyle = PAL.woodLight; g.fillRect(320, -220, 960, H + 440);
+  g.fillStyle = '#040509'; g.fillRect(312, -220, 16, H + 440);
+
+  /* Suporte esquerdo fixo no batente */
+  g.fillStyle = PAL.steelDark; rr(160, 845, 118, 220, 16); g.fill();
+  g.fillStyle = PAL.steel; rr(174, 860, 90, 190, 12); g.fill();
+  circ(219, 892, 10); circ(219, 1018, 10);
+
+  /* Trilho de aco na porta (direita) */
+  g.fillStyle = PAL.steelDark; rr(385, 885, 495, 138, 20); g.fill();
+  g.fillStyle = PAL.steel; rr(400, 900, 465, 108, 14); g.fill();
+  g.fillStyle = '#0B0F19'; rr(442, 938, 376, 32, 16); g.fill();
+
+  /* Pino deslizando e travando no fim do trilho */
+  const slide = easeOut(clamp((localP - 0.15) / 0.55));
+  const pinX = lerp(455, 795, slide);
+
+  /* Elos da corrente metalica esticando */
+  g.strokeStyle = PAL.steelLight;
+  g.lineWidth = 14;
+  const links = 7;
+  for (let i = 0; i < links; i++) {
+    const u = i / (links - 1);
+    const lx = lerp(240, pinX, u);
+    const sag = Math.sin(Math.PI * u) * lerp(95, 14, slide);
+    const ly = 954 + sag;
+    g.beginPath();
+    g.ellipse(lx, ly, 34, 18, (i % 2 === 0 ? 0.18 : -0.18), 0, Math.PI * 2);
+    g.stroke();
+  }
+
+  /* Pino travado + brilho metalico seco no encaixe */
+  g.fillStyle = PAL.steelLight;
+  circ(pinX, 954, 28);
+  g.fillStyle = PAL.steelDark;
+  circ(pinX, 954, 12);
+  if (slide > 0.85) {
+    glow(pinX, 954, 220, PAL.cyan, (1 - (slide - 0.85) / 0.15) * 0.55);
+  }
+}
+
 /* ============================================================
-   SELO FIXO "PARTE 1" (ZONA SEGURA SUPERIOR ESQUERDA: x=64, y=165)
+   PLOT TWIST: FOTO DA SACOLA NA COZINHA + PULL-OUT DO CORREDOR
+   ============================================================ */
+function drawDeliveryPhotoScene(t, mode, localP){
+  const isPullout = (mode === 'pullout');
+  const pull = isPullout ? ease(localP) : 0;
+
+  /* Moldura de visualizador de foto no celular */
+  vgrad('#06070D', '#030408');
+
+  const fx = 66, fy = 265, fw = 948, fh = 1020;
+  g.save();
+  rr(fx, fy, fw, fh, 26); g.clip();
+
+  /* Cozinha iluminada fria ao fundo */
+  g.fillStyle = PAL.wallKitchen; g.fillRect(fx, fy, fw, fh);
+  g.strokeStyle = PAL.tileLine; g.lineWidth = 2;
+  for (let y = fy + 90; y < fy + 710; y += 74) {
+    g.beginPath(); g.moveTo(fx, y); g.lineTo(fx + fw, y); g.stroke();
+  }
+  for (let x = fx + 80; x < fx + fw; x += 96) {
+    g.beginPath(); g.moveTo(x, fy); g.lineTo(x, fy + 710); g.stroke();
+  }
+  /* Geladeira branca a direita */
+  g.fillStyle = '#CBD5E1'; rr(fx + 690, fy + 145, 210, 580, 14); g.fill();
+  g.strokeStyle = '#94A3B8'; g.lineWidth = 4;
+  g.beginPath(); g.moveTo(fx + 690, fy + 355); g.lineTo(fx + 900, fy + 355); g.stroke();
+
+  /* Mesa da cozinha com a SACOLA PARDA DE DELIVERY em cima */
+  const scaleScene = isPullout ? lerp(1.0, 0.72, pull) : 1.0;
+  g.save();
+  g.translate(540, fy + 590);
+  g.scale(scaleScene, scaleScene);
+  g.translate(-540, -(fy + 590));
+
+  /* Tampo da mesa */
+  g.fillStyle = PAL.tableTop; rr(fx + 140, fy + 610, 640, 62, 12); g.fill();
+  g.fillStyle = PAL.tableDark;
+  g.fillRect(fx + 180, fy + 672, 34, 340);
+  g.fillRect(fx + 706, fy + 672, 34, 340);
+
+  /* Caneca azul da Camila ao lado para provar que e a cozinha dela */
+  g.fillStyle = '#38BDF8'; rr(fx + 230, fy + 546, 56, 64, 10); g.fill();
+  g.strokeStyle = '#38BDF8'; g.lineWidth = 8;
+  g.beginPath(); g.arc(fx + 286, fy + 578, 16, -Math.PI * 0.5, Math.PI * 0.5); g.stroke();
+
+  /* Sacola parda lacrada de delivery em cima da mesa */
+  const bx = 540, by = fy + 610;
+  g.fillStyle = 'rgba(0,0,0,0.42)'; ell(bx, by + 6, 138, 18);
+  g.fillStyle = PAL.bagPaper;
+  g.beginPath();
+  g.moveTo(bx - 108, by); g.lineTo(bx - 92, by - 255);
+  g.lineTo(bx + 92, by - 255); g.lineTo(bx + 108, by); g.closePath(); g.fill();
+  /* Dobra superior lacrada + adesivo vermelho de delivery */
+  g.fillStyle = PAL.bagFold; rr(bx - 94, by - 275, 188, 46, 8); g.fill();
+  g.fillStyle = PAL.appRed; rr(bx - 34, by - 246, 68, 34, 6); g.fill();
+  /* Cupom fiscal branco grampeado na sacola */
+  g.fillStyle = '#F8FAFC'; rr(bx + 16, by - 190, 64, 96, 4); g.fill();
+  g.fillStyle = '#64748B';
+  for (let r = 0; r < 5; r++) g.fillRect(bx + 26, by - 174 + r * 14, 44, 5);
+  /* Numero do pedido na sacola (evita duplicar horario 02:15 no mesmo quadro) */
+  g.fillStyle = PAL.bagDeep;
+  drawFittedText('#402', bx - 30, by - 100, 96, 30, MONO, '900', 'center');
+
+  /* NO PULL-OUT: CAMILA DE COSTAS SEGURANDO O CELULAR NA FRENTE DA MESA! */
+  if (isPullout && pull > 0.12) {
+    const cAlpha = clamp((pull - 0.12) / 0.45);
+    g.save();
+    g.globalAlpha = cAlpha;
+    /* Silhueta de costas da Camila (moletom violeta #7C3AED + cabelo escuro cobrindo nuca) */
+    const cx = 395, cy = fy + 945;
+    g.fillStyle = PAL.pantsDark; rr(cx - 48, cy - 180, 42, 220, 18); g.fill();
+    g.fillStyle = PAL.pants; rr(cx + 6, cy - 180, 42, 220, 18); g.fill();
+    g.fillStyle = PAL.top; rr(cx - 72, cy - 395, 144, 236, 64); g.fill();
+    g.fillStyle = PAL.topShade; rr(cx - 72, cy - 395, 50, 236, 40); g.fill();
+    /* Brilho do celular na frente dela */
+    glow(cx + 55, cy - 315, 150, PAL.cyan, 0.35);
+    /* Cabeca de costas coberta pelo cabelo escuro ate os ombros */
+    g.fillStyle = PAL.hair;
+    circ(cx, cy - 462, 76);
+    rr(cx - 74, cy - 462, 148, 128, 36); g.fill();
+    g.restore();
+  }
+  g.restore();
+
+  /* MOLDURA ESCURA DO CORREDOR NO PRIMEIRO PLANO (revela de onde a foto foi tirada!) */
+  if (isPullout) {
+    const wallW = lerp(0, 195, pull);
+    g.fillStyle = '#05070D';
+    g.fillRect(fx, fy, wallW, fh);
+    g.fillRect(fx + fw - wallW, fy, wallW, fh);
+    g.fillRect(fx, fy, fw, lerp(0, 95, pull));
+    /* Vinheta claustrofobica de batente do corredor */
+    g.strokeStyle = rgba(PAL.alert, 0.38 * pull);
+    g.lineWidth = 6;
+    g.strokeRect(fx + wallW, fy + lerp(0, 95, pull), fw - wallW * 2, fh);
+  }
+
+  /* Barra superior da galeria de foto de confirmacao do app (UNICO relogio 02:15!) */
+  g.fillStyle = 'rgba(7, 10, 18, 0.88)'; g.fillRect(fx, fy, fw, 74);
+  g.fillStyle = PAL.alert; circ(fx + 36, fy + 37, 9);
+  g.fillStyle = PAL.text;
+  drawFittedText('FOTO DE CONFIRMAÇÃO  •  02:15', fx + 60, fy + 38, 620, 26, MONO, '800', 'left');
+  g.fillStyle = PAL.yellow;
+  drawFittedText('ENTREGUE', fx + fw - 28, fy + 38, 190, 24, MONO, '800', 'right');
+  g.restore();
+
+  g.strokeStyle = PAL.alert; g.lineWidth = 5; rr(fx, fy, fw, fh, 26); g.stroke();
+}
+
+/* ============================================================
+   SELO FIXO "PARTE 1" (x=64, y=165) E RELOGIO UNICO 02:15
    ============================================================ */
 function drawParteBadge(t){
-  if (!parteLabel || t >= EV.cta - 0.08) return;
+  if (!parteLabel) return;
+  /* Oculta brevemente apenas nos 2,2s da CTA visual do meio para evitar poluicao no topo */
+  if (isMidCtaActive(t)) return;
   const label = parteLabel.toUpperCase();
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
   const fs = 26;
   g.font = `800 ${fs}px ${SANS}`;
   const tw = g.measureText(label).width;
-  const padX = 24;
-  const bw = Math.max(132, Math.min(280, Math.ceil(tw + padX * 2)));
+  const bw = Math.max(132, Math.min(280, Math.ceil(tw + 48)));
   const bh = 52;
   const bx = 64, by = 165;
 
@@ -1496,389 +1477,249 @@ function drawParteBadge(t){
   g.restore();
 }
 
-/* Um unico relogio 02:40 por quadro (oculto nos closes da baba eletronica, nos hits Katana e na CTA) */
 function drawClock(t, shot){
-  if (t >= EV.cta - 0.08) return;
-  if (MONITOR_SCENES.has(shot.scene)) return;
+  if (DEVICE_SCENES.has(shot.scene)) return;
   if (katanaStateAt(t) !== null) return;
-  const isRed = (shot.mood === 'red' || shot.scene === 'big_face' || shot.scene === 'blecaute_olhos');
+  if (isMidCtaActive(t)) return;
+  const isRed = (shot.mood === 'red' || shot.scene === 'big_face' || shot.scene === 'final_capacete_atras');
 
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.translate(540, 191);
   g.fillStyle = 'rgba(10, 15, 29, 0.82)';
   rr(-126, -42, 252, 84, 20); g.fill();
-  g.strokeStyle = isRed ? PAL.alert : rgba(PAL.nvBright, 0.55);
+  g.strokeStyle = isRed ? PAL.alert : rgba(PAL.cyan, 0.55);
   g.lineWidth = 3;
   rr(-126, -42, 252, 84, 20); g.stroke();
 
   g.fillStyle = isRed ? PAL.alert : PAL.text;
-  drawFittedText('02:40', 0, 2, 205, 52, MONO, '900', 'center');
+  drawFittedText('02:15', 0, 2, 205, 52, MONO, '900', 'center');
   g.restore();
 }
 
 /* ============================================================
-   DESENHO DAS CENAS DO VIDEO 04 ("A Baba Eletronica")
+   DESENHO DAS CENAS DO VIDEO 05 ("O Pedido das 02h15")
    ============================================================ */
 function drawScene(shot, t){
   const f = faceAt(t);
   const localP = prog(t, shot.start, shot.end);
 
   switch (shot.scene) {
-    /* 1. Tiago acorda na cama com sussurro */
-    case 'quarto_tiago_acorda': {
+    /* 1. Sala escura as 02:15 com Camila olhando o celular vibrar */
+    case 'sala_sofa_vibra': {
       drawBackdrop(t, 'navy');
-      drawParentBedroom(t, { monitorOnTable: true, whisperWaves: true });
-      drawTiagoBed(355, 1185, 1.05, {
-        t, ex: t < EV.acorda_sussurro ? 'neutral' : 'worry', closed: f.closed,
-        rimColor: PAL.nvBright, rimA: 0.72, lookX: 0.35
+      drawLivingRoom(t, { sofa: true });
+      drawCamilaStanding(390, 1380, 1.04, {
+        t, ex: 'neutral', closed: f.closed,
+        pose: { phone: 1.0 }, rimColor: PAL.cyan, rimA: 0.78, lookX: 0.25
       });
       break;
     }
 
-    /* 2. Close na mesa de cabeceira: baba eletronica brilhando verde */
-    case 'baba_cabeceira': {
+    /* 2 & 3. Celular: "Seu pedido chegou na portaria" */
+    case 'celular_pedido_chegou':
+    case 'celular_pedido_zoom': {
       withBlur(8, () => {
         drawBackdrop(t, 'violet');
-        drawParentBedroom(t, { monitorOnTable: false });
+        drawLivingRoom(t, { sofa: true });
       });
-      drawBabyMonitor(t, 'sussurro', localP);
+      drawDeliveryPhone(t, 'chegou', localP);
       break;
     }
 
-    /* 3. Tiago escuta o sussurro assustado */
-    case 'tiago_escuta': {
-      drawBackdrop(t, 'violet');
-      drawParentBedroom(t, { monitorOnTable: true, whisperWaves: true });
-      drawTiagoBed(370, 1150, 1.24, {
-        t, ex: 'worry', closed: f.closed, fastBreath: true,
-        rimColor: PAL.nvBright, rimA: 0.90, lookX: 0.45
-      });
-      break;
-    }
-
-    /* 4. Bloco SFX puro [SFX:sussurro:1.2]: monitor chiando com ondas de audio */
-    case 'baba_sussurro_fx': {
+    /* 4 & 5. Camila congela: ela nao pediu nada */
+    case 'camila_congela':
+    case 'camila_congela_zoom': {
       withBlur(8, () => {
-        drawBackdrop(t, 'nv');
-        drawParentBedroom(t, { monitorOnTable: false });
+        drawBackdrop(t, shot.scene === 'camila_congela_zoom' ? 'red' : 'violet');
+        drawLivingRoom(t, { red: shot.scene === 'camila_congela_zoom' });
       });
-      drawBabyMonitor(t, 'sussurro', localP);
+      drawCamilaStanding(510, 1520, shot.scene === 'camila_congela_zoom' ? 1.46 : 1.32, {
+        t, ex: 'fear', closed: f.closed, fastBreath: true,
+        pose: { phone: 1.0 }, rimColor: shot.scene === 'camila_congela_zoom' ? PAL.alert : PAL.cyan,
+        rimA: 0.92, lookX: 0.15
+      });
       break;
     }
 
-    /* 5. Tiago segura a baba eletronica olhando a tela */
-    case 'tiago_olha_tela': {
+    /* 6, 7 & 8. Tela do interfone: entregador de capacete encara a camera na chuva */
+    case 'interfone_portaria':
+    case 'interfone_capacete_zoom':
+    case 'interfone_fx': {
+      const m = shot.scene === 'interfone_fx' ? 'interfone_fx' : 'entregador';
+      withBlur(8, () => {
+        drawBackdrop(t, shot.scene === 'interfone_capacete_zoom' ? 'red' : 'cctv');
+      });
+      drawIntercomScreen(t, m, localP);
+      break;
+    }
+
+    /* 9. Camila corre ate a porta da sala (corpo inteiro, pes firmes no piso) */
+    case 'camila_corre_porta': {
+      drawBackdrop(t, 'red');
+      drawLivingRoom(t, { red: true });
+      const rx = lerp(230, 610, ease(localP));
+      drawCamilaStanding(rx, 1385, 1.02, {
+        t, ex: 'fear', closed: f.closed, fastBreath: true,
+        pose: { run: 1, phone: 0.5 }, rimColor: PAL.alert, rimA: 0.86, lookX: 0.35
+      });
+      break;
+    }
+
+    /* 10. Camila alcanca a corrente na porta */
+    case 'camila_passa_corrente': {
       drawBackdrop(t, 'navy');
-      drawParentBedroom(t, { monitorOnTable: false });
-      drawTiagoBed(380, 1160, 1.18, {
-        t, ex: 'worry', closed: f.closed, holdMonitor: true, fastBreath: true,
-        rimColor: PAL.nvBright, rimA: 0.92, lookX: 0.30
+      drawLivingRoom(t, {});
+      drawCamilaStanding(600, 1385, 1.08, {
+        t, ex: 'fear', closed: f.closed, fastBreath: true,
+        pose: { reach: 1.0 }, rimColor: PAL.cyan, rimA: 0.84, lookX: 0.35
       });
       break;
     }
 
-    /* 6 & 7. Visor da baba eletronica: berco do filho esta VAZIO */
-    case 'baba_berco_vazio':
-    case 'baba_berco_zoom': {
+    /* 11. Macro na corrente metalica deslizando e travando firme ([SFX:porta_impacto:1.1]) */
+    case 'macro_corrente_trava': {
+      drawChainLockMacro(t, localP);
+      break;
+    }
+
+    /* 12. Camila olha de volta para o interfone */
+    case 'camila_olha_interfone': {
+      drawBackdrop(t, 'navy');
+      drawLivingRoom(t, {});
+      drawCamilaStanding(490, 1410, 1.14, {
+        t, ex: 'worry', closed: f.closed, fastBreath: true,
+        pose: { phone: 0.8 }, rimColor: PAL.cctvBright, rimA: 0.86, lookX: 0.35
+      });
+      break;
+    }
+
+    /* 13. Portaria completamente vazia na tela do interfone (+ Katana "SUMIU") */
+    case 'interfone_vazia': {
       withBlur(8, () => {
-        drawBackdrop(t, shot.scene === 'baba_berco_zoom' ? 'red' : 'nv');
-        drawParentBedroom(t, { monitorOnTable: false, red: shot.scene === 'baba_berco_zoom' });
+        drawBackdrop(t, 'cctv');
       });
-      drawBabyMonitor(t, 'berco_vazio', localP);
+      drawIntercomScreen(t, 'vazia', localP);
       break;
     }
 
-    /* 8. O coracao dispara: Tiago em panico + linha ECG pulsando */
-    case 'tiago_coracao': {
+    /* 14 & 15. Celular vibra outra vez: Pedido entregue + Foto em anexo (CTA UNICA NO MEIO entra no topo!) */
+    case 'celular_entregue':
+    case 'celular_ver_foto': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'yellow');
+        drawLivingRoom(t, {});
+      });
+      /* Celular levemente abaixo do centro (y+40) para deixar espaco nobre para a CTA do meio no topo */
+      g.save();
+      g.translate(0, 42);
+      drawDeliveryPhone(t, 'entregue', localP);
+      g.restore();
+      break;
+    }
+
+    /* 16. Camila encara o celular sem entender */
+    case 'camila_encara_tela': {
+      withBlur(8, () => {
+        drawBackdrop(t, 'violet');
+        drawLivingRoom(t, {});
+      });
+      drawCamilaStanding(520, 1545, 1.38, {
+        t, ex: 'fear', closed: f.closed, fastBreath: true,
+        pose: { phone: 1.0 }, rimColor: PAL.yellow, rimA: 0.88, lookX: 0.20
+      });
+      break;
+    }
+
+    /* 17. Dedo tocando "VER FOTO DE CONFIRMACAO" */
+    case 'dedo_abre_foto': {
       withBlur(8, () => {
         drawBackdrop(t, 'red');
-        drawParentBedroom(t, { monitorOnTable: false, red: true });
       });
-      drawTiagoBed(410, 1165, 1.32, {
-        t, ex: 'fear', closed: f.closed, holdMonitor: true, fastBreath: true,
-        rimColor: PAL.alert, rimA: 0.92, lookX: 0.25
-      });
-      /* Pulso vermelho sutil nas bordas simulando batimento cardiaco */
-      const hb = Math.pow(Math.max(0, Math.sin(t * 11.5)), 4);
-      glow(540, 960, 740, PAL.alert, 0.24 * hb);
+      drawDeliveryPhone(t, 'abrindo', localP);
       break;
     }
 
-    /* 9, 10 & 11. Sombra cruza o corredor escuro + [SFX:passos_corredor:1.3] */
-    case 'baba_sombra':
-    case 'baba_sombra_zoom':
-    case 'baba_passos_fx': {
-      const m = shot.scene === 'baba_passos_fx' ? 'passos' : 'sombra';
-      withBlur(8, () => {
-        drawBackdrop(t, shot.scene === 'baba_sombra_zoom' ? 'red' : 'nv');
-      });
-      drawBabyMonitor(t, m, localP);
-      break;
-    }
-
-    /* 12. Tiago corre pelo corredor escuro (corpo inteiro com pes travados no chao) */
-    case 'tiago_corre_corredor': {
-      drawBackdrop(t, 'red');
-      /* Corredor escuro em perspectiva */
-      g.fillStyle = '#090D18'; g.fillRect(-100, -100, W + 200, 1500);
-      g.fillStyle = '#050811'; g.fillRect(-100, 1380, W + 200, 680);
-      /* Porta do quarto do bebe no final do corredor a direita */
-      g.fillStyle = PAL.wood; rr(760, 610, 230, 770, 10); g.fill();
-      g.strokeStyle = PAL.woodLine; g.lineWidth = 6; rr(784, 650, 182, 310, 6); g.stroke();
-      g.fillStyle = '#94A3B8'; circ(798, 1015, 12);
-
-      const rx = lerp(220, 620, ease(localP));
-      drawTiagoStanding(rx, 1388, 1.02, {
-        t, ex: 'fear', closed: f.closed, fastBreath: true,
-        pose: { run: 1, monitor: 0.7 }, rimColor: PAL.alert, rimA: 0.85, lookX: 0.35
-      });
-      break;
-    }
-
-    /* 13. Abre a porta com forca + luz comecando a inundar o quarto */
-    case 'porta_abre_forca': {
-      const lightOn = easeOut(clamp((localP - 0.35) / 0.65));
-      drawRealNursery(t, { dark: lightOn < 0.25, cribX: 690, cribY: 1120, cribScale: 0.90, showBaby: true });
-      if (lightOn < 0.95) {
-        g.fillStyle = rgba('#04060D', (1 - lightOn) * 0.72);
-        g.fillRect(-100, -100, W + 200, H + 200);
-      }
-      drawTiagoStanding(320, 1360, 1.06, {
-        t, ex: 'fear', closed: f.closed, fastBreath: true,
-        pose: { push: 1 - lightOn * 0.4, monitor: 0.6 },
-        rimColor: lightOn > 0.35 ? PAL.warmGlow : PAL.alert, rimA: 0.88, lookX: 0.35
-      });
-      if (lightOn > 0.25 && lightOn < 0.70) {
-        g.fillStyle = rgba(PAL.warmGlow, Math.sin(((lightOn - 0.25) / 0.45) * Math.PI) * 0.38);
-        g.fillRect(-100, -100, W + 200, H + 200);
-      }
-      break;
-    }
-
-    /* 14. Luz acesa no quarto real do bebe */
-    case 'luz_acende_quarto': {
-      drawRealNursery(t, { dark: false, cribX: 670, cribY: 1120, cribScale: 0.95, showBaby: true });
-      drawTiagoStanding(270, 1360, 1.05, {
-        t, ex: 'worry', closed: f.closed,
-        pose: { monitor: 0.8 }, rimColor: PAL.warmGlow, rimA: 0.80, lookX: 0.4
-      });
-      break;
-    }
-
-    /* 15 & 16. O filho esta dormindo tranquilo no berco (contraste ambar aconchegante) */
-    case 'bebe_berco_paz':
-    case 'bebe_berco_close': {
-      const sc = shot.scene === 'bebe_berco_close' ? 1.42 : 1.16;
-      const cy = shot.scene === 'bebe_berco_close' ? 1020 : 1080;
-      drawRealNursery(t, { dark: false, cribX: 540, cribY: cy, cribScale: sc, showBaby: true });
-      break;
-    }
-
-    /* 17. Tiago respira aliviado */
-    case 'tiago_alivio': {
-      withBlur(8, () => {
-        drawRealNursery(t, { dark: false, cribX: 700, cribY: 1120, cribScale: 0.90, showBaby: true });
-      });
-      drawTiagoStanding(510, 1520, 1.38, {
-        t, ex: 'relief', closed: f.closed,
-        pose: { monitor: 0.9 }, rimColor: PAL.warmGlow, rimA: 0.85, lookX: 0.20
-      });
-      break;
-    }
-
-    /* 18. Tiago olha de volta pra tela na sua mao (luz verde volta a gelar o rosto!) */
-    case 'tiago_olha_mao': {
-      withBlur(8, () => {
-        drawRealNursery(t, { dark: false, cribX: 720, cribY: 1120, cribScale: 0.88, showBaby: true });
-      });
-      drawTiagoStanding(490, 1520, 1.44, {
-        t, ex: 'worry', closed: f.closed, tilt: 0.14,
-        pose: { monitor: 1.0 }, rimColor: PAL.nvBright, rimA: 0.95, lookX: 0.25
-      });
-      break;
-    }
-
-    /* 19, 20 & 21. CLIMAX: na camera o quarto ainda aparece VAZIO + alguem parado atras da porta olhando pra lente! */
-    case 'baba_ainda_vazio':
-    case 'baba_vulto_porta':
-    case 'baba_olhos_lente': {
-      const m = shot.scene === 'baba_ainda_vazio' ? 'ainda_vazio'
-        : (shot.scene === 'baba_vulto_porta' ? 'vulto_porta' : 'olhos_lente');
-      withBlur(8, () => {
-        if (shot.scene === 'baba_ainda_vazio') {
-          drawRealNursery(t, { dark: false, cribX: 680, cribY: 1120, cribScale: 0.90, showBaby: true });
-        } else {
-          drawBackdrop(t, 'red');
-        }
-      });
-      drawBabyMonitor(t, m, localP);
-      break;
-    }
-
-    /* 22. MODULO bigFace DE TIAGO NO CHOQUE EXTREMO ([SFX:impacto_twist:1.4]) */
+    /* 18. MODULO bigFace DE CAMILA EM CHOQUE EXTREMO ([SFX:impacto_twist:1.4]) */
     case 'big_face': {
       withBlur(8, () => {
         drawBackdrop(t, 'red');
-        drawRealNursery(t, { dark: true, cribX: 680, cribY: 1120, cribScale: 0.9, showBaby: false });
+        drawLivingRoom(t, { red: true });
       });
       const jitX = noise(t * 48, 1) * 9;
       const jitY = noise(t * 48, 2) * 9;
       g.save();
       g.translate(540 + jitX, 920 + jitY);
-      /* Ombros em capsula com sombra interna clipada */
       g.fillStyle = PAL.top;
-      rr(-315, 265, 630, 880, 175); g.fill();
+      rr(-310, 265, 620, 880, 175); g.fill();
       g.save();
-      rr(-315, 265, 630, 880, 175); g.clip();
+      rr(-310, 265, 620, 880, 175); g.clip();
       g.fillStyle = rgba(PAL.topDeep, 0.45);
-      g.fillRect(-325, 255, 170, 900);
+      g.fillRect(-320, 255, 165, 900);
       g.restore();
-
       g.fillStyle = PAL.skinShadow;
       rr(-64, 190, 128, 120, 40); g.fill();
 
-      drawHeadTiago(0, -15, 290, 'shock', f.closed, {
+      drawHeadCamila(0, -15, 290, 'shock', f.closed, {
         tilt: -0.04 + noise(t * 22, 3) * 0.016,
         rimA: 0.98,
         rimColor: PAL.alert,
         rimAng: 0.12,
-        lookX: -0.18
+        lookX: 0.15
       });
-      /* Reflexo verde frio da baba eletronica vindo de baixo */
-      glow(0, 340, 390, PAL.nvBright, 0.30);
-      glow(320, -20, 420, PAL.alert, 0.32);
+      glow(0, 340, 380, PAL.cyan, 0.28);
+      glow(320, -20, 420, PAL.alert, 0.34);
       g.restore();
       break;
     }
 
-    /* 23 & 24. A luz do quarto apaga sozinha -> BLECAUTE TOTAL + olhos atras de Tiago */
-    case 'quarto_blecaute':
-    case 'blecaute_olhos': {
-      const blackOut = shot.scene === 'blecaute_olhos' || t >= EV.apaga_hit;
-      if (!blackOut) {
-        /* Lampada piscando um segundo antes de apagar */
-        const flick = hash(Math.floor(t * 24)) > 0.45;
-        drawRealNursery(t, { dark: !flick, cribX: 680, cribY: 1120, cribScale: 0.92, showBaby: true });
-        drawTiagoStanding(420, 1380, 1.08, {
-          t, ex: 'shock', closed: f.closed, fastBreath: true,
-          pose: { monitor: 1.0 }, rimColor: flick ? PAL.warmGlow : PAL.nvBright, rimA: 0.90, lookX: -0.35
-        });
-      } else {
-        /* BREU TOTAL: apenas o brilho verde da tela e dois olhos na escuridao atras da porta! */
-        vgrad('#03050A', '#010204');
-        /* Silhueta escura da porta aberta atras */
-        g.fillStyle = '#070B12'; g.fillRect(140, 340, 320, 1080);
-
-        /* Olhos palidos na escuridao atras dele */
-        const eyeA = easeOut(clamp(localP * 1.4));
-        glow(300, 680, 210, PAL.nvBright, 0.16 * eyeA);
-        g.save();
-        g.globalAlpha = eyeA;
-        for (const ox of [-42, 42]) {
-          g.fillStyle = '#E2FBE8';
-          ell(300 + ox, 675, 22, 12);
-          g.fillStyle = '#030604';
-          circ(300 + ox, 675, 6);
-        }
-        g.restore();
-
-        /* Tiago em silhueta iluminado apenas pelo brilho verde da baba eletronica */
-        drawTiagoStanding(670, 1440, 1.10, {
-          t, ex: 'shock', closed: f.closed, fastBreath: true, face: -1,
-          pose: { monitor: 1.0 }, rimColor: PAL.nvBright, rimA: 0.95, lookX: 0.25
-        });
-      }
+    /* 19 & 20. Foto de confirmacao: a sacola parda esta na mesa da cozinha dela! */
+    case 'foto_sacola_cozinha':
+    case 'foto_sacola_zoom': {
+      drawDeliveryPhotoScene(t, 'sacola', localP);
       break;
     }
 
-    /* 25. CTA Parte 1: Motor automatico V4 (sem selo PARTE 1 e sem relogio) */
-    case 'cta_engine': {
-      withBlur(8, () => {
-        drawBackdrop(t, 'violet');
-      });
-      const pop = popScale(t - shot.start, 0.14);
+    /* 21. Pull-out sinistro da foto revelando o corredor escuro vendo Camila de costas */
+    case 'foto_pullout_corredor': {
+      drawDeliveryPhotoScene(t, 'pullout', localP);
+      break;
+    }
+
+    /* 22. FRAME FINAL SECO PARA LOOP: entregador de capacete escuro emergindo atras de Camila! */
+    case 'final_capacete_atras': {
+      vgrad('#06070E', '#020205');
+      /* Corredor sombrio atras dela */
+      g.fillStyle = '#0B0F1A'; g.fillRect(110, 250, 380, 1220);
+
+      /* Silhueta do entregador de capacete preto logo atras do ombro dela */
+      const loom = lerp(0.95, 1.12, easeOut(localP));
       g.save();
-      g.translate(540, 810);
-      g.scale(pop, pop);
-      g.fillStyle = rgba('#0D1326', 0.96); rr(-440, -330, 880, 660, 44); g.fill();
-      g.strokeStyle = PAL.cyan; g.lineWidth = 5; rr(-440, -330, 880, 660, 44); g.stroke();
-
-      g.fillStyle = '#18223D'; rr(-440, -330, 880, 84, 44); g.fill();
-      g.fillRect(-440, -286, 880, 40);
-      for (let i = 0; i < 3; i++) {
-        g.fillStyle = [PAL.alert, PAL.yellow, PAL.cyan][i];
-        circ(-380 + i * 38, -288, 12);
-      }
-      g.fillStyle = PAL.text;
-      drawFittedText('SHORT AUTOMÁTICO // V4', -265, -288, 620, 28, MONO, '700', 'left');
-
-      const tracks = [
-        { lbl: 'CANVAS 9:16 + KATANA', col: PAL.cyan, y: -145 },
-        { lbl: 'VOZ IA + SYNC EXATO',  col: PAL.yellow, y: -25 },
-        { lbl: 'SFX REAIS + -14 LUFS', col: PAL.alert, y: 95 }
-      ];
-      for (let i = 0; i < tracks.length; i++) {
-        const tr = tracks[i];
-        g.fillStyle = PAL.dim;
-        drawFittedText(tr.lbl, -370, tr.y - 26, 520, 24, MONO, '700', 'left');
-        g.fillStyle = '#162038'; rr(-370, tr.y, 740, 50, 14); g.fill();
-        const fillW = 140 + 590 * easeOut(clamp(localP * 1.2 - i * 0.12));
-        g.fillStyle = rgba(tr.col, 0.88); rr(-370, tr.y, fillW, 50, 14); g.fill();
-      }
-
-      const playX = lerp(-345, 345, localP);
-      g.strokeStyle = PAL.text; g.lineWidth = 4;
-      g.beginPath(); g.moveTo(playX, -205); g.lineTo(playX, 178); g.stroke();
-
-      g.fillStyle = PAL.text;
-      drawFittedText('VÍDEOS ASSIM NO AUTOMÁTICO', 0, 255, 780, 52, COND, '900', 'center');
+      g.translate(310, 790);
+      g.scale(loom, loom);
+      glow(0, -90, 240, PAL.alert, 0.24);
+      g.fillStyle = '#04060B';
+      rr(-130, 10, 260, 460, 82); g.fill();
+      circ(0, -76, 92);
+      /* Viseira escura com dois olhos brilhando no breu */
+      g.fillStyle = '#010205'; rr(-66, -108, 132, 58, 18); g.fill();
+      g.strokeStyle = rgba(PAL.alert, 0.55); g.lineWidth = 3; rr(-66, -108, 132, 58, 18); g.stroke();
+      g.fillStyle = '#F8FAFC';
+      circ(-24, -79, 6); circ(24, -79, 6);
       g.restore();
-      break;
-    }
 
-    /* 26 & 27. CTA Parte 2: Pilula amarela 100% blindada contra estouro */
-    case 'cta_comente':
-    case 'cta_comente_pulse': {
-      withBlur(8, () => {
-        drawBackdrop(t, 'yellow');
+      /* Camila se virando em terror extremo iluminada pelo celular */
+      drawCamilaStanding(680, 1460, 1.14, {
+        t, ex: 'shock', closed: f.closed, fastBreath: true, face: -1,
+        pose: { phone: 1.0 }, rimColor: PAL.alert, rimA: 0.96, lookX: 0.30
       });
-      const isPulse = shot.scene === 'cta_comente_pulse';
-      const pop = isPulse ? (1 + 0.03 * Math.sin(t * 10)) : popScale(t - shot.start, 0.14);
-      g.save();
-      g.translate(540, 810);
-      g.scale(pop, pop);
-
-      glow(0, 20, 440, PAL.yellow, 0.34);
-      g.fillStyle = rgba('#0D1224', 0.96); rr(-440, -310, 880, 620, 46); g.fill();
-      g.strokeStyle = PAL.yellow; g.lineWidth = 6; rr(-440, -310, 880, 620, 46); g.stroke();
-
-      g.fillStyle = PAL.cyan;
-      drawFittedText('PASSO A PASSO COMPLETO', 0, -212, 760, 32, MONO, '800', 'center');
-
-      g.fillStyle = PAL.text;
-      drawFittedText('QUER APRENDER A FAZER', 0, -116, 770, 58, COND, '900', 'center');
-      drawFittedText('NO AUTOMÁTICO?', 0, -44, 770, 58, COND, '900', 'center');
-
-      /* Pilula amarela larga (760px x 144px) com padding lateral >= 56px */
-      const pillW = 760, pillH = 144, pillY = 44;
-      g.fillStyle = PAL.yellow; rr(-pillW / 2, pillY, pillW, pillH, pillH / 2); g.fill();
-      g.fillStyle = PAL.ink;
-      drawFittedText('COMENTE EU QUERO', 0, pillY + pillH / 2 + 2, pillW - 112, 62, COND, '900', 'center');
-
-      const bob = Math.sin(t * 9) * 10;
-      g.strokeStyle = PAL.yellow; g.lineWidth = 10; g.lineCap = 'round'; g.lineJoin = 'round';
-      g.beginPath();
-      g.moveTo(-26, 232 + bob); g.lineTo(0, 260 + bob); g.lineTo(26, 232 + bob);
-      g.stroke();
-      g.restore();
       break;
     }
   }
 }
 
 /* ============================================================
-   CAMERA VIVA V4 + PUNCH-IN KATANA + SCREEN SHAKE AMORTECIDO
+   CAMERA VIVA V4.1 + PUNCH-IN KATANA + SCREEN SHAKE AMORTECIDO
    ============================================================ */
 function pickShot(t){
   for (let i = 0; i < SHOTS.length; i++) {
@@ -1894,11 +1735,9 @@ function cameraFor(shot, t){
   const cx = lerp(shot.cam0[1], shot.cam1[1], k);
   const cy = lerp(shot.cam0[2], shot.cam1[2], k);
 
-  const handAmp = shot.scene.startsWith('cta_') ? 2.0 : 4.5;
-  let sx = noise(t * 2.1, 11) * handAmp;
-  let sy = noise(t * 1.9, 29) * handAmp;
+  let sx = noise(t * 2.1, 11) * 4.5;
+  let sy = noise(t * 1.9, 29) * 4.5;
 
-  /* Punch-in de camera e shake seco disparados pelos hits Katana */
   for (let i = 0; i < KATANA_HITS.length; i++) {
     const kh = KATANA_HITS[i];
     if (t >= kh.start && t < kh.end + 0.40) {
@@ -1911,10 +1750,10 @@ function cameraFor(shot, t){
   }
 
   const impacts = [
-    [EV.baba_som, 10, 8.0],
-    [EV.abre_porta, 20, 6.5],
-    [EV.impacto_twist, 26, 5.2],
-    [EV.cta_acao, 8, 9.5]
+    [EV.vibra_1, 10, 8.0],
+    [EV.porta_impacto + 0.06, 22, 6.2],
+    [EV.vibra_2, 12, 7.5],
+    [EV.impacto_twist, 26, 5.2]
   ];
   for (const [ti, amp, dec] of impacts) {
     if (t >= ti && t < ti + 0.90) {
@@ -1938,9 +1777,9 @@ function finish(vig){
    LEGENDAS POP-IN (2-3 PALAVRAS, MAIUSCULAS, AMARELO/VERMELHO)
    ============================================================ */
 const RED_WORDS = new Set([
-  'sussurro', 'vazio', 'coracao', 'dispara', 'sombra', 'escuro',
-  'forca', 'alguem', 'parado', 'atras', 'porta', 'lente',
-  'apaga', 'sozinha', 'baba'
+  'congela', 'nao', 'pediu', 'nada', 'entregador', 'capacete', 'encara',
+  'piscar', 'corrente', 'vazia', 'entregue', 'foto', 'sacola', 'cozinha',
+  'corredor', 'atras', 'dela'
 ]);
 function normWord(w){
   return w.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -1949,19 +1788,18 @@ function normWord(w){
 function buildPreviewCaptions(){
   const e = EV;
   const lines = [
-    [e.gancho, e.acorda_sussurro - 0.15, 'Duas e quarenta da manhã.'],
-    [e.acorda_sussurro - 0.1, e.sussurro - 0.12, 'O Tiago acorda com um sussurro vindo da babá eletrônica.'],
-    [e.olha_tela, e.berco_vazio - 1.4, 'Ele olha a tela.'],
-    [e.berco_vazio - 1.3, e.coracao_dispara - 0.16, 'O berço do filho de dois anos está vazio.'],
-    [e.coracao_dispara, e.sombra_corredor - 0.5, 'O coração dispara.'],
-    [e.sombra_corredor - 0.45, e.passos_corredor - 0.08, 'Na tela, uma sombra cruza o corredor escuro.'],
-    [e.corre_quarto, e.bebe_dormindo - 0.16, 'Ele corre até o quarto do bebê, abre a porta com força e acende a luz.'],
-    [e.bebe_dormindo, e.alivio - 0.22, 'O filho está dormindo tranquilo no berço.'],
-    [e.alivio, e.camera_vazio - 0.34, 'Tiago respira aliviado e olha de volta pra tela na sua mão.'],
-    [e.camera_vazio, e.impacto_twist - 0.08, 'Na câmera, o quarto ainda aparece vazio... e alguém está parado atrás da porta, olhando direto pra lente.'],
-    [e.luz_apaga, e.cta - 0.40, 'A luz do quarto apaga sozinha.'],
-    [e.cta, e.cta_acao - 0.16, 'Quer aprender a fazer vídeos assim no automático?'],
-    [e.cta_acao, e.duracao_total - 0.45, 'Comente EU QUERO.']
+    [e.gancho, e.vibra_1 - 0.16, 'Duas e quinze da manhã.'],
+    [e.vibra_1 - 0.1, e.congela - 0.18, 'O celular da Camila vibra: Seu pedido chegou na portaria.'],
+    [e.congela, e.nao_pediu - 0.16, 'Ela congela.'],
+    [e.nao_pediu - 0.1, e.tela_interfone - 0.16, 'Ela não pediu nada.'],
+    [e.tela_interfone, e.interfone - 0.08, 'Na tela do interfone, um entregador de capacete encara a câmera sem piscar.'],
+    [e.corre_porta, e.porta_impacto - 0.08, 'Ela corre e passa a corrente na porta da sala.'],
+    [e.olha_volta, e.vibra_2 - 0.16, 'Quando olha de volta pra tela, a portaria está vazia.'],
+    [e.vibra_2, e.foto_anexo - 0.16, 'O celular vibra outra vez: Pedido entregue.'],
+    [e.foto_anexo, e.abre_imagem - 0.24, 'Foto de confirmação em anexo.'],
+    [e.abre_imagem, e.impacto_twist - 0.08, 'Camila abre a imagem.'],
+    [e.sacola_mesa, e.foto_corredor - 0.34, 'A sacola não está na portaria... está em cima da mesa da cozinha dela.'],
+    [e.foto_corredor, e.duracao_total - 0.35, 'E a foto... foi tirada do corredor, bem atrás dela.']
   ];
   const groups = [];
   for (const [t0, t1, txt] of lines) {
@@ -1999,7 +1837,6 @@ function buildPreviewCaptions(){
 }
 
 function drawCaptions(t){
-  /* Durante um Katana Hit em tela cheia, a palavra gigante ja protagoniza a tela */
   if (katanaStateAt(t) !== null) return;
 
   let grp = null;
@@ -2082,8 +1919,7 @@ function renderAt(t){
   g.fillStyle = '#000';
   g.fillRect(0, 0, W, H);
 
-  if (t >= duration - 0.20) return;
-
+  /* V4.1 loop seco: sem tela preta no final (mantem o climax vivo ate o ultimo quadro!) */
   const shot = pickShot(t);
   const katanaActive = drawKatanaOverlay(t);
 
@@ -2105,9 +1941,12 @@ function renderAt(t){
       g.fillStyle = shot.mood === 'red' ? `rgba(255,59,48,${k * 0.16})` : `rgba(0,0,0,${k * 0.35})`;
       g.fillRect(0, 0, W, H);
     }
+
+    /* CTA visual unica no meio (~48%-58%, ~2.2s) */
+    drawMidCta(t);
   }
 
-  /* Selo permanente "PARTE 1" na zona segura superior esquerda (oculto na CTA) */
+  /* Selo permanente "PARTE 1" (x=64, y=165), oculto brevemente apenas durante a CTA do meio */
   drawParteBadge(t);
 
   if (ccOn) drawCaptions(t);
@@ -2117,6 +1956,7 @@ window.renderAt = renderAt;
 window.getDuration = () => duration;
 window.getShots = () => SHOTS.map(s => ({ id: s.id, scene: s.scene, mood: s.mood, start: s.start, end: s.end, dur: s.dur }));
 window.getKatanaHits = () => KATANA_HITS.map(h => ({ id: h.id, lines: h.lines, start: h.start, end: h.end, dur: h.dur }));
+window.getMidCta = () => ({ modo: EV.cta_modo || 'meio', inicio: EV.cta_meio_inicio, fim: EV.cta_meio_fim, texto: EV.cta_texto || 'COMENTE EU QUERO' });
 window.getParteLabel = () => parteLabel;
 window.setParteLabel = v => { parteLabel = String(v ?? '').trim(); renderAt(cur); };
 
@@ -2193,11 +2033,11 @@ async function load(){
   }
 
   if (audio && evData) {
-    status.textContent = `Audio (${audioSrc}) sincronizado com eventos.json e timestamps.json (${fmt(duration)} s).`;
+    status.textContent = `Audio (${audioSrc}) sincronizado com eventos.json e timestamps.json (${fmt(duration)} s | CTA meio).`;
   } else if (audio) {
     status.textContent = `Audio (${audioSrc}) carregado sem eventos.json (${fmt(duration)} s).`;
   } else {
-    status.textContent = `Modo Previa V4: sem audio, usando marcos padrao do roteiro_04 (0 a ${fmt(duration)} s).`;
+    status.textContent = `Modo Previa V4.1: sem audio, usando marcos padrao do roteiro_05 (0 a ${fmt(duration)} s | CTA meio).`;
   }
   seek.max = duration;
   btn.disabled = false; seek.disabled = false; btn.removeAttribute('aria-busy');

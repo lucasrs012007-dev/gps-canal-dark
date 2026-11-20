@@ -887,6 +887,24 @@ def main() -> None:
     eventos["duracao_total"] = duracao_total
     eventos["frases"] = frases_log
 
+    cta_modo = str(video_ativo.get("cta_modo", "final")).strip().lower() or "final"
+    eventos["cta_modo"] = cta_modo
+    cta_meio_inicio: float | None = None
+    cta_meio_fim: float | None = None
+    cta_texto = "COMENTE EU QUERO"
+
+    if cta_modo == "meio":
+        if "cta_meio" in eventos:
+            alvo_ini = float(eventos["cta_meio"])
+            # Garante posicionamento na janela do meio (~44% a 58% da duracao) sem atropelar o hit anterior
+            cta_meio_inicio = round(max(duracao_total * 0.44, min(duracao_total * 0.58, alvo_ini)), 3)
+        else:
+            cta_meio_inicio = round(duracao_total * 0.48, 3)
+        cta_meio_fim = round(min(duracao_total - 1.2, cta_meio_inicio + 2.2), 3)
+        eventos["cta_meio_inicio"] = cta_meio_inicio
+        eventos["cta_meio_fim"] = cta_meio_fim
+        eventos["cta_texto"] = cta_texto
+
     obrigatorios_por_roteiro = {
         "roteiro_02.txt": [
             "gancho", "hora_02", "gps_rota", "sem_destino", "rua_escura",
@@ -910,6 +928,15 @@ def main() -> None:
             "impacto_twist", "luz_apaga", "apaga_hit",
             "cta", "cta_acao", "duracao_total",
         ],
+        "roteiro_05.txt": [
+            "gancho", "vibra_1", "pedido_chegou", "congela", "nao_pediu",
+            "tela_interfone", "entregador", "sem_piscar", "interfone",
+            "corre_porta", "passa_corrente", "porta_impacto",
+            "olha_volta", "portaria_vazia", "vibra_2", "cta_meio",
+            "pedido_entregue", "foto_anexo", "abre_imagem", "impacto_twist",
+            "sacola_mesa", "mesa_cozinha", "foto_corredor", "atras_dela",
+            "plot_twist", "duracao_total",
+        ],
     }
     if roteiro_path.name in obrigatorios_por_roteiro:
         faltando = [k for k in obrigatorios_por_roteiro[roteiro_path.name] if k not in eventos]
@@ -920,6 +947,8 @@ def main() -> None:
         "video_id": int(video_ativo["id"]),
         "slug": str(video_ativo["slug"]),
         "titulo": str(video_ativo["titulo"]),
+        "parte_label": str(video_ativo.get("parte_label", "PARTE 1")),
+        "cta_modo": cta_modo,
         "roteiro": roteiro_path.name,
         "roteiro_sha256": roteiro_sha256,
         "audio": VOZ_LIMPA_MP3.name,
@@ -933,6 +962,10 @@ def main() -> None:
         "grupos": grupos_todos,
         "palavras": palavras_todas,
     }
+    if cta_modo == "meio":
+        dados_timestamps["cta_meio_inicio"] = cta_meio_inicio
+        dados_timestamps["cta_meio_fim"] = cta_meio_fim
+        dados_timestamps["cta_texto"] = cta_texto
 
     TIMESTAMPS_JSON.write_text(
         json.dumps(dados_timestamps, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -949,7 +982,14 @@ def main() -> None:
         f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | motor final={motor} | "
         f"{len(palavras_todas)} palavras em {len(grupos_todos)} grupos de legenda"
     )
-    if "cta" in eventos:
+    if cta_modo == "meio" and cta_meio_inicio is not None and cta_meio_fim is not None:
+        pct0 = (cta_meio_inicio / max(0.1, duracao_total)) * 100.0
+        pct1 = (cta_meio_fim / max(0.1, duracao_total)) * 100.0
+        print(
+            f"Plot twist em {eventos.get('plot_twist')}s | "
+            f"CTA unica no meio em {cta_meio_inicio:.2f}s..{cta_meio_fim:.2f}s ({pct0:.0f}%..{pct1:.0f}%, sem CTA final)"
+        )
+    elif "cta" in eventos:
         cta_dur = duracao_total - float(eventos["cta"])
         print(f"Plot twist em {eventos.get('plot_twist')}s | CTA em {eventos['cta']}s (ultimos {cta_dur:.2f}s)")
 

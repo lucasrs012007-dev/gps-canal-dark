@@ -1,7 +1,7 @@
 {
-  "versao": 4,
+  "versao": 5,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 4,
+  "video_atual": 5,
   "videos": [
     {
       "id": 1,
@@ -78,10 +78,36 @@
         "camera"
       ],
       "roteiro": "roteiro_04.txt",
+      "player_backup": "arquivo/video_04/player.html",
       "saida": "output/short_04.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v4",
-      "parte_label": "PARTE 1"
+      "parte_label": "PARTE 1",
+      "cta_modo": "final",
+      "commit": "8df209c"
+    },
+    {
+      "id": 5,
+      "slug": "o-pedido-das-02h15",
+      "titulo": "O Pedido das 02h15",
+      "tema": "Notificacao de delivery de madrugada que Camila nao pediu, entregador de capacete no interfone e foto de entrega tirada de dentro do apartamento atras dela",
+      "palavras_chave": [
+        "delivery",
+        "entregador",
+        "capacete",
+        "interfone",
+        "portaria",
+        "camila",
+        "corrente",
+        "sacola",
+        "cozinha"
+      ],
+      "roteiro": "roteiro_05.txt",
+      "saida": "output/short_05.mp4",
+      "status": "em_producao",
+      "motor": "v4.1",
+      "parte_label": "PARTE 1",
+      "cta_modo": "meio"
     }
   ]
 }

@@ -187,10 +187,13 @@ def caminho_roteiro_atual() -> Path:
 def carimbo_roteiro_atual() -> dict:
     atual = obter_video_atual(validar=True)
     roteiro = caminho_roteiro_atual()
+    cta_modo = str(atual.get("cta_modo", "final")).strip().lower() or "final"
     return {
         "video_id": int(atual["id"]),
         "slug": str(atual["slug"]),
         "titulo": str(atual["titulo"]),
+        "parte_label": str(atual.get("parte_label", "PARTE 1")),
+        "cta_modo": cta_modo,
         "roteiro": roteiro.name,
         "roteiro_sha256": calcular_sha256_arquivo(roteiro),
     }
@@ -216,10 +219,12 @@ def validar_artefatos_audio(
     pasta_audio: Path | None = None,
     exigir_cta: bool = True,
 ) -> dict:
-    """Trava blindada contra audio velho: confere video_id, titulo, roteiro_sha256 e CTA final.
+    """Trava blindada contra audio velho: confere video_id, titulo, roteiro_sha256 e CTA obrigatoria.
 
-    Aborta com SystemExit explicito se qualquer artefato em audio/ estiver ausente,
-    desatualizado ou pertencente a outro video.
+    Suporta:
+    - cta_modo == "meio" (V4.1): valida cta_modo, cta_meio_inicio, cta_meio_fim e cta_texto ("COMENTE EU QUERO")
+      em ambos timestamps.json e eventos.json, sem exigir CTA falada no final.
+    - cta_modo == "final" (legado V2-V4): valida "COMENTE EU QUERO" no final de timestamps.json.
     """
     pasta = pasta_audio or (RAIZ / "audio")
     ts_path = pasta / "timestamps.json"
@@ -262,14 +267,49 @@ def validar_artefatos_audio(
             )
 
     if exigir_cta:
-        palavras = ts_dados.get("palavras") or []
-        ultimas_palavras = " ".join(str(p.get("palavra", "")) for p in palavras[-14:])
-        cauda_texto = normalizar_texto(ultimas_palavras or str(ts_dados.get("texto", ""))[-120:])
-        if CTA_OBRIGATORIA not in cauda_texto:
-            erros.append(
-                "timestamps.json: CTA obrigatoria 'COMENTE EU QUERO' nao encontrada no final da narracao "
-                f"(trecho final lido: {ultimas_palavras!r})"
-            )
+        modo_esperado = esperado["cta_modo"]
+        if modo_esperado == "meio":
+            dur_ref = float(ev_dados.get("duracao_total") or ts_dados.get("duracao_total") or 0.0)
+            for nome_arq, dados in (("timestamps.json", ts_dados), ("eventos.json", ev_dados)):
+                modo_arq = str(dados.get("cta_modo", "")).strip().lower()
+                if modo_arq != "meio":
+                    erros.append(
+                        f"{nome_arq}: cta_modo={modo_arq!r} difere do esperado 'meio' (V4.1)"
+                    )
+                cta_txt = normalizar_texto(dados.get("cta_texto", ""))
+                if CTA_OBRIGATORIA not in cta_txt:
+                    erros.append(
+                        f"{nome_arq}: cta_texto obrigatorio 'COMENTE EU QUERO' ausente ou invalido "
+                        f"(recebido: {dados.get('cta_texto')!r})"
+                    )
+                ini = dados.get("cta_meio_inicio")
+                fim = dados.get("cta_meio_fim")
+                try:
+                    ini_f = float(ini)
+                    fim_f = float(fim)
+                except (TypeError, ValueError):
+                    erros.append(
+                        f"{nome_arq}: cta_meio_inicio={ini!r} / cta_meio_fim={fim!r} invalidos"
+                    )
+                else:
+                    perm = fim_f - ini_f
+                    if ini_f <= 1.0 or fim_f <= ini_f or (dur_ref > 0 and fim_f >= dur_ref - 0.5):
+                        erros.append(
+                            f"{nome_arq}: janela cta_meio ({ini_f:.3f}s..{fim_f:.3f}s) fora do meio do video (dur={dur_ref:.3f}s)"
+                        )
+                    elif perm < 1.5 or perm > 3.5:
+                        erros.append(
+                            f"{nome_arq}: permanencia da CTA do meio ({perm:.2f}s) fora da faixa [1.5s, 3.5s]"
+                        )
+        else:
+            palavras = ts_dados.get("palavras") or []
+            ultimas_palavras = " ".join(str(p.get("palavra", "")) for p in palavras[-14:])
+            cauda_texto = normalizar_texto(ultimas_palavras or str(ts_dados.get("texto", ""))[-120:])
+            if CTA_OBRIGATORIA not in cauda_texto:
+                erros.append(
+                    "timestamps.json: CTA obrigatoria 'COMENTE EU QUERO' nao encontrada no final da narracao "
+                    f"(trecho final lido: {ultimas_palavras!r})"
+                )
 
     if erros:
         detalhes = "\n  - ".join(erros)
@@ -306,9 +346,15 @@ def main() -> None:
     if args.acao == "validar-audio":
         res = validar_artefatos_audio()
         c = res["carimbo"]
+        ev = res["eventos"]
+        det_cta = (
+            f"CTA 'COMENTE EU QUERO' confirmada [modo=meio, {float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s]"
+            if c["cta_modo"] == "meio"
+            else "CTA 'COMENTE EU QUERO' confirmada [modo=final]"
+        )
         print(
             f"Integridade de audio OK: Video {c['video_id']:02d} '{c['titulo']}' "
-            f"(sha256={c['roteiro_sha256'][:12]}, CTA 'COMENTE EU QUERO' confirmada)."
+            f"(sha256={c['roteiro_sha256'][:12]}, {det_cta})."
         )
     elif args.acao == "saida":
         print(caminho_saida_atual().relative_to(RAIZ).as_posix())

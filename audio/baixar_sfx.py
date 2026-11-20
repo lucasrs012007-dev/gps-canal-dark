@@ -151,6 +151,17 @@ CATALOGO_CURADO: list[dict] = [
         "prompt_elevenlabs": "Old wooden wardrobe closet door creaking open slowly in quiet dark bedroom, realistic dry wood friction and hinge foley, no music",
     },
     {
+        "nome": "interfone",
+        "arquivo": "interfone.wav",
+        "categoria": "eletronico",
+        "duracao_alvo_s": 1.2,
+        "ganho_db": 0.0,
+        "licenca": "CC0 / ElevenLabs SFX",
+        "fonte_cc0": "https://freesound.org/search/?q=apartment+intercom+buzzer+static&f=license:%22Creative+Commons+0%22",
+        "url_download_cc0": "",
+        "prompt_elevenlabs": "Brazilian apartment building intercom buzzer buzz with analog speaker static crackle and light midnight rain outside, realistic foley, no music",
+    },
+    {
         "nome": "cta_pop",
         "arquivo": "cta_pop.wav",
         "categoria": "ui",
