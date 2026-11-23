@@ -1220,16 +1220,22 @@ def main() -> None:
     palavras_todas: list[dict] = []
     grupos_todos: list[dict] = []
     frases_log: list[dict] = []
+    sfx_eventos: list[dict] = []
     eventos: dict[str, float | int | str | list] = {
         "video_id": int(video_ativo["id"]),
         "slug": str(video_ativo["slug"]),
         "titulo": str(video_ativo["titulo"]),
+        "motor": str(video_ativo.get("motor", "")),
         "parte_label": str(video_ativo.get("parte_label", "PARTE 1")),
         "roteiro": roteiro_path.name,
         "roteiro_sha256": roteiro_sha256,
     }
 
     cta_modo = str(video_ativo.get("cta_modo", "final")).strip().lower() or "final"
+    exige_parte_2 = (
+        isinstance(video_ativo.get("saidas_partes"), list)
+        and len(video_ativo["saidas_partes"]) >= 2
+    )
     cta_pausa_inicio: float | None = None
     cta_pausa_fim: float | None = None
     cta_fala_inicio: float | None = None
@@ -1280,6 +1286,14 @@ def main() -> None:
                 ev_nome = item["evento"]
                 eventos[ev_nome] = t_ini
                 eventos[f"{ev_nome}_duracao"] = round(dur_s, 3)
+                if ev_nome not in ("cta_pausa_in", "cta_pausa_out"):
+                    sfx_eventos.append(
+                        {
+                            "nome": ev_nome,
+                            "inicio": t_ini,
+                            "duracao": round(dur_s, 3),
+                        }
+                    )
                 if ev_nome == "cta_pausa_in":
                     cta_pausa_inicio = t_ini
                 elif ev_nome == "cta_pausa_out":
@@ -1396,13 +1410,17 @@ def main() -> None:
                 for ev_nome, alvo in item.get("eventos_palavra", []):
                     if ev_nome in eventos:
                         continue
+                    encontrou = False
                     for p in palavras_frase:
                         limpa_p = re.sub(r"[^a-z0-9]", "", normalizar_chave(p["palavra"]))
                         if limpa_p.startswith(alvo):
                             eventos[ev_nome] = p["inicio"]
                             if evento_principal is None:
                                 evento_principal = ev_nome
+                            encontrou = True
                             break
+                    if not encontrou and ev_nome.startswith("hit_") and palavras_frase:
+                        eventos[ev_nome] = palavras_frase[len(palavras_frase) // 2]["inicio"]
             else:
                 evento_principal = mapear_evento_legado(texto)
                 if evento_principal and evento_principal not in eventos:
@@ -1490,6 +1508,15 @@ def main() -> None:
     eventos["frases"] = frases_log
     eventos["voz_blocos"] = voz_blocos
     eventos["cta_modo"] = cta_modo
+    if sfx_eventos:
+        eventos["sfx_eventos"] = sfx_eventos
+    katana_tempos = sorted(
+        float(v)
+        for k, v in eventos.items()
+        if re.fullmatch(r"hit_\d+", str(k)) and isinstance(v, (int, float))
+    )
+    if katana_tempos:
+        eventos["katana_eventos"] = katana_tempos
 
     cta_meio_inicio: float | None = None
     cta_meio_fim: float | None = None
@@ -1498,11 +1525,11 @@ def main() -> None:
     if cta_modo == "pausa_meio":
         if cta_pausa_inicio is None or cta_pausa_fim is None:
             raise RuntimeError(
-                "cta_modo='pausa_meio' (V5) exige bloco [CTA_PAUSA]...[/CTA_PAUSA] no roteiro."
+                "cta_modo='pausa_meio' (V5/V6) exige bloco [CTA_PAUSA]...[/CTA_PAUSA] no roteiro."
             )
-        if "corte_parte_2" not in eventos:
+        if exige_parte_2 and "corte_parte_2" not in eventos:
             raise RuntimeError(
-                "cta_modo='pausa_meio' (V5) exige marcador [CORTE_PARTE_2] no roteiro."
+                "cta_modo='pausa_meio' com saidas_partes exige marcador [CORTE_PARTE_2] no roteiro."
             )
         cta_meio_inicio = cta_pausa_inicio
         cta_meio_fim = cta_pausa_fim
@@ -1631,11 +1658,15 @@ def main() -> None:
         f"voz_blocos ({len(voz_blocos)}): {resumo_perfis}"
     )
     if cta_modo == "pausa_meio" and cta_meio_inicio is not None and cta_meio_fim is not None:
-        corte_p2 = float(eventos.get("corte_parte_2", 0.0))
-        pct_corte = (corte_p2 / max(0.1, duracao_total)) * 100.0
+        if "corte_parte_2" in eventos:
+            corte_p2 = float(eventos["corte_parte_2"])
+            pct_corte = (corte_p2 / max(0.1, duracao_total)) * 100.0
+            corte_txt = f"Corte Parte 2 em {corte_p2:.2f}s ({pct_corte:.1f}%)"
+        else:
+            corte_txt = "Short unico (sem corte Parte 2)"
         print(
-            f"CTA tela cheia V5 em {cta_meio_inicio:.2f}s..{cta_meio_fim:.2f}s ({cta_meio_fim - cta_meio_inicio:.2f}s) | "
-            f"Corte Parte 2 em {corte_p2:.2f}s ({pct_corte:.1f}%) | Plot twist em {eventos.get('plot_twist')}s"
+            f"CTA tela cheia V5/V6 em {cta_meio_inicio:.2f}s..{cta_meio_fim:.2f}s ({cta_meio_fim - cta_meio_inicio:.2f}s) | "
+            f"{corte_txt} | Plot twist em {eventos.get('plot_twist')}s"
         )
     elif cta_modo == "meio" and cta_meio_inicio is not None and cta_meio_fim is not None:
         pct0 = (cta_meio_inicio / max(0.1, duracao_total)) * 100.0

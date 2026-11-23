@@ -337,8 +337,19 @@ def _normalizar_pico_estereo(esq, dir_, alvo: float = 0.88):
 # DETECCAO DE VIDEO ATIVO E CURVA DE CAMA SONORA (DRONE)
 # ============================================================
 
+def _eh_video_v6(ev: dict) -> bool:
+    motor = str(ev.get("motor", "")).strip().lower()
+    if motor.startswith("v6"):
+        return True
+    try:
+        vid = int(ev.get("video_id", 1))
+    except (TypeError, ValueError):
+        vid = 1
+    return vid >= 7
+
+
 def _eh_video_06(ev: dict) -> bool:
-    return (
+    return (not _eh_video_v6(ev)) and (
         ("tranco_elevador" in ev)
         or ("visor_s3" in ev)
         or ("porta_elevador" in ev)
@@ -347,26 +358,31 @@ def _eh_video_06(ev: dict) -> bool:
 
 
 def _eh_video_05(ev: dict) -> bool:
-    return (not _eh_video_06(ev)) and (
+    return (not _eh_video_v6(ev)) and (not _eh_video_06(ev)) and (
         ("interfone" in ev) or ("portaria_vazia" in ev) or (int(ev.get("video_id", 1)) == 5)
     )
 
 
 def _eh_video_04(ev: dict) -> bool:
-    return (not _eh_video_06(ev)) and (not _eh_video_05(ev)) and (
+    return (not _eh_video_v6(ev)) and (not _eh_video_06(ev)) and (not _eh_video_05(ev)) and (
         ("berco_vazio" in ev) or ("passos_corredor" in ev) or (int(ev.get("video_id", 1)) == 4)
     )
 
 
 def _eh_video_03(ev: dict) -> bool:
-    return (not _eh_video_06(ev)) and (not _eh_video_05(ev)) and (not _eh_video_04(ev)) and (
-        ("pix_1" in ev) or ("guarda_roupa" in ev) or (int(ev.get("video_id", 1)) == 3)
+    return (
+        (not _eh_video_v6(ev))
+        and (not _eh_video_06(ev))
+        and (not _eh_video_05(ev))
+        and (not _eh_video_04(ev))
+        and (("pix_1" in ev) or ("guarda_roupa" in ev) or (int(ev.get("video_id", 1)) == 3))
     )
 
 
 def _eh_video_02(ev: dict) -> bool:
     return (
-        (not _eh_video_06(ev))
+        (not _eh_video_v6(ev))
+        and (not _eh_video_06(ev))
         and (not _eh_video_05(ev))
         and (not _eh_video_04(ev))
         and (not _eh_video_03(ev))
@@ -375,13 +391,67 @@ def _eh_video_02(ev: dict) -> bool:
 
 
 def _envelope_drone_em_t(t: float, ev: dict) -> float:
-    """Curva de tensao do drone com silencio na CTA tela cheia V5, dip no corte P2 e corte seco em sussurro_twist."""
+    """Curva de tensao do drone com silencio na CTA tela cheia V5/V6, dip no corte P2 e corte seco em sussurro_twist."""
     for vb in ev.get("voz_blocos") or ():
         if str(vb.get("perfil", "")).strip().lower() == "sussurro_twist":
             t0 = float(vb.get("inicio", -1.0))
             t1 = float(vb.get("fim", -1.0))
             if t0 >= 0.0 and t0 - 0.03 <= t <= t1 + 0.08:
                 return 0.0
+
+    if _eh_video_v6(ev):
+        dur = max(1.0, float(ev.get("duracao_total", 45.0)))
+        cta_ini = ev.get("cta_meio_inicio")
+        cta_fim = ev.get("cta_meio_fim")
+        if cta_ini is not None and cta_fim is not None:
+            ci, cf = float(cta_ini), float(cta_fim)
+            if ci + 0.025 <= t <= cf - 0.025:
+                return 0.0
+
+        corte_p2 = ev.get("corte_parte_2")
+        if corte_p2 is not None and abs(t - float(corte_p2)) <= 0.035:
+            return 0.0
+
+        imp = ev.get("impacto_twist")
+        imp_d = float(ev.get("impacto_twist_duracao", 1.4))
+        twist = ev.get("plot_twist")
+        if imp is not None:
+            imp_f = float(imp)
+            if imp_f + 0.04 <= t < imp_f + imp_d:
+                return 0.0
+            if twist is not None and imp_f + imp_d <= t < float(twist):
+                return 0.05
+        if twist is not None and t >= float(twist):
+            return 0.0
+
+        corte_imp = 1.0
+        if imp is not None and t >= float(imp):
+            corte_imp = max(0.0, 1.0 - (t - float(imp)) / 0.04)
+
+        if t < 0.35:
+            base = 0.13 * (t / 0.35)
+        else:
+            frac = min(1.0, t / max(1.0, float(imp) if imp is not None else dur))
+            base = 0.14 + 0.24 * (frac ** 1.15)
+
+        if cta_ini is not None and cta_fim is not None:
+            ci, cf = float(cta_ini), float(cta_fim)
+            if ci - 0.025 <= t < ci + 0.025:
+                base *= max(0.0, (ci + 0.025 - t) / 0.05)
+            elif cf - 0.025 < t <= cf + 0.06:
+                base *= min(1.0, (t - (cf - 0.025)) / 0.085)
+
+        if corte_p2 is not None:
+            cp = float(corte_p2)
+            if 0.035 < abs(t - cp) <= 0.075:
+                base *= (abs(t - cp) - 0.035) / 0.04
+
+        for sx in ev.get("sfx_eventos") or ():
+            sx_ini = float(sx.get("inicio", -10.0))
+            sx_dur = float(sx.get("duracao", 1.0))
+            if sx_ini - 0.06 <= t <= sx_ini + sx_dur + 0.06:
+                base *= 0.28
+        return base * corte_imp
 
     if _eh_video_06(ev):
         porta_el = float(ev.get("porta_elevador", 10.0))
@@ -707,7 +777,7 @@ def sintetizar_cama_drone(duracao: float, ev: dict, ganhos_cat: dict[str, float]
         env = p_arr[idx_i] * (1.0 - frac) + p_arr[idx_i + 1] * frac
 
         lfo = 0.84 + 0.16 * np.sin(2.0 * np.pi * 0.22 * t)
-        f0 = 38.9 if _eh_video_06(ev) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
+        f0 = 38.9 if (_eh_video_v6(ev) or _eh_video_06(ev)) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
         # Sub organico quente + ar grave filtrado por FFT (sem zumbido eletronico)
         sub_l = 0.56 * np.sin(2.0 * np.pi * f0 * t) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.498) * t + 0.4)
         sub_r = 0.56 * np.sin(2.0 * np.pi * (f0 + 0.31) * t + 0.7) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.494) * t)
@@ -721,7 +791,7 @@ def sintetizar_cama_drone(duracao: float, ev: dict, ganhos_cat: dict[str, float]
     rng = random.Random(43)
     lp = 0.0
     two_pi = 2.0 * math.pi
-    f0 = 38.9 if _eh_video_06(ev) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
+    f0 = 38.9 if (_eh_video_v6(ev) or _eh_video_06(ev)) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
     for i in range(n):
         t = i / SR
         bi = i // passo
@@ -1750,6 +1820,88 @@ def sintetizar_sfx(
     def pegar(nome: str, fn_fb, dur_max: float | None = None):
         return obter_sfx(nome, fn_fb, duracao_max=dur_max, ganhos_cat=ganhos_cat, relatorio=relatorio)
 
+    if _eh_video_v6(ev):
+        def _tocar_sfx_catalogo(nome: str, inicio: float, dur_s: float, ganho: float = 0.96) -> None:
+            chave = re.sub(r"[^a-z0-9_]", "", str(nome).strip().lower())
+            d = max(0.20, float(dur_s))
+            mapa = {
+                "sub_boom": lambda: sfx_sub_boom(d),
+                "whoosh": lambda: sfx_whoosh_sombrio(d),
+                "riser": lambda: sfx_riser(d),
+                "heartbeat": lambda: sfx_heartbeat_hd(d),
+                "sussurro": lambda: sfx_sussurro_hd(d),
+                "passos_corredor": lambda: sfx_passos_corredor_hd(d),
+                "porta_impacto": lambda: sfx_porta_impacto_hd(d),
+                "glitch_tv": lambda: sfx_glitch_tv_hd(d),
+                "impacto_twist": lambda: sfx_impacto_twist_hd(d),
+                "guarda_roupa": lambda: sfx_guarda_roupa(d),
+                "interfone": lambda: sfx_interfone_hd(d),
+                "porta_elevador": lambda: sfx_porta_elevador_hd(d),
+                "tranco_elevador": lambda: sfx_tranco_elevador_hd(d),
+                "alarme_interfone": lambda: sfx_alarme_interfone_hd(d),
+                "glitch_cta": lambda: sfx_glitch_cta_hd(d),
+                "cta_pop": sfx_cta_pop,
+            }
+            fn_fb = mapa.get(chave, lambda: sfx_sub_boom(min(1.2, d)))
+            sl, sr = pegar(chave if chave in mapa else "sub_boom", fn_fb, dur_max=d + 0.06)
+            _misturar_trecho(esq, dir_, max(0.0, float(inicio)), sl, sr, ganho)
+
+        # 1. Todos os blocos [SFX:nome:dur] gerados pelo Diretor IA V6
+        tempos_impacto: list[float] = []
+        for sx in ev.get("sfx_eventos") or ():
+            sx_nome = str(sx.get("nome", "")).strip().lower()
+            sx_ini = float(sx.get("inicio", 0.0))
+            sx_dur = float(sx.get("duracao", 1.1))
+            _tocar_sfx_catalogo(sx_nome, sx_ini, sx_dur, ganho=0.98 if sx_nome == "impacto_twist" else 0.94)
+            if sx_nome == "impacto_twist":
+                tempos_impacto.append(sx_ini)
+
+        # 2. CTA Dedicada em Tela Cheia V5/V6 ([CTA_PAUSA])
+        if ev.get("cta_meio_inicio") is not None:
+            t_ci = float(ev["cta_meio_inicio"])
+            gl, gr = pegar("glitch_cta", lambda: sfx_glitch_cta_hd(0.36), dur_max=0.40)
+            _misturar_trecho(esq, dir_, max(0.0, t_ci - 0.02), gl, gr, 0.86)
+            cl, cr = pegar("cta_pop", sfx_cta_pop, dur_max=0.24)
+            _misturar_trecho(esq, dir_, t_ci + 0.12, cl, cr, 0.56)
+        if ev.get("cta_meio_fim") is not None:
+            t_cf = float(ev["cta_meio_fim"])
+            gl2, gr2 = pegar("glitch_cta", lambda: sfx_glitch_cta_hd(0.28), dur_max=0.32)
+            _misturar_trecho(esq, dir_, max(0.0, t_cf - 0.16), gl2, gr2, 0.72)
+
+        # 3. Riser tenso antes de impacto_twist (sem cruzar CTA nem corte_parte_2)
+        if ev.get("impacto_twist") is not None:
+            t_it = float(ev["impacto_twist"])
+            barreira = 0.0
+            for k_bar in ("cta_meio_fim", "corte_parte_2"):
+                if ev.get(k_bar) is not None and float(ev[k_bar]) < t_it:
+                    barreira = max(barreira, float(ev[k_bar]) + 0.20)
+            t_r_ini = max(barreira, t_it - 2.40)
+            dur_r = (t_it - 0.03) - t_r_ini
+            if dur_r >= 0.55:
+                rl, rr = pegar("riser", lambda: sfx_riser(dur_r), dur_max=dur_r)
+                _misturar_trecho(esq, dir_, t_r_ini, rl, rr, 0.70)
+
+        # 4. Golpes sub-grave nos Katana Hits (hit_01..hit_05)
+        tempos_katana: list[float] = []
+        for t_k in ev.get("katana_eventos") or ():
+            tk = max(0.0, float(t_k) - 0.02)
+            if any(abs(tk - ti) < 0.45 for ti in tempos_impacto):
+                continue
+            rem = max(0.38, min(1.00, duracao - tk))
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(rem), dur_max=rem)
+            _misturar_trecho(esq, dir_, tk, bl, br, 0.84)
+            tempos_katana.append(tk)
+
+        # 5. Golpe final em plot_twist caso nenhum Katana hit ja esteja colado nele
+        if ev.get("plot_twist") is not None:
+            t_tw = max(0.0, float(ev["plot_twist"]) - 0.02)
+            if not any(abs(t_tw - tk) < 0.55 for tk in tempos_katana + tempos_impacto):
+                rem = max(0.42, min(1.05, duracao - t_tw))
+                bl, br = pegar("sub_boom", lambda: sfx_sub_boom(rem), dur_max=rem)
+                _misturar_trecho(esq, dir_, t_tw, bl, br, 0.92)
+
+        return esq, dir_
+
     if _eh_video_06(ev):
         # 1. Clique discreto ao apertar o botao do terreo
         if "aperta_terreo" in ev:
@@ -2387,18 +2539,22 @@ def main() -> None:
     duracao = max(medir_duracao_ffprobe(VOZ_LIMPA_MP3), float(eventos.get("duracao_total", 0.0)))
     backend = "numpy" if np is not None else "stdlib"
     perfil = (
-        "Video 06 (O Elevador do Subsolo 2)"
-        if _eh_video_06(eventos)
+        f"Video {carimbo['video_id']:02d} V6 ({carimbo['titulo']})"
+        if _eh_video_v6(eventos)
         else (
-            "Video 05 (O Pedido das 02h15)"
-            if _eh_video_05(eventos)
+            "Video 06 (O Elevador do Subsolo 2)"
+            if _eh_video_06(eventos)
             else (
-                "Video 04 (A Baba Eletronica)"
-                if _eh_video_04(eventos)
+                "Video 05 (O Pedido das 02h15)"
+                if _eh_video_05(eventos)
                 else (
-                    "Video 03 (O Pix de 1 Centavo)"
-                    if _eh_video_03(eventos)
-                    else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+                    "Video 04 (A Baba Eletronica)"
+                    if _eh_video_04(eventos)
+                    else (
+                        "Video 03 (O Pix de 1 Centavo)"
+                        if _eh_video_03(eventos)
+                        else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+                    )
                 )
             )
         )

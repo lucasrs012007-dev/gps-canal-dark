@@ -1,0 +1,209 @@
+name: Fabrica Dark V6 (Render na Nuvem + Telegram)
+
+on:
+  workflow_dispatch:
+    inputs:
+      titulo:
+        description: "Titulo opcional do video (vazio para o Diretor IA gerar automaticamente)"
+        required: false
+        default: ""
+        type: string
+      roteiro:
+        description: "Roteiro bruto em texto livre (ignorado se usar_video_atual=true)"
+        required: false
+        default: ""
+        type: string
+      usar_video_atual:
+        description: "Re-renderiza o video ativo em historico_videos.json sem chamar o Diretor IA"
+        required: false
+        default: false
+        type: boolean
+      enviar_telegram:
+        description: "Envia os MP4s prontos automaticamente no Telegram"
+        required: false
+        default: true
+        type: boolean
+      modo_teste:
+        description: "Renderiza apenas 2 segundos de teste rapido"
+        required: false
+        default: false
+        type: boolean
+  repository_dispatch:
+    types:
+      - novo_roteiro
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fabrica-dark-render
+  cancel-in-progress: false
+
+jobs:
+  produzir-e-renderizar:
+    name: Diretor IA -> Audio -> Render -> Telegram
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      WD_TITULO: ${{ inputs.titulo }}
+      WD_ROTEIRO: ${{ inputs.roteiro }}
+      WD_USAR_ATUAL: ${{ inputs.usar_video_atual }}
+      WD_ENVIAR_TG: ${{ inputs.enviar_telegram }}
+      WD_MODO_TESTE: ${{ inputs.modo_teste }}
+      RD_TITULO: ${{ github.event.client_payload.titulo }}
+      RD_ROTEIRO: ${{ github.event.client_payload.roteiro }}
+      RD_USAR_ATUAL: ${{ github.event.client_payload.usar_video_atual }}
+      RD_ENVIAR_TG: ${{ github.event.client_payload.enviar_telegram }}
+      RD_MODO_TESTE: ${{ github.event.client_payload.modo_teste }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Normalizar parametros da execucao
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          ev = os.environ.get("EVENT_NAME", "")
+          pref = "RD_" if ev == "repository_dispatch" else "WD_"
+
+          def to_bool_str(val: str, padrao: bool) -> str:
+              v = str(val or "").strip().lower()
+              if v in ("true", "1", "yes", "sim"):
+                  return "true"
+              if v in ("false", "0", "no", "nao"):
+                  return "false"
+              return "true" if padrao else "false"
+
+          usar_atual = to_bool_str(os.environ.get(pref + "USAR_ATUAL", ""), False)
+          enviar_tg = to_bool_str(os.environ.get(pref + "ENVIAR_TG", ""), True)
+          modo_teste = to_bool_str(os.environ.get(pref + "MODO_TESTE", ""), False)
+
+          gh_env = Path(os.environ["GITHUB_ENV"])
+          with gh_env.open("a", encoding="utf-8") as arq:
+              arq.write(f"USAR_VIDEO_ATUAL={usar_atual}\n")
+              arq.write(f"ENVIAR_TELEGRAM={enviar_tg}\n")
+              arq.write(f"MODO_TESTE={modo_teste}\n")
+
+          print(f"Evento={ev} | usar_video_atual={usar_atual} | enviar_telegram={enviar_tg} | modo_teste={modo_teste}")
+          PY
+
+      - name: Instalar dependencias Python (numpy e edge-tts)
+        run: |
+          python3 -m pip install --upgrade pip --no-cache-dir
+          python3 -m pip install --no-cache-dir numpy edge-tts
+
+      - name: Garantir FFmpeg e Google Chrome headless
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq wget gnupg ca-certificates
+            wget -qO /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y -qq /tmp/chrome.deb
+            rm -f /tmp/chrome.deb
+          fi
+          ffmpeg -version | head -n 1
+          (google-chrome --version || chromium --version || chromium-browser --version)
+
+      - name: Estacao 0 - Diretor IA V6 (quando houver roteiro novo)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess, sys
+          from pathlib import Path
+
+          ev = os.environ.get("EVENT_NAME", "")
+          pref = "RD_" if ev == "repository_dispatch" else "WD_"
+          usar_atual = str(os.environ.get("USAR_VIDEO_ATUAL", "false")).strip().lower() == "true"
+          roteiro = os.environ.get(pref + "ROTEIRO", "").strip()
+          titulo = os.environ.get(pref + "TITULO", "").strip()
+
+          if usar_atual:
+              print("Modo usar_video_atual=true: mantendo video ativo do historico_videos.json.")
+              sys.exit(0)
+
+          if not roteiro:
+              print("Nenhum roteiro novo informado: seguindo com o video ativo do historico_videos.json.")
+              sys.exit(0)
+
+          arq = Path("/tmp/roteiro_entrada_v6.txt")
+          arq.write_text(roteiro, encoding="utf-8")
+          cmd = [sys.executable, "pipeline/diretor_ia.py", "--arquivo", str(arq)]
+          if titulo:
+              cmd.extend(["--titulo", titulo])
+          subprocess.run(cmd, check=True)
+          PY
+
+      - name: Validar historico e limpar cache de audio antigo
+        run: |
+          python3 pipeline/historico.py verificar
+          rm -f audio/mix_final.mp3 audio/voz_limpa.mp3 audio/narracao.mp3 audio/timestamps.json audio/eventos.json
+
+      - name: Estacao 2 - Narracao atuada por blocos e Sound Design (-14 LUFS)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+        run: |
+          python3 audio/gerar_narracao.py
+          python3 audio/sound_design.py
+          python3 pipeline/historico.py validar-audio
+
+      - name: Estacao 3 - Renderizacao 9:16 (1080x1920 @ 30fps) + Corte Parte 1 / Parte 2
+        run: |
+          if [ "${MODO_TESTE}" = "true" ]; then
+            python3 render/renderizar.py --legendas --teste
+          else
+            python3 render/renderizar.py --legendas
+          fi
+          ls -lh output/*.mp4
+
+      - name: Publicar MP4s e metadados como Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabrica-dark-short-${{ github.run_number }}
+          retention-days: 7
+          path: |
+            output/*.mp4
+            cenas.json
+            audio/eventos.json
+
+      - name: Estacao 4 - Enviar videos prontos no Telegram
+        if: ${{ success() && env.ENVIAR_TELEGRAM != 'false' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN}" ] || [ -z "${TELEGRAM_CHAT_ID}" ]; then
+            echo "Secrets do Telegram ausentes: pulando envio automatico (MP4s disponiveis nos Artifacts)."
+            exit 0
+          fi
+          python3 automacao/enviar_telegram.py --run-url "${RUN_URL}"
+
+      - name: Notificar falha no Telegram
+        if: ${{ failure() && env.ENVIAR_TELEGRAM != 'false' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN}" ] || [ -z "${TELEGRAM_CHAT_ID}" ]; then
+            exit 0
+          fi
+          python3 automacao/enviar_telegram.py \
+            --erro "A renderizacao na nuvem falhou. Abra o link abaixo para ver o log completo." \
+            --run-url "${RUN_URL}"

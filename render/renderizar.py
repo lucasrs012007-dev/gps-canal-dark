@@ -481,14 +481,29 @@ def main() -> None:
     parser.add_argument("--legendas", action="store_true", help="Ativa as legendas sincronizadas do player.")
     parser.add_argument("--png", action="store_true", help="Usa PNG lossless no pipe (mais lento na CPU).")
     parser.add_argument("--navegador", type=str, default=None, help="Caminho manual do Chrome/Chromium/Edge.")
+    parser.add_argument(
+        "--player",
+        type=str,
+        default=None,
+        help="Arquivo HTML do player relativo a raiz (padrao: campo 'player' em historico_videos.json ou player.html).",
+    )
     args = parser.parse_args()
 
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise SystemExit("ffmpeg e ffprobe precisam estar instalados e no PATH.")
-    if not (RAIZ / "player.html").is_file():
-        raise SystemExit("player.html nao encontrado na raiz do repositorio.")
 
     video_ativo = obter_video_atual(validar=True)
+    player_rel = (args.player or str(video_ativo.get("player", "player.html"))).strip() or "player.html"
+    player_path = Path(player_rel)
+    if not player_path.is_absolute():
+        player_path = (RAIZ / player_path).resolve()
+    if not player_path.is_file():
+        raise SystemExit(f"Player HTML nao encontrado: {player_path}")
+    try:
+        player_url_rel = player_path.relative_to(RAIZ).as_posix()
+    except ValueError as exc:
+        raise SystemExit(f"Player HTML precisa estar dentro do repositorio ({RAIZ}): {player_path}") from exc
+
     audio_alvo = selecionar_audio()
     tem_artefato_json = (PASTA_AUDIO / "timestamps.json").is_file() or (PASTA_AUDIO / "eventos.json").is_file()
 
@@ -517,7 +532,8 @@ def main() -> None:
     navegador = encontrar_navegador(args.navegador)
     print(
         f"Historico validado (Sempre Video Novo): Video {int(video_ativo['id']):02d} "
-        f"'{video_ativo['titulo']}' -> {saida.relative_to(RAIZ).as_posix() if saida.is_relative_to(RAIZ) else saida}"
+        f"'{video_ativo['titulo']}' [player={player_url_rel}] -> "
+        f"{saida.relative_to(RAIZ).as_posix() if saida.is_relative_to(RAIZ) else saida}"
     )
 
     srv, porta_http = iniciar_servidor()
@@ -537,7 +553,7 @@ def main() -> None:
             "Emulation.setDeviceMetricsOverride",
             {"width": LARGURA, "height": ALTURA, "deviceScaleFactor": 1, "mobile": False},
         )
-        cdp.chamar("Page.navigate", {"url": f"http://127.0.0.1:{porta_http}/player.html"})
+        cdp.chamar("Page.navigate", {"url": f"http://127.0.0.1:{porta_http}/{player_url_rel}"})
 
         pronto = False
         for _ in range(100):
@@ -551,7 +567,7 @@ def main() -> None:
                 break
             time.sleep(0.1)
         if not pronto:
-            raise RuntimeError("player.html nao ficou pronto dentro do tempo limite.")
+            raise RuntimeError(f"{player_url_rel} nao ficou pronto dentro do tempo limite.")
 
         status_player = avaliar_js(cdp, "(document.getElementById('status')?.textContent || '').trim()")
         if status_player:

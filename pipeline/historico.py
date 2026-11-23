@@ -184,16 +184,30 @@ def caminho_roteiro_atual() -> Path:
     return caminho
 
 
+def caminho_player_atual() -> Path:
+    atual = obter_video_atual(validar=True)
+    player_rel = str(atual.get("player", "player.html")).strip() or "player.html"
+    caminho = RAIZ / player_rel
+    if not caminho.is_file():
+        raise SystemExit(f"Player HTML do video atual nao encontrado: {caminho}")
+    return caminho
+
+
 def carimbo_roteiro_atual() -> dict:
     atual = obter_video_atual(validar=True)
     roteiro = caminho_roteiro_atual()
     cta_modo = str(atual.get("cta_modo", "final")).strip().lower() or "final"
+    partes = atual.get("saidas_partes")
+    exige_parte_2 = isinstance(partes, list) and len(partes) >= 2
+    player_rel = str(atual.get("player", "player.html")).strip() or "player.html"
     return {
         "video_id": int(atual["id"]),
         "slug": str(atual["slug"]),
         "titulo": str(atual["titulo"]),
         "parte_label": str(atual.get("parte_label", "PARTE 1")),
         "cta_modo": cta_modo,
+        "player": player_rel,
+        "exige_parte_2": exige_parte_2,
         "roteiro": roteiro.name,
         "roteiro_sha256": calcular_sha256_arquivo(roteiro),
     }
@@ -306,22 +320,23 @@ def validar_artefatos_audio(
                         janela_ok = (ini_f, fim_f)
 
                 corte = dados.get("corte_parte_2")
-                try:
-                    corte_f = float(corte)
-                except (TypeError, ValueError):
-                    erros.append(f"{nome_arq}: corte_parte_2 ausente ou invalido ({corte!r})")
-                else:
-                    if dur_ref > 0:
-                        frac = corte_f / dur_ref
-                        if frac < 0.35 or frac > 0.65:
+                if esperado["exige_parte_2"] or corte is not None:
+                    try:
+                        corte_f = float(corte)
+                    except (TypeError, ValueError):
+                        erros.append(f"{nome_arq}: corte_parte_2 ausente ou invalido ({corte!r})")
+                    else:
+                        if dur_ref > 0:
+                            frac = corte_f / dur_ref
+                            if frac < 0.35 or frac > 0.65:
+                                erros.append(
+                                    f"{nome_arq}: corte_parte_2={corte_f:.3f}s ({frac * 100:.1f}%) "
+                                    "fora da faixa obrigatoria [35%, 65%]"
+                                )
+                        if janela_ok is not None and janela_ok[1] > corte_f + 0.05:
                             erros.append(
-                                f"{nome_arq}: corte_parte_2={corte_f:.3f}s ({frac * 100:.1f}%) "
-                                "fora da faixa obrigatoria [35%, 65%]"
+                                f"{nome_arq}: CTA do meio termina ({janela_ok[1]:.3f}s) apos corte_parte_2 ({corte_f:.3f}s)"
                             )
-                    if janela_ok is not None and janela_ok[1] > corte_f + 0.05:
-                        erros.append(
-                            f"{nome_arq}: CTA do meio termina ({janela_ok[1]:.3f}s) apos corte_parte_2 ({corte_f:.3f}s)"
-                        )
 
             if janela_ok is not None:
                 ini_j, fim_j = janela_ok
@@ -414,7 +429,7 @@ def main() -> None:
         "acao",
         nargs="?",
         default="status",
-        choices=["status", "verificar", "validar-audio", "saida", "roteiro", "proximo"],
+        choices=["status", "verificar", "validar-audio", "saida", "roteiro", "player", "proximo"],
         help="Informacao ou validacao desejada.",
     )
     args = parser.parse_args()
@@ -431,10 +446,14 @@ def main() -> None:
         c = res["carimbo"]
         ev = res["eventos"]
         if c["cta_modo"] == "pausa_meio":
+            corte_info = (
+                f", corte_parte_2={float(ev['corte_parte_2']):.2f}s"
+                if ev.get("corte_parte_2") is not None
+                else ", short_unico"
+            )
             det_cta = (
                 f"CTA tela cheia 'COMENTE EU QUERO' confirmada [modo=pausa_meio, "
-                f"{float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s, "
-                f"corte_parte_2={float(ev['corte_parte_2']):.2f}s]"
+                f"{float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s{corte_info}]"
             )
         elif c["cta_modo"] == "meio":
             det_cta = (
@@ -451,6 +470,8 @@ def main() -> None:
         print(caminho_saida_atual().relative_to(RAIZ).as_posix())
     elif args.acao == "roteiro":
         print(caminho_roteiro_atual().relative_to(RAIZ).as_posix())
+    elif args.acao == "player":
+        print(caminho_player_atual().relative_to(RAIZ).as_posix())
     elif args.acao == "verificar":
         total = len(dados["videos"])
         pub = sum(1 for v in dados["videos"] if v.get("status") == "publicado")
