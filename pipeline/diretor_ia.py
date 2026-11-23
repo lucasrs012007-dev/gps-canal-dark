@@ -1,17 +1,19 @@
-"""Estacao 0 (Motor V6.0): Diretor IA que transforma um roteiro bruto em producao completa.
+"""Estacao 1 (Motor V6.0): Diretor IA que cria ou adapta um roteiro em producao completa.
 
-Recebe texto livre (`--roteiro-texto` ou `--arquivo`) e gera automaticamente:
+Aceita texto livre (`--roteiro-texto`, `--arquivo`) OU geracao 100% autonoma (`--gerar-inedito`),
+gerando automaticamente:
 1. Novo registro inedito em `historico_videos.json` (motor="v6", player="player_universal.html",
    cta_modo="pausa_meio", parte_label="PARTE 1" e saidas_partes quando > 130 palavras).
-2. `roteiro_XX.txt` pronto para o pipeline V5.1 (tags [VOZ:perfil], [SFX:...], [CTA_PAUSA]
+2. `roteiro_XX.txt` pronto para o pipeline V5.2 (tags [VOZ:perfil], [SFX:...], [CTA_PAUSA]
    e [CORTE_PARTE_2] automatico acima de 130 palavras).
 3. `cenas.json` (schema versionado "6.0", validado e auto-corrigido em Python) guiando os
    9 modulos visuais do `player_universal.html`, paleta, protagonista, relogio e 3 a 5 hits Katana.
 
 Uso (na raiz do repositorio):
+    python3 pipeline/diretor_ia.py --gerar-inedito --exigir-gemini
     python3 pipeline/diretor_ia.py --roteiro-texto "Era 02:47 quando..." --titulo "A Ligacao"
     python3 pipeline/diretor_ia.py --arquivo entrada.txt
-    python3 pipeline/diretor_ia.py --roteiro-texto "..." --mock
+    python3 pipeline/diretor_ia.py --gerar-inedito --mock
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ import json
 import os
 import re
 import sys
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -33,6 +36,7 @@ if str(RAIZ) not in sys.path:
 
 from pipeline.historico import (  # noqa: E402
     ARQUIVO_HISTORICO,
+    _similares,
     carregar_historico,
     normalizar_texto,
     proximo_numero_livre,
@@ -683,6 +687,222 @@ def _extrair_json_resposta(texto: str) -> dict:
     return dados
 
 
+def _chamar_gemini_json(
+    prompt: str,
+    api_key: str,
+    modelo: str = GEMINI_MODELO_PADRAO,
+    temperature: float = 0.35,
+    urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+    retry_esperas: tuple[float, ...] = (5.0, 12.0),
+) -> dict:
+    """Chama Gemini REST API (stdlib urllib) com header x-goog-api-key e retry em 429/5xx."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "temperature": temperature,
+        },
+    }
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key,
+    }
+    opener = urlopen_fn or urllib.request.urlopen
+    max_t = 1 + len(retry_esperas)
+    ultimo_erro: Exception | None = None
+
+    for tentativa in range(max_t):
+        req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
+        try:
+            with opener(req, timeout=60) as resp:
+                corpo = resp.read().decode("utf-8")
+            envelope = json.loads(corpo)
+            candidatos = envelope.get("candidates") or []
+            if not candidatos:
+                raise RuntimeError("Resposta do Gemini sem 'candidates'.")
+            partes = (candidatos[0].get("content") or {}).get("parts") or []
+            texto_json = "".join(str(p.get("text", "")) for p in partes)
+            if not texto_json.strip():
+                raise RuntimeError("Resposta do Gemini sem conteudo textual.")
+            return _extrair_json_resposta(texto_json)
+        except urllib.error.HTTPError as exc:
+            ultimo_erro = exc
+            if exc.code in (429, 500, 502, 503, 504) and tentativa < len(retry_esperas):
+                espera = float(retry_esperas[tentativa])
+                print(
+                    f"AVISO Gemini HTTP {exc.code} na tentativa {tentativa + 1}/{max_t}. "
+                    f"Aguardando {espera:.1f}s...",
+                    flush=True,
+                )
+                sleep_fn(espera)
+                continue
+            raise
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
+            ultimo_erro = exc
+            if tentativa < len(retry_esperas):
+                espera = float(retry_esperas[tentativa])
+                print(
+                    f"AVISO Gemini falhou ({type(exc).__name__}) na tentativa {tentativa + 1}/{max_t}. "
+                    f"Aguardando {espera:.1f}s...",
+                    flush=True,
+                )
+                sleep_fn(espera)
+                continue
+            raise
+
+    assert ultimo_erro is not None
+    raise ultimo_erro
+
+
+def _resumir_historico_proibido(dados_hist: dict) -> str:
+    linhas: list[str] = []
+    for v in dados_hist.get("videos", []):
+        vid = int(v.get("id", 0))
+        titulo = str(v.get("titulo", "")).strip()
+        tema = str(v.get("tema", "")).strip()
+        kws = ", ".join(str(k) for k in v.get("palavras_chave", [])[:6])
+        linhas.append(f"- Video {vid:02d}: '{titulo}' | Tema: {tema} | Palavras-chave: {kws}")
+    return "\n".join(linhas) if linhas else "- (nenhum video anterior)"
+
+
+def _montar_prompt_roteiro_inedito(
+    dados_hist: dict,
+    proximo_id: int,
+    titulo_sugerido: str | None = None,
+    motivo_rejeicao: str | None = None,
+) -> str:
+    proibidos = _resumir_historico_proibido(dados_hist)
+    dica_titulo = (
+        f"Use ou adapte este titulo solicitado pelo usuario: '{titulo_sugerido}'.\n"
+        if titulo_sugerido
+        else "Crie um titulo curto, magnetico e inedito em portugues do Brasil (3 a 6 palavras).\n"
+    )
+    aviso_rej = (
+        f"\nATENCAO: a tentativa anterior foi rejeitada por similaridade ({motivo_rejeicao}). "
+        "Mude COMPLETAMENTE o cenario, os personagens, o objeto central e o plot twist!\n"
+        if motivo_rejeicao
+        else ""
+    )
+    return (
+        f"Voce e o roteirista-chefe de um canal viral de YouTube Shorts / Reels de micro-suspense "
+        f"psicologico em portugues do Brasil (Video {proximo_id:02d}).\n"
+        "Sua missao e criar uma historia 100% INEDITA, realista, cotidiana e arrepiante.\n\n"
+        "TEMAS JA PRODUZIDOS (PROIBIDO REPETIR CENARIO, PREMISSA, OBJETO OU PLOT TWIST):\n"
+        f"{proibidos}\n"
+        f"{aviso_rej}\n"
+        "REGRAS OBRIGATORIAS DO ROTEIRO:\n"
+        f"1. {dica_titulo}"
+        "2. Escreva entre 185 e 245 palavras (ritmo rapido para renderizar Parte 1 e Parte 2 automaticas).\n"
+        "3. Comece com um horario exato da madrugada ou noite (ex.: 'Duas e dezessete da manha.') e um "
+        "protagonista com nome brasileiro comum em uma situacao cotidiana concreta e diferente dos videos "
+        "anteriores (ex.: lavanderia 24 horas, ultimo vagao do metro, quarto de hotel, plantao noturno, "
+        "estacionamento de shopping, onibus interestadual, farmacia de madrugada, caixa eletronico, "
+        "cabine de pedagio, quarto de Airbnb).\n"
+        "4. Use frases curtas, diretas e cinematograficas, com escalada de tensao ate um plot twist seco "
+        "e perturbador na ultima frase.\n"
+        "5. ZERO emoji, ZERO travessao (em-dash ou en-dash), ZERO tags [VOZ] ou [SFX], ZERO CTA "
+        "(a CTA e as tags serao inseridas automaticamente na etapa seguinte).\n"
+        "6. Responda APENAS com JSON valido no formato:\n"
+        "{\n"
+        '  "titulo": "Titulo Inedito Curto",\n'
+        '  "tema": "Resumo objetivo em 1 frase da premissa inedita",\n'
+        '  "roteiro_bruto": "Texto corrido completo da historia em pt-BR (185 a 245 palavras)."\n'
+        "}\n"
+    )
+
+
+def gerar_roteiro_inedito_gemini(
+    dados_hist: dict,
+    titulo_sugerido: str | None,
+    api_key: str,
+    modelo: str = GEMINI_MODELO_PADRAO,
+    urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> tuple[str, str]:
+    """Gera obrigatoriamente um titulo e roteiro bruto 100% ineditos via Gemini (contra historico)."""
+    prox_id = proximo_numero_livre(dados_hist)
+    motivo_rej: str | None = None
+    ultimo_erro = "Gemini nao retornou um roteiro inedito valido."
+
+    for tentativa in range(1, 4):
+        prompt = _montar_prompt_roteiro_inedito(
+            dados_hist,
+            proximo_id=prox_id,
+            titulo_sugerido=titulo_sugerido,
+            motivo_rejeicao=motivo_rej,
+        )
+        dados = _chamar_gemini_json(
+            prompt=prompt,
+            api_key=api_key,
+            modelo=modelo,
+            temperature=0.85,
+            urlopen_fn=urlopen_fn,
+            sleep_fn=sleep_fn,
+        )
+        titulo_gerado = sanitizar_texto(str(dados.get("titulo", "") or titulo_sugerido or "")).strip()
+        tema_gerado = sanitizar_texto(str(dados.get("tema", "") or "")).strip()
+        roteiro_gerado = sanitizar_texto(str(dados.get("roteiro_bruto", "") or "")).strip()
+
+        if len(roteiro_gerado.split()) < 60:
+            ultimo_erro = f"Roteiro inedito curto demais ({len(roteiro_gerado.split())} palavras)."
+            motivo_rej = ultimo_erro
+            continue
+
+        if not titulo_gerado:
+            titulo_gerado = f"O Turno das 02h{10 + (prox_id % 45):02d}"
+
+        candidato = {
+            "titulo": titulo_gerado,
+            "slug": gerar_slug(titulo_gerado, fallback=f"video-{prox_id:02d}"),
+            "tema": tema_gerado or roteiro_gerado[:160],
+            "palavras_chave": _extrair_palavras_chave(titulo_gerado, roteiro_gerado, qtd=6),
+        }
+        conflito: str | None = None
+        for v_ant in dados_hist.get("videos", []):
+            rep, mot = _similares(v_ant, candidato)
+            if rep:
+                conflito = f"parecido com Video {int(v_ant.get('id', 0)):02d}: {mot}"
+                break
+        if conflito:
+            print(
+                f"AVISO roteiro inedito tentativa {tentativa}/3 rejeitado ({conflito}). Regerando...",
+                flush=True,
+            )
+            motivo_rej = conflito
+            ultimo_erro = conflito
+            continue
+
+        return titulo_gerado, roteiro_gerado
+
+    raise RuntimeError(f"Nao foi possivel gerar episodio inedito via Gemini: {ultimo_erro}")
+
+
+def gerar_roteiro_inedito_mock(dados_hist: dict, titulo_sugerido: str | None = None) -> tuple[str, str]:
+    """Gerador deterministico offline apenas para testes locais (--mock)."""
+    prox_id = proximo_numero_livre(dados_hist)
+    hora = f"02:{15 + (prox_id * 7) % 40:02d}"
+    titulo = sanitizar_texto(titulo_sugerido) if titulo_sugerido else f"A Lavanderia das {hora.replace(':', 'h')}"
+    roteiro = (
+        f"Eram {hora} da madrugada. Bruno entra numa lavanderia vinte e quatro horas completamente vazia "
+        f"no fim da rua para secar o uniforme do turno da manha. "
+        f"Ele coloca as moedas na maquina numero quatro e se senta perto da vitrine molhada. "
+        f"O tambor gira devagar fazendo um estalo metalico ritmado. "
+        f"Cinco minutos depois, o vidro da lavanderia embaca por dentro mesmo com o ar frio ligado. "
+        f"Bruno olha pro painel digital da maquina: o contador para em treze minutos e nao desce mais. "
+        f"Ele levanta para checar a trava da porta automatica da entrada. A luz verde do sensor apaga. "
+        f"De repente o telefone fixo de emergencia na parede comeca a tocar no escuro. "
+        f"Bruno atende tremendo. Do outro lado, a voz da atendente da central de monitoramento pergunta: "
+        f"Senhor, por que voce ligou todas as seis secadoras se a camera mostra voce parado fora da loja "
+        f"olhando pela vitrine? Bruno vira o pescoco devagar em direcao a rua deserta. "
+        f"Do lado de fora, encostado no vidro embaçado, um homem com o mesmo uniforme dele levanta a mao "
+        f"e escreve ao contrario no vidro: ja deu o meu tempo, agora e a sua vez."
+    )
+    return titulo, roteiro
+
+
 def chamar_gemini_diretor(
     roteiro_bruto: str,
     titulo_sugerido: str | None,
@@ -690,39 +910,18 @@ def chamar_gemini_diretor(
     catalogo_sfx: dict[str, float],
     modelo: str = GEMINI_MODELO_PADRAO,
     urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict:
     """Chama Gemini REST API (stdlib urllib) passando a chave no header x-goog-api-key."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
     prompt = _montar_prompt_gemini(roteiro_bruto, titulo_sugerido, sorted(catalogo_sfx.keys()))
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "temperature": 0.35,
-        },
-    }
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": api_key,
-        },
-        method="POST",
+    return _chamar_gemini_json(
+        prompt=prompt,
+        api_key=api_key,
+        modelo=modelo,
+        temperature=0.35,
+        urlopen_fn=urlopen_fn,
+        sleep_fn=sleep_fn,
     )
-    opener = urlopen_fn or urllib.request.urlopen
-    with opener(req, timeout=60) as resp:
-        corpo = resp.read().decode("utf-8")
-
-    envelope = json.loads(corpo)
-    candidatos = envelope.get("candidates") or []
-    if not candidatos:
-        raise RuntimeError("Resposta do Gemini sem 'candidates'.")
-    partes = (candidatos[0].get("content") or {}).get("parts") or []
-    texto_json = "".join(str(p.get("text", "")) for p in partes)
-    if not texto_json.strip():
-        raise RuntimeError("Resposta do Gemini sem conteudo textual.")
-    return _extrair_json_resposta(texto_json)
 
 
 def validar_e_corrigir_plano(
@@ -1276,7 +1475,10 @@ def registrar_novo_video_historico(
     registro = _garantir_unicidade_registro(dados, registro, roteiro_bruto)
 
     copia_dados = json.loads(json.dumps(dados))
-    copia_dados["versao"] = max(int(copia_dados.get("versao", 6)), 6)
+    for v_ant in copia_dados.get("videos", []):
+        if str(v_ant.get("status", "")).strip() == "em_producao":
+            v_ant["status"] = "arquivado"
+    copia_dados["versao"] = max(int(copia_dados.get("versao", 6)), novo_id)
     copia_dados["video_atual"] = novo_id
     copia_dados["videos"].append(registro)
 
@@ -1292,50 +1494,87 @@ def registrar_novo_video_historico(
 
 
 def produzir_direcao_v6(
-    roteiro_bruto: str,
+    roteiro_bruto: str | None = None,
     titulo: str | None = None,
     usar_mock: bool = False,
+    gerar_inedito: bool = False,
+    exigir_gemini: bool = False,
     modelo: str = GEMINI_MODELO_PADRAO,
     caminho_historico: Path = ARQUIVO_HISTORICO,
     dir_saida: Path = RAIZ,
     atualizar_historico: bool = True,
     urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict:
     """Executa o fluxo completo do Diretor IA V6 e grava roteiro_XX.txt, cenas.json e historico."""
-    limpo_in = sanitizar_texto(roteiro_bruto)
-    if len(limpo_in.split()) < 15:
-        raise ValueError("Roteiro bruto muito curto (minimo 15 palavras para gerar Short V6).")
-
     carregar_env()
     catalogo_sfx = carregar_catalogo_sfx()
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
 
-    origem = "mock"
+    if exigir_gemini and (usar_mock or not api_key):
+        raise RuntimeError(
+            "GEMINI_API_KEY obrigatoria no modo --exigir-gemini (proibido repetir video antigo ou cair em mock)."
+        )
+
     avisos: list[str] = []
+    titulo_efetivo = titulo
+    texto_entrada = str(roteiro_bruto or "").strip()
+    veio_de_inedito = False
+
+    if gerar_inedito or not texto_entrada:
+        dados_hist = carregar_historico(caminho_historico)
+        veio_de_inedito = True
+        if usar_mock or not api_key:
+            if not usar_mock and not api_key:
+                avisos.append("GEMINI_API_KEY ausente: gerando episodio inedito deterministico offline.")
+            titulo_gerado, texto_entrada = gerar_roteiro_inedito_mock(dados_hist, titulo_sugerido=titulo)
+        else:
+            titulo_gerado, texto_entrada = gerar_roteiro_inedito_gemini(
+                dados_hist,
+                titulo_sugerido=titulo,
+                api_key=api_key,
+                modelo=modelo,
+                urlopen_fn=urlopen_fn,
+                sleep_fn=sleep_fn,
+            )
+        titulo_efetivo = titulo or titulo_gerado
+
+    limpo_in = sanitizar_texto(texto_entrada)
+    if len(limpo_in.split()) < 15:
+        raise ValueError("Roteiro bruto muito curto (minimo 15 palavras para gerar Short V6).")
+
+    origem = "mock"
     plano_bruto: dict | None = None
 
     if usar_mock or not api_key:
         if not usar_mock and not api_key:
             avisos.append("GEMINI_API_KEY ausente: usando modo deterministico offline.")
-        plano_bruto = diretor_mock_deterministico(limpo_in, titulo_forcado=titulo, catalogo_sfx=catalogo_sfx)
-        origem = "mock"
+        plano_bruto = diretor_mock_deterministico(limpo_in, titulo_forcado=titulo_efetivo, catalogo_sfx=catalogo_sfx)
+        origem = "mock_inedito" if veio_de_inedito else "mock"
     else:
         try:
             plano_bruto = chamar_gemini_diretor(
                 limpo_in,
-                titulo_sugerido=titulo,
+                titulo_sugerido=titulo_efetivo,
                 api_key=api_key,
                 catalogo_sfx=catalogo_sfx,
                 modelo=modelo,
                 urlopen_fn=urlopen_fn,
+                sleep_fn=sleep_fn,
             )
-            origem = f"gemini:{modelo}"
+            origem = f"gemini_inedito:{modelo}" if veio_de_inedito else f"gemini:{modelo}"
         except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, RuntimeError, ValueError, TimeoutError) as exc:
+            if exigir_gemini:
+                raise RuntimeError(
+                    f"Falha no Gemini Diretor IA em modo --exigir-gemini ({type(exc).__name__}: {exc})."
+                ) from exc
             avisos.append(f"Falha no Gemini ({type(exc).__name__}: {exc}): fallback deterministico ativado.")
-            plano_bruto = diretor_mock_deterministico(limpo_in, titulo_forcado=titulo, catalogo_sfx=catalogo_sfx)
+            plano_bruto = diretor_mock_deterministico(
+                limpo_in, titulo_forcado=titulo_efetivo, catalogo_sfx=catalogo_sfx
+            )
             origem = "fallback_mock"
 
-    plano, avisos_val = validar_e_corrigir_plano(plano_bruto, limpo_in, titulo, catalogo_sfx)
+    plano, avisos_val = validar_e_corrigir_plano(plano_bruto, limpo_in, titulo_efetivo, catalogo_sfx)
     avisos.extend(avisos_val)
 
     total_palavras = sum(len(b["texto"].split()) for b in plano["blocos"])
@@ -1379,14 +1618,24 @@ def produzir_direcao_v6(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Diretor IA V6: converte roteiro bruto em roteiro_XX.txt, cenas.json e registro no historico."
+        description="Diretor IA V6: cria episodio inedito ou converte roteiro bruto em roteiro_XX.txt, cenas.json e historico."
     )
     grupo = parser.add_mutually_exclusive_group(required=True)
     grupo.add_argument("--roteiro-texto", type=str, help="Texto bruto do roteiro em linha de comando.")
     grupo.add_argument("--arquivo", type=Path, help="Caminho de arquivo .txt com o roteiro bruto.")
+    grupo.add_argument(
+        "--gerar-inedito",
+        action="store_true",
+        help="Cria automaticamente um roteiro 100% inedito via Gemini evitando temas do historico_videos.json.",
+    )
     parser.add_argument("--titulo", type=str, default=None, help="Titulo opcional do video.")
     parser.add_argument("--modelo", type=str, default=GEMINI_MODELO_PADRAO, help="Modelo Gemini (padrao: gemini-2.5-flash).")
     parser.add_argument("--mock", action="store_true", help="Executa em modo deterministico offline sem chamar a API.")
+    parser.add_argument(
+        "--exigir-gemini",
+        action="store_true",
+        help="Falha explicitamente se GEMINI_API_KEY estiver ausente ou a chamada Gemini falhar (proibe fallback silencioso).",
+    )
     parser.add_argument(
         "--nao-atualizar-historico",
         action="store_true",
@@ -1394,18 +1643,21 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    texto_bruto: str | None = None
     if args.arquivo is not None:
         arq = args.arquivo if args.arquivo.is_absolute() else (RAIZ / args.arquivo)
         if not arq.is_file():
             raise SystemExit(f"Arquivo de roteiro nao encontrado: {arq}")
         texto_bruto = arq.read_text(encoding="utf-8")
-    else:
-        texto_bruto = args.roteiro_texto or ""
+    elif args.roteiro_texto is not None:
+        texto_bruto = args.roteiro_texto
 
     res = produzir_direcao_v6(
         roteiro_bruto=texto_bruto,
         titulo=args.titulo,
         usar_mock=args.mock,
+        gerar_inedito=args.gerar_inedito,
+        exigir_gemini=args.exigir_gemini,
         modelo=args.modelo,
         atualizar_historico=not args.nao_atualizar_historico,
     )

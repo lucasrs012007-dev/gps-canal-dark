@@ -9,7 +9,7 @@ on:
         default: ""
         type: string
       roteiro:
-        description: "Roteiro bruto em texto livre (ignorado se usar_video_atual=true)"
+        description: "Roteiro bruto opcional (se vazio com usar_video_atual=false, o Diretor IA cria um episodio inedito via Gemini)"
         required: false
         default: ""
         type: string
@@ -33,7 +33,7 @@ on:
       - novo_roteiro
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: fabrica-dark-render
@@ -63,6 +63,8 @@ jobs:
     steps:
       - name: Checkout do repositorio
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Configurar Python 3.12
         uses: actions/setup-python@v5
@@ -120,12 +122,12 @@ jobs:
           ffmpeg -version | head -n 1
           (google-chrome --version || chromium --version || chromium-browser --version)
 
-      - name: Estacao 1 - Diretor IA V6 (quando houver roteiro novo)
+      - name: Estacao 1 - Diretor IA V6 (gera episodio novo quando usar_video_atual=false)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3 - <<'PY'
-          import os, subprocess, sys
+          import json, os, subprocess, sys
           from pathlib import Path
 
           ev = os.environ.get("EVENT_NAME", "")
@@ -138,16 +140,40 @@ jobs:
               print("Modo usar_video_atual=true: mantendo video ativo do historico_videos.json.")
               sys.exit(0)
 
-          if not roteiro:
-              print("Nenhum roteiro novo informado: seguindo com o video ativo do historico_videos.json.")
-              sys.exit(0)
+          if not os.environ.get("GEMINI_API_KEY", "").strip():
+              print(
+                  "ERRO Estacao 1: GEMINI_API_KEY obrigatoria quando usar_video_atual=false "
+                  "(bloqueado para impedir repeticao silenciosa de video antigo).",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
 
-          arq = Path("/tmp/roteiro_entrada_v6.txt")
-          arq.write_text(roteiro, encoding="utf-8")
-          cmd = [sys.executable, "pipeline/diretor_ia.py", "--arquivo", str(arq)]
+          hist_path = Path("historico_videos.json")
+          hist_antes = json.loads(hist_path.read_text(encoding="utf-8"))
+          id_antes = int(hist_antes.get("video_atual", 0))
+
+          if roteiro:
+              arq = Path("/tmp/roteiro_entrada_v6.txt")
+              arq.write_text(roteiro, encoding="utf-8")
+              cmd = [sys.executable, "pipeline/diretor_ia.py", "--arquivo", str(arq), "--exigir-gemini"]
+              print(f"Estacao 1: roteiro fornecido -> gerando proximo episodio acima do Video {id_antes:02d} via Gemini...")
+          else:
+              cmd = [sys.executable, "pipeline/diretor_ia.py", "--gerar-inedito", "--exigir-gemini"]
+              print(f"Estacao 1: usar_video_atual=false sem roteiro manual -> criando episodio 100% inedito acima do Video {id_antes:02d} via Gemini...")
+
           if titulo:
               cmd.extend(["--titulo", titulo])
           subprocess.run(cmd, check=True)
+
+          hist_depois = json.loads(hist_path.read_text(encoding="utf-8"))
+          id_depois = int(hist_depois.get("video_atual", 0))
+          if id_depois <= id_antes:
+              print(
+                  f"ERRO Estacao 1: historico_videos.json nao avancou (antes={id_antes:02d}, depois={id_depois:02d}).",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          print(f"Estacao 1 confirmada: Video {id_depois:02d} registrado em historico_videos.json (anterior: {id_antes:02d}).")
           PY
 
       - name: Validar historico e limpar cache de audio antigo
@@ -186,6 +212,7 @@ jobs:
             output/*.mp4
             cenas.json
             audio/eventos.json
+            historico_videos.json
 
       - name: Estacao 4 - Enviar Parte 1 e Parte 2 + link do Artifact e legendas prontas no Telegram
         if: ${{ success() && env.ENVIAR_TELEGRAM != 'false' }}
@@ -210,6 +237,75 @@ jobs:
             --estrategia partes \
             --artifact-url "${ARTIFACT_URL}" \
             --run-url "${RUN_URL}"
+
+      - name: Persistir historico_videos.json atualizado na main
+        if: ${{ success() && env.USAR_VIDEO_ATUAL == 'false' && env.MODO_TESTE == 'false' }}
+        run: |
+          if git diff --quiet -- historico_videos.json; then
+            echo "historico_videos.json sem alteracoes para persistir."
+            exit 0
+          fi
+
+          # Guarda o novo registro gerado nesta execucao antes de sincronizar com origin/main
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          dados = json.loads(Path("historico_videos.json").read_text(encoding="utf-8"))
+          vid = int(dados["video_atual"])
+          novo = next(v for v in dados["videos"] if int(v["id"]) == vid)
+          Path("/tmp/novo_registro_hist.json").write_text(
+              json.dumps({"video_atual": vid, "registro": novo}, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Limpa artefatos gerados durante a execucao e sincroniza main com seguranca
+          git checkout -- .
+          git clean -fd
+          git fetch origin main
+          git checkout -B main origin/main
+
+          # Aplica exclusivamente o novo registro em historico_videos.json sobre o topo de origin/main
+          META=$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          pacote = json.loads(Path("/tmp/novo_registro_hist.json").read_text(encoding="utf-8"))
+          reg = pacote["registro"]
+          vid = int(pacote["video_atual"])
+
+          hist_path = Path("historico_videos.json")
+          hist = json.loads(hist_path.read_text(encoding="utf-8"))
+          ids_existentes = {int(v["id"]) for v in hist.get("videos", [])}
+          if vid not in ids_existentes:
+              for v in hist.get("videos", []):
+                  if str(v.get("status", "")).strip() == "em_producao":
+                      v["status"] = "arquivado"
+              hist["videos"].append(reg)
+              hist["video_atual"] = vid
+              hist["versao"] = max(int(hist.get("versao", 6)), vid)
+              hist_path.write_text(json.dumps(hist, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+          titulo = str(reg.get("titulo", "Novo Episodio")).replace('"', "'")
+          print(f"{vid:02d}|{titulo}")
+          PY
+          )
+          rm -f /tmp/novo_registro_hist.json
+
+          VID_NUM="${META%%|*}"
+          VID_TITULO="${META#*|}"
+
+          git add historico_videos.json
+          if git diff --cached --quiet -- historico_videos.json; then
+            echo "historico_videos.json ja contem o Video ${VID_NUM} em origin/main."
+            exit 0
+          fi
+
+          git commit -m "chore(historico): registra Video ${VID_NUM} (${VID_TITULO}) [skip ci]"
+          git push origin main
+          echo "Memoria persistida na main: historico_videos.json atualizado com Video ${VID_NUM} (${VID_TITULO})."
 
       - name: Notificar falha no Telegram
         if: ${{ failure() && env.ENVIAR_TELEGRAM != 'false' }}
