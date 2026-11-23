@@ -1,7 +1,7 @@
 {
-  "versao": 6,
+  "versao": 7,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 6,
+  "video_atual": 7,
   "videos": [
     {
       "id": 1,
@@ -127,13 +127,41 @@
         "camera do teto"
       ],
       "roteiro": "roteiro_06.txt",
+      "player_backup": "arquivo/video_06/player.html",
       "saida": "output/short_06.mp4",
       "saidas_partes": [
         "output/short_06_parte1.mp4",
         "output/short_06_parte2.mp4"
       ],
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v5.1",
+      "parte_label": "PARTE 1",
+      "cta_modo": "pausa_meio",
+      "commit": "4bf996e"
+    },
+    {
+      "id": 7,
+      "slug": "a-corrida-das-03h10",
+      "titulo": "A Corrida das 03h10",
+      "tema": "Passageiro entra em carro prata errado as 03h10, descobre trava infantil acionada enquanto o motorista real liga avisando sobre quatro celulares no banco do carona",
+      "palavras_chave": [
+        "03h10",
+        "carro prata",
+        "trava infantil",
+        "quatro celulares",
+        "diego",
+        "estrada de terra",
+        "banco do carona",
+        "delegacia"
+      ],
+      "roteiro": "roteiro_07.txt",
+      "saida": "output/short_07.mp4",
+      "saidas_partes": [
+        "output/short_07_parte1.mp4",
+        "output/short_07_parte2.mp4"
+      ],
+      "status": "em_producao",
+      "motor": "v5.2",
       "parte_label": "PARTE 1",
       "cta_modo": "pausa_meio"
     }

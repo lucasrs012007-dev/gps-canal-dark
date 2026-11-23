@@ -337,19 +337,33 @@ def _normalizar_pico_estereo(esq, dir_, alvo: float = 0.88):
 # DETECCAO DE VIDEO ATIVO E CURVA DE CAMA SONORA (DRONE)
 # ============================================================
 
+def _eh_video_07(ev: dict) -> bool:
+    motor = str(ev.get("motor", "")).strip().lower()
+    if motor.startswith("v6"):
+        return False
+    return (
+        ("trava_porta_carro" in ev)
+        or ("quatro_celulares" in ev)
+        or ("motor_acelerando" in ev)
+        or (int(ev.get("video_id", 1)) == 7)
+    )
+
+
 def _eh_video_v6(ev: dict) -> bool:
     motor = str(ev.get("motor", "")).strip().lower()
     if motor.startswith("v6"):
         return True
+    if _eh_video_07(ev):
+        return False
     try:
         vid = int(ev.get("video_id", 1))
     except (TypeError, ValueError):
         vid = 1
-    return vid >= 7
+    return vid >= 8
 
 
 def _eh_video_06(ev: dict) -> bool:
-    return (not _eh_video_v6(ev)) and (
+    return (not _eh_video_v6(ev)) and (not _eh_video_07(ev)) and (
         ("tranco_elevador" in ev)
         or ("visor_s3" in ev)
         or ("porta_elevador" in ev)
@@ -358,13 +372,13 @@ def _eh_video_06(ev: dict) -> bool:
 
 
 def _eh_video_05(ev: dict) -> bool:
-    return (not _eh_video_v6(ev)) and (not _eh_video_06(ev)) and (
+    return (not _eh_video_v6(ev)) and (not _eh_video_07(ev)) and (not _eh_video_06(ev)) and (
         ("interfone" in ev) or ("portaria_vazia" in ev) or (int(ev.get("video_id", 1)) == 5)
     )
 
 
 def _eh_video_04(ev: dict) -> bool:
-    return (not _eh_video_v6(ev)) and (not _eh_video_06(ev)) and (not _eh_video_05(ev)) and (
+    return (not _eh_video_v6(ev)) and (not _eh_video_07(ev)) and (not _eh_video_06(ev)) and (not _eh_video_05(ev)) and (
         ("berco_vazio" in ev) or ("passos_corredor" in ev) or (int(ev.get("video_id", 1)) == 4)
     )
 
@@ -372,6 +386,7 @@ def _eh_video_04(ev: dict) -> bool:
 def _eh_video_03(ev: dict) -> bool:
     return (
         (not _eh_video_v6(ev))
+        and (not _eh_video_07(ev))
         and (not _eh_video_06(ev))
         and (not _eh_video_05(ev))
         and (not _eh_video_04(ev))
@@ -382,6 +397,7 @@ def _eh_video_03(ev: dict) -> bool:
 def _eh_video_02(ev: dict) -> bool:
     return (
         (not _eh_video_v6(ev))
+        and (not _eh_video_07(ev))
         and (not _eh_video_06(ev))
         and (not _eh_video_05(ev))
         and (not _eh_video_04(ev))
@@ -391,13 +407,76 @@ def _eh_video_02(ev: dict) -> bool:
 
 
 def _envelope_drone_em_t(t: float, ev: dict) -> float:
-    """Curva de tensao do drone com silencio na CTA tela cheia V5/V6, dip no corte P2 e corte seco em sussurro_twist."""
+    """Curva de tensao do drone com silencio na CTA tela cheia V5/V5.2/V6, dip no corte P2 e corte seco em sussurro_twist."""
     for vb in ev.get("voz_blocos") or ():
         if str(vb.get("perfil", "")).strip().lower() == "sussurro_twist":
             t0 = float(vb.get("inicio", -1.0))
             t1 = float(vb.get("fim", -1.0))
             if t0 >= 0.0 and t0 - 0.03 <= t <= t1 + 0.08:
                 return 0.0
+
+    if _eh_video_07(ev):
+        porta = float(ev.get("porta_impacto", 12.0))
+        porta_d = float(ev.get("porta_impacto_duracao", 1.0))
+        mot1 = float(ev.get("motor_acelerando", 17.0))
+        mot1_d = float(ev.get("motor_acelerando_duracao", 1.1))
+        cta_ini = float(ev.get("cta_meio_inicio", 28.0))
+        cta_fim = float(ev.get("cta_meio_fim", 31.5))
+        trava = float(ev.get("trava_porta_carro", 41.0))
+        trava_d = float(ev.get("trava_porta_carro_duracao", 1.1))
+        corte_p2 = float(ev.get("corte_parte_2", 48.0))
+        mot2 = float(ev.get("motor_acelerando_2", 60.0))
+        mot2_d = float(ev.get("motor_acelerando_2_duracao", 1.2))
+        cel4 = float(ev.get("celular_tocando", 80.0))
+        cel4_d = float(ev.get("celular_tocando_duracao", 1.2))
+        imp = float(ev.get("impacto_twist", 85.0))
+        imp_d = float(ev.get("impacto_twist_duracao", 1.4))
+        twist = float(ev.get("plot_twist", 89.0))
+
+        if cta_ini + 0.025 <= t <= cta_fim - 0.025:
+            return 0.0
+        if abs(t - corte_p2) <= 0.035:
+            return 0.0
+        if imp + 0.04 <= t < imp + imp_d:
+            return 0.0
+        if imp + imp_d <= t < twist:
+            return 0.04
+        if t >= twist:
+            return 0.0
+
+        corte_imp = 1.0 if t < imp else max(0.0, 1.0 - (t - imp) / 0.04)
+        if t < 0.30:
+            base = 0.14 * (t / 0.30)
+        elif t < mot1:
+            base = 0.15 + 0.08 * (t / max(0.1, mot1))
+        elif t < cta_ini:
+            base = 0.26
+        elif t < corte_p2:
+            k = max(0.0, (t - cta_fim) / max(0.1, corte_p2 - cta_fim))
+            base = 0.25 + 0.14 * k
+        elif t < mot2:
+            base = 0.28 + 0.10 * max(0.0, (t - corte_p2) / max(0.1, mot2 - corte_p2))
+        else:
+            k = max(0.0, (t - mot2) / max(0.1, imp - mot2))
+            base = 0.26 + 0.16 * (k ** 1.15)
+
+        if cta_ini - 0.025 <= t < cta_ini + 0.025:
+            base *= max(0.0, (cta_ini + 0.025 - t) / 0.05)
+        elif cta_fim - 0.025 < t <= cta_fim + 0.06:
+            base *= min(1.0, (t - (cta_fim - 0.025)) / 0.085)
+        if 0.035 < abs(t - corte_p2) <= 0.075:
+            base *= (abs(t - corte_p2) - 0.035) / 0.04
+
+        for t_s, d_s, mult in (
+            (porta, porta_d, 0.32),
+            (mot1, mot1_d, 0.26),
+            (trava, trava_d, 0.26),
+            (mot2, mot2_d, 0.24),
+            (cel4, cel4_d, 0.24),
+        ):
+            if t_s - 0.06 <= t <= t_s + d_s + 0.06:
+                base *= mult
+        return base * corte_imp
 
     if _eh_video_v6(ev):
         dur = max(1.0, float(ev.get("duracao_total", 45.0)))
@@ -777,7 +856,7 @@ def sintetizar_cama_drone(duracao: float, ev: dict, ganhos_cat: dict[str, float]
         env = p_arr[idx_i] * (1.0 - frac) + p_arr[idx_i + 1] * frac
 
         lfo = 0.84 + 0.16 * np.sin(2.0 * np.pi * 0.22 * t)
-        f0 = 38.9 if (_eh_video_v6(ev) or _eh_video_06(ev)) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
+        f0 = 38.9 if (_eh_video_v6(ev) or _eh_video_07(ev) or _eh_video_06(ev)) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
         # Sub organico quente + ar grave filtrado por FFT (sem zumbido eletronico)
         sub_l = 0.56 * np.sin(2.0 * np.pi * f0 * t) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.498) * t + 0.4)
         sub_r = 0.56 * np.sin(2.0 * np.pi * (f0 + 0.31) * t + 0.7) + 0.20 * np.sin(2.0 * np.pi * (f0 * 1.494) * t)
@@ -791,7 +870,7 @@ def sintetizar_cama_drone(duracao: float, ev: dict, ganhos_cat: dict[str, float]
     rng = random.Random(43)
     lp = 0.0
     two_pi = 2.0 * math.pi
-    f0 = 38.9 if (_eh_video_v6(ev) or _eh_video_06(ev)) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
+    f0 = 38.9 if (_eh_video_v6(ev) or _eh_video_07(ev) or _eh_video_06(ev)) else (41.2 if _eh_video_04(ev) else (44.0 if _eh_video_03(ev) else 49.0))
     for i in range(n):
         t = i / SR
         bi = i // passo
@@ -1804,6 +1883,131 @@ def sfx_glitch_cta_hd(duracao: float = 0.36):
     return sfx_cta_pop()
 
 
+# ---------------- SFX VIDEO 07 ("A Corrida das 03h10") ----------------
+
+def sfx_motor_acelerando_hd(duracao: float = 1.15, intenso: bool = False):
+    """Ronco real de motor de seda acelerando visto de dentro da cabine a noite."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        p = t / max(0.01, duracao)
+        rosa = _ruido_rosa_np(n, 7071 if not intenso else 7072)
+
+        # Rotacao subindo rapido com leve troca de marcha no final quando intenso
+        f_ini = 66.0 if intenso else 50.0
+        f_fim = 186.0 if intenso else 136.0
+        f_rpm = f_ini + (f_fim - f_ini) * (p ** 1.18)
+        if intenso:
+            f_rpm = np.where(p > 0.72, f_rpm * 0.84 + 34.0 * (p - 0.72), f_rpm)
+        fase = 2.0 * np.pi * np.cumsum(f_rpm) / SR
+
+        combustao = (
+            0.62 * np.sin(fase)
+            + 0.42 * np.sin(2.0 * fase + 0.3)
+            + 0.24 * np.sin(3.0 * fase + 0.7)
+            + 0.14 * np.sin(4.0 * fase)
+        )
+        combustao = _filtrar_banda_np(combustao, 45.0, 520.0, ordem=2.0)
+        escape = _filtrar_banda_np(rosa, 110.0, 620.0, ordem=2.0) * (0.55 + 0.55 * p)
+        asfalto = _filtrar_banda_np(_ruido_rosa_np(n, 7073), 420.0, 2200.0, ordem=2.0) * (0.18 + 0.35 * p)
+
+        env = np.minimum(1.0, t / 0.045) * np.minimum(1.0, (duracao - t) / 0.09)
+        mono = np.tanh((combustao * 1.15 + escape * 0.85 + asfalto * 0.55) * (1.35 if intenso else 1.15)) * env
+        esq, dir_ = _aplicar_sala_curta(mono, [(8.5, 0.20, 0.18), (19.0, 0.10, 0.12)])
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.90 if intenso else 0.84)
+
+    return sfx_sub_boom(duracao)
+
+
+def sfx_trava_porta_carro_hd(duracao: float = 1.10):
+    """Tres puxoes desesperados na macaneta interna travada com estalo metalico da trava infantil."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        rosa = _ruido_rosa_np(n, 7074)
+        plastico = _filtrar_banda_np(rosa, 320.0, 1450.0, ordem=2.0)
+        metal = _filtrar_banda_np(_ruido_rosa_np(n, 7075), 1650.0, 5600.0, ordem=2.0)
+        painel = _filtrar_banda_np(_ruido_rosa_np(n, 7076), 75.0, 280.0, ordem=2.0)
+
+        mono = np.zeros(n, dtype=np.float64)
+        puxoes = [(0.05, 0.88), (0.37, 0.96), (0.71, 1.08)]
+        for t0, ganho in puxoes:
+            # 1) Puxao da macaneta batendo no batente travado
+            d1 = t - t0
+            m1 = (d1 >= 0.0) & (d1 <= 0.14)
+            if np.any(m1):
+                dd = d1[m1]
+                mono[m1] += (
+                    plastico[m1] * np.exp(-dd / 0.024) * 1.15
+                    + metal[m1] * np.exp(-dd / 0.011) * 0.95
+                    + painel[m1] * np.exp(-dd / 0.042) * 0.80
+                ) * ganho
+            # 2) Retorno seco da mola da macaneta (0.11s depois)
+            d2 = t - (t0 + 0.11)
+            m2 = (d2 >= 0.0) & (d2 <= 0.09)
+            if np.any(m2):
+                dd2 = d2[m2]
+                mono[m2] += (
+                    metal[m2] * np.exp(-dd2 / 0.008) * 0.72
+                    + plastico[m2] * np.exp(-dd2 / 0.018) * 0.65
+                ) * ganho
+
+        env = np.minimum(1.0, t / 0.006) * np.minimum(1.0, (duracao - t) / 0.04)
+        mono = np.tanh(mono * 1.30) * env
+        esq, dir_ = _aplicar_sala_curta(mono, [(7.0, 0.16, 0.24), (16.5, 0.08, 0.14)])
+        # Porta do passageiro levemente deslocada a direita
+        esq *= 0.84
+        dir_ *= 1.04
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.88)
+
+    return sfx_tranca_porta()
+
+
+def sfx_celular_tocando_hd(duracao: float = 1.20):
+    """Quatro celulares vibrando e tocando juntos no banco do carona em couro no escuro."""
+    n = int(round(duracao * SR))
+    if np is not None:
+        t = np.arange(n, dtype=np.float64) / SR
+        esq = np.zeros(n, dtype=np.float64)
+        dir_ = np.zeros(n, dtype=np.float64)
+
+        # 4 aparelhos espalhados no banco com frequencias de vibracao e toques sobrepostos
+        aparelhos = [
+            (0.02, 132.0, 880.0, 1174.7, 0.25),
+            (0.14, 144.0, 987.8, 1318.5, 0.45),
+            (0.28, 126.0, 784.0, 1046.5, 0.65),
+            (0.42, 152.0, 1108.7, 1480.0, 0.82),
+        ]
+        for t0, f_vib, f1, f2, pan in aparelhos:
+            dt = t - t0
+            ativo = (dt >= 0.0).astype(np.float64)
+            dt_pos = np.maximum(0.0, dt)
+            # Pulso de vibracao sobre o banco de couro (ciclo de 0.34s)
+            ciclo = np.mod(dt_pos, 0.34)
+            env_v = ((ciclo < 0.22).astype(np.float64) * np.minimum(1.0, ciclo / 0.015) * np.minimum(1.0, (0.22 - ciclo) / 0.02)) * ativo
+            vib = (0.60 * np.sin(2.0 * np.pi * f_vib * dt_pos) + 0.30 * np.sin(4.0 * np.pi * f_vib * dt_pos)) * env_v * 0.55
+
+            # Toque digital curto de chamada perdida/ativa
+            c_t = np.mod(dt_pos, 0.42)
+            env_t1 = ((c_t >= 0.02) & (c_t < 0.16)).astype(np.float64) * np.exp(-np.maximum(0.0, c_t - 0.02) * 14.0) * ativo
+            env_t2 = ((c_t >= 0.18) & (c_t < 0.34)).astype(np.float64) * np.exp(-np.maximum(0.0, c_t - 0.18) * 12.0) * ativo
+            toque = (
+                (0.70 * np.sin(2.0 * np.pi * f1 * dt_pos) + 0.22 * np.sin(4.0 * np.pi * f1 * dt_pos)) * env_t1
+                + (0.70 * np.sin(2.0 * np.pi * f2 * dt_pos) + 0.22 * np.sin(4.0 * np.pi * f2 * dt_pos)) * env_t2
+            ) * 0.48
+
+            sinal = vib + toque
+            esq += sinal * math.cos(pan * math.pi * 0.5)
+            dir_ += sinal * math.sin(pan * math.pi * 0.5)
+
+        env = np.minimum(1.0, t / 0.02) * np.minimum(1.0, (duracao - t) / 0.07)
+        esq = np.tanh(esq * 1.15) * env
+        dir_ = np.tanh(dir_ * 1.15) * env
+        return _normalizar_pico_estereo(esq, dir_, alvo=0.84)
+
+    return sfx_vibracao_celular(duracao, 1.0)
+
+
 # ============================================================
 # COMPOSICAO DE SFX SINCRONIZADA COM eventos.json
 # ============================================================
@@ -1819,6 +2023,118 @@ def sintetizar_sfx(
 
     def pegar(nome: str, fn_fb, dur_max: float | None = None):
         return obter_sfx(nome, fn_fb, duracao_max=dur_max, ganhos_cat=ganhos_cat, relatorio=relatorio)
+
+    if _eh_video_07(ev):
+        # 1. Notificacao sutil do app de corridas chegando
+        if "tela_app" in ev:
+            pl, pr = sfx_pix_notificacao(1)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["tela_app"]) + 0.05), pl, pr, 0.54)
+
+        # 2. Bloco SFX puro [SFX:porta_impacto:1.0]: batida seca da porta do carro
+        if "porta_impacto" in ev:
+            dur_p = float(ev.get("porta_impacto_duracao", 1.0))
+            pl, pr = pegar("porta_impacto", lambda: sfx_porta_impacto_hd(dur_p), dur_max=dur_p + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["porta_impacto"]), pl, pr, 0.96)
+
+        # 3. Bloco SFX puro [SFX:motor_acelerando:1.1]: motorista acelera forte na avenida deserta
+        if "motor_acelerando" in ev:
+            dur_m1 = float(ev.get("motor_acelerando_duracao", 1.1))
+            ml, mr = pegar("motor_acelerando", lambda: sfx_motor_acelerando_hd(dur_m1, intenso=False), dur_max=dur_m1 + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["motor_acelerando"]), ml, mr, 0.95)
+
+        # 4. Celular do Diego vibra com ligacao do aplicativo
+        if "celular_vibra" in ev:
+            vl, vr = sfx_vibracao_celular(0.46, 0.95)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["celular_vibra"]) - 0.03), vl, vr, 0.84)
+        if "ligacao_app" in ev:
+            pl, pr = sfx_pix_notificacao(2)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["ligacao_app"]) - 0.02), pl, pr, 0.66)
+
+        # 5. Katana Hit 1 ("NAO E ELE"): sub_boom + micro glitch
+        if "nao_e_ele" in ev:
+            t_k1 = max(0.0, float(ev["nao_e_ele"]) - 0.02)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.85), dur_max=0.95)
+            _misturar_trecho(esq, dir_, t_k1, bl, br, 0.84)
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.30), dur_max=0.34)
+            _misturar_trecho(esq, dir_, t_k1, gl, gr, 0.40)
+
+        # 6. CTA Dedicada em Tela Cheia V5.2 ([CTA_PAUSA]): freio/glitch na entrada e volta limpa na saida
+        if "cta_meio_inicio" in ev:
+            t_ci = float(ev["cta_meio_inicio"])
+            gl, gr = pegar("glitch_cta", lambda: sfx_glitch_cta_hd(0.36), dur_max=0.40)
+            _misturar_trecho(esq, dir_, max(0.0, t_ci - 0.02), gl, gr, 0.86)
+            cl, cr = pegar("cta_pop", sfx_cta_pop, dur_max=0.24)
+            _misturar_trecho(esq, dir_, t_ci + 0.12, cl, cr, 0.56)
+        if "cta_meio_fim" in ev:
+            t_cf = float(ev["cta_meio_fim"])
+            gl2, gr2 = pegar("glitch_cta", lambda: sfx_glitch_cta_hd(0.28), dur_max=0.32)
+            _misturar_trecho(esq, dir_, max(0.0, t_cf - 0.16), gl2, gr2, 0.72)
+
+        # 7. Olha pro motorista no retrovisor: whoosh sombrio sutil
+        if "olha_retrovisor" in ev:
+            wl, wr = pegar("whoosh", lambda: sfx_whoosh_sombrio(0.65), dur_max=0.72)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["olha_retrovisor"]) - 0.04), wl, wr, 0.64)
+
+        # 8. Katana Hit 2 ("TRAVADA"): sub_boom seco
+        if "trava_acionada" in ev:
+            t_k2 = max(0.0, float(ev["trava_acionada"]) - 0.02)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.85), dur_max=0.95)
+            _misturar_trecho(esq, dir_, t_k2, bl, br, 0.84)
+
+        # 9. Bloco SFX puro [SFX:trava_porta_carro:1.1]: puxoes na macaneta travada
+        if "trava_porta_carro" in ev:
+            dur_t = float(ev.get("trava_porta_carro_duracao", 1.1))
+            tl, tr = pegar("trava_porta_carro", lambda: sfx_trava_porta_carro_hd(dur_t), dur_max=dur_t + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["trava_porta_carro"]), tl, tr, 0.98)
+
+        # 10. Alerta sutil quando GPS vira para estrada de terra (terminando antes de corte_parte_2)
+        if "gps_desvio" in ev:
+            al, ar = sfx_ping_gps(invertido=False)
+            _misturar_trecho(esq, dir_, max(0.0, float(ev["gps_desvio"]) - 0.03), al, ar, 0.66)
+
+        # 11. Bloco SFX puro [SFX:motor_acelerando:1.2] na Parte 2: 120 km/h violento
+        if "motor_acelerando_2" in ev:
+            dur_m2 = float(ev.get("motor_acelerando_2_duracao", 1.2))
+            m2l, m2r = pegar("motor_acelerando", lambda: sfx_motor_acelerando_hd(dur_m2, intenso=True), dur_max=dur_m2 + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["motor_acelerando_2"]), m2l, m2r, 1.0)
+
+        # 12. Katana Hit 3 ("4 CELULARES"): sub_boom + micro glitch
+        if "quatro_celulares" in ev:
+            t_k3 = max(0.0, float(ev["quatro_celulares"]) - 0.02)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(0.90), dur_max=1.00)
+            _misturar_trecho(esq, dir_, t_k3, bl, br, 0.86)
+            gl, gr = pegar("glitch_tv", lambda: sfx_glitch_tv_hd(0.30), dur_max=0.34)
+            _misturar_trecho(esq, dir_, t_k3, gl, gr, 0.42)
+
+        # 13. Bloco SFX puro [SFX:celular_tocando:1.2]: 4 celulares vibrando/tocando no banco do carona
+        if "celular_tocando" in ev:
+            dur_c4 = float(ev.get("celular_tocando_duracao", 1.2))
+            cl, cr = pegar("celular_tocando", lambda: sfx_celular_tocando_hd(dur_c4), dur_max=dur_c4 + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["celular_tocando"]), cl, cr, 0.96)
+
+        # 14. Riser tenso antes de impacto_twist
+        if "rua_sem_saida" in ev and "impacto_twist" in ev:
+            t_rs = float(ev["rua_sem_saida"])
+            t_it = float(ev["impacto_twist"])
+            dur_r = (t_it - 0.02) - t_rs
+            if dur_r >= 0.45:
+                rl, rr = pegar("riser", lambda: sfx_riser(min(2.6, dur_r)), dur_max=min(2.6, dur_r))
+                _misturar_trecho(esq, dir_, max(t_rs, t_it - 0.02 - min(2.6, dur_r)), rl, rr, 0.72)
+
+        # 15. Bloco SFX puro [SFX:impacto_twist:1.4]: golpe cinematografico no silencio do drone
+        if "impacto_twist" in ev:
+            dur_it = float(ev.get("impacto_twist_duracao", 1.4))
+            il, ir = pegar("impacto_twist", lambda: sfx_impacto_twist_hd(dur_it), dur_max=dur_it + 0.05)
+            _misturar_trecho(esq, dir_, float(ev["impacto_twist"]), il, ir, 1.0)
+
+        # 16. Katana Hit 4 ("O SEU VAI TOCAR"): sub_boom seco no final para loop imediato
+        if "plot_twist" in ev:
+            t_tw = max(0.0, float(ev["plot_twist"]) - 0.02)
+            rem = max(0.42, duracao - t_tw)
+            bl, br = pegar("sub_boom", lambda: sfx_sub_boom(min(1.05, rem)), dur_max=rem)
+            _misturar_trecho(esq, dir_, t_tw, bl, br, 0.94)
+
+        return esq, dir_
 
     if _eh_video_v6(ev):
         def _tocar_sfx_catalogo(nome: str, inicio: float, dur_s: float, ganho: float = 0.96) -> None:
@@ -1841,6 +2157,9 @@ def sintetizar_sfx(
                 "alarme_interfone": lambda: sfx_alarme_interfone_hd(d),
                 "glitch_cta": lambda: sfx_glitch_cta_hd(d),
                 "cta_pop": sfx_cta_pop,
+                "motor_acelerando": lambda: sfx_motor_acelerando_hd(d, intenso=False),
+                "trava_porta_carro": lambda: sfx_trava_porta_carro_hd(d),
+                "celular_tocando": lambda: sfx_celular_tocando_hd(d),
             }
             fn_fb = mapa.get(chave, lambda: sfx_sub_boom(min(1.2, d)))
             sl, sr = pegar(chave if chave in mapa else "sub_boom", fn_fb, dur_max=d + 0.06)
@@ -2343,6 +2662,19 @@ def _processar_trecho_diegetico_np(seg_l, seg_r, perfil: str, seed_idx: int):
 
     mono = 0.5 * (seg_l + seg_r)
 
+    if perfil == "voz_telefone":
+        # Filtro passa-banda telefonico (340 Hz a 3000 Hz) + leve compressao/chiado celular GSM
+        bp = _filtrar_banda_np(mono, 340.0, 3000.0, ordem=2.5)
+        pres = _filtrar_banda_np(bp, 1150.0, 2450.0, ordem=1.5) * 0.28
+        sat = np.tanh((bp + pres) * 1.95) * 0.82
+
+        t = np.arange(n, dtype=np.float64) / SR
+        fade = np.minimum(1.0, t / 0.020) * np.minimum(1.0, (n / SR - t) / 0.020)
+        chiado_gsm = _filtrar_banda_np(_ruido_rosa_np(n, 5207 + seed_idx), 950.0, 3200.0, ordem=1.8) * 0.018
+        tel_sig = np.clip(sat + chiado_gsm * fade, -0.96, 0.96)
+        el, er = _aplicar_sala_curta(tel_sig, [(4.5, 0.09, 0.09)])
+        return np.clip(el, -0.96, 0.96), np.clip(er, -0.96, 0.96)
+
     if perfil == "interfone_porteiro":
         # Filtro passa-banda de interfone predial (320 Hz a 2600 Hz) + leve saturacao analogica + chiado discreto
         bp = _filtrar_banda_np(mono, 320.0, 2600.0, ordem=2.5)
@@ -2539,21 +2871,25 @@ def main() -> None:
     duracao = max(medir_duracao_ffprobe(VOZ_LIMPA_MP3), float(eventos.get("duracao_total", 0.0)))
     backend = "numpy" if np is not None else "stdlib"
     perfil = (
-        f"Video {carimbo['video_id']:02d} V6 ({carimbo['titulo']})"
-        if _eh_video_v6(eventos)
+        "Video 07 V5.2 (A Corrida das 03h10)"
+        if _eh_video_07(eventos)
         else (
-            "Video 06 (O Elevador do Subsolo 2)"
-            if _eh_video_06(eventos)
+            f"Video {carimbo['video_id']:02d} V6 ({carimbo['titulo']})"
+            if _eh_video_v6(eventos)
             else (
-                "Video 05 (O Pedido das 02h15)"
-                if _eh_video_05(eventos)
+                "Video 06 (O Elevador do Subsolo 2)"
+                if _eh_video_06(eventos)
                 else (
-                    "Video 04 (A Baba Eletronica)"
-                    if _eh_video_04(eventos)
+                    "Video 05 (O Pedido das 02h15)"
+                    if _eh_video_05(eventos)
                     else (
-                        "Video 03 (O Pix de 1 Centavo)"
-                        if _eh_video_03(eventos)
-                        else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+                        "Video 04 (A Baba Eletronica)"
+                        if _eh_video_04(eventos)
+                        else (
+                            "Video 03 (O Pix de 1 Centavo)"
+                            if _eh_video_03(eventos)
+                            else ("Video 02 (GPS / Rota recalculada)" if _eh_video_02(eventos) else "Video 01 (legado)")
+                        )
                     )
                 )
             )

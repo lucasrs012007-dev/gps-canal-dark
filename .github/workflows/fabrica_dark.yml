@@ -47,6 +47,7 @@ jobs:
 
     env:
       EVENT_NAME: ${{ github.event_name }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       WD_TITULO: ${{ inputs.titulo }}
       WD_ROTEIRO: ${{ inputs.roteiro }}
       WD_USAR_ATUAL: ${{ inputs.usar_video_atual }}
@@ -98,10 +99,10 @@ jobs:
           print(f"Evento={ev} | usar_video_atual={usar_atual} | enviar_telegram={enviar_tg} | modo_teste={modo_teste}")
           PY
 
-      - name: Instalar dependencias Python (numpy e edge-tts)
+      - name: Instalar dependencias Python (numpy, edge-tts atualizado e gTTS)
         run: |
           python3 -m pip install --upgrade pip --no-cache-dir
-          python3 -m pip install --no-cache-dir numpy edge-tts
+          python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS
 
       - name: Garantir FFmpeg e Google Chrome headless
         run: |
@@ -119,7 +120,7 @@ jobs:
           ffmpeg -version | head -n 1
           (google-chrome --version || chromium --version || chromium-browser --version)
 
-      - name: Estacao 0 - Diretor IA V6 (quando houver roteiro novo)
+      - name: Estacao 1 - Diretor IA V6 (quando houver roteiro novo)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -150,11 +151,13 @@ jobs:
           PY
 
       - name: Validar historico e limpar cache de audio antigo
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3 pipeline/historico.py verificar
           rm -f audio/mix_final.mp3 audio/voz_limpa.mp3 audio/narracao.mp3 audio/timestamps.json audio/eventos.json
 
-      - name: Estacao 2 - Narracao atuada por blocos e Sound Design (-14 LUFS)
+      - name: Estacao 2 - Narracao atuada V5.2 e Sound Design (-14 LUFS)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}

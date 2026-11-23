@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>O Elevador do Subsolo 2: player V5</title>
+<title>A Corrida das 03h10: player V5.2</title>
 <link rel="icon" href="data:,">
 <style>
 /* Camada unica de tokens, espelhando tokens/colors.json (dark), spacing, typography, motion, borders, opacity. */
@@ -49,14 +49,14 @@ canvas{display:block;width:100%;height:100%;border-radius:var(--radius-card);bac
 </head>
 <body>
 <main class="app">
-  <h1 class="sr-only">Previa do Short V5: O Elevador do Subsolo 2</h1>
-  <div class="stage"><canvas id="c" width="1080" height="1920" role="img" aria-label="Animacao do Short O Elevador do Subsolo 2"></canvas></div>
+  <h1 class="sr-only">Previa do Short V5.2: A Corrida das 03h10</h1>
+  <div class="stage"><canvas id="c" width="1080" height="1920" role="img" aria-label="Animacao do Short A Corrida das 03h10"></canvas></div>
   <div class="controls" role="group" aria-label="Controles do player">
     <button id="play" class="btn btn-primary" type="button" disabled aria-busy="true">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path id="playIcon" d="M4 2l10 6-10 6z"/></svg><span id="playLbl">Carregando</span>
     </button>
-    <input id="seek" class="seek" type="range" min="0" max="109" step="0.01" value="0" aria-label="Progresso" disabled>
-    <output id="time" class="time" for="seek">0,0 / 109,0</output>
+    <input id="seek" class="seek" type="range" min="0" max="80" step="0.01" value="0" aria-label="Progresso" disabled>
+    <output id="time" class="time" for="seek">0,0 / 80,0</output>
     <button id="cc" class="btn" type="button" aria-pressed="false">Legendas</button>
   </div>
   <p id="status" class="status" aria-live="polite">Procurando audio/mix_final.mp3 e audio/eventos.json...</p>
@@ -69,51 +69,52 @@ const cv = document.getElementById('c');
 const main = cv.getContext('2d');
 let g = main;
 
-/* Paleta Motor V5 (Elevador aco inox + LED vermelho + concreto S3 + Katana) - Video 06 */
+/* Paleta Motor V5.2 (Madrugada chuvosa + Seda prata + Painel vermelho + Katana) - Video 07 */
 const PAL = {
-  bgNavy: '#0A0F1D',
-  bgViolet: '#130926',
+  bgNavy: '#070C18',
+  bgStorm: '#0E172A',
+  bgViolet: '#140A24',
   bgRed: '#3B0A0A',
-  bgYellow: '#261E0A',
-  bgDeep: '#04060D',
-  steel: '#64748B',
-  steelMid: '#334155',
-  steelDark: '#1E293B',
-  steelDeep: '#0F172A',
-  steelLight: '#CBD5E1',
-  steelBright: '#E2E8F0',
-  mirrorBg: '#121D2B',
-  mirrorTint: '#38BDF8',
-  concrete: '#1F242D',
-  concreteDark: '#0E1218',
-  concreteWet: '#2B3340',
-  chairMetal: '#94A3B8',
-  chairShadow: '#07090F',
-  skin: '#E0B292',
-  skinShadow: '#B88666',
-  hair: '#141720',
-  ink: '#080A11',
-  /* Cor de destaque fixa do protagonista Rafael: jaqueta verde-petroleo/cinza #0F766E */
-  top: '#0F766E',
-  topShade: '#0B534D',
-  topDeep: '#06312E',
-  pants: '#1E293B',
-  pantsDark: '#0F172A',
-  /* Dispositivos, CCTV e LEDs */
-  cctvBg: '#091417',
-  cctvMid: '#13262C',
-  cctvBright: '#7DD3FC',
-  cctvPale: '#E0F2FE',
-  phone: '#0B0F1A',
+  bgYellow: '#261D0A',
+  bgDeep: '#03050B',
+  asphalt: '#111622',
+  asphaltWet: '#1B2436',
+  sidewalk: '#1E2534',
+  silverCar: '#CBD5E1',
+  silverMid: '#94A3B8',
+  silverDark: '#475569',
+  cabinDark: '#0A0E17',
+  cabinMid: '#151D2E',
+  cabinEdge: '#273449',
+  leather: '#12151E',
+  leatherHi: '#222838',
+  amber: '#F59E0B',
+  amberSoft: '#FDE68A',
+  skin: '#DFB090',
+  skinShadow: '#B48262',
+  driverSkin: '#C9A892',
+  hair: '#131620',
+  ink: '#07090F',
+  /* Cor de destaque fixa do protagonista Diego: moletom azul-marinho/cinza #1E3A5F */
+  top: '#1E3A5F',
+  topShade: '#152945',
+  topDeep: '#0C192B',
+  hoodGrey: '#94A3B8',
+  pants: '#172030',
+  pantsDark: '#0D1320',
+  /* Dispositivos, GPS e Alertas */
+  phone: '#0A0F1A',
   phoneEdge: '#334155',
-  msgGreen: '#10B981',
+  appBg: '#0E1525',
+  appCard: '#172136',
+  appGreen: '#10B981',
   cyan: '#38D9FF',
   violet: '#8B5CF6',
   yellow: '#FFD400',
   alert: '#FF3B30',
   alertKatana: '#E11D2E',
   ledRed: '#FF2A2A',
-  ledDim: '#380909',
+  steelBright: '#E2E8F0',
   text: '#F5F7FB',
   white: '#FFFFFF',
   dim: '#94A3B8',
@@ -124,7 +125,7 @@ const MONO = '"JetBrains Mono",Consolas,"Liberation Mono",Menlo,monospace';
 const SANS = 'Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
 const COND = '"Arial Narrow","Roboto Condensed","Liberation Sans Narrow",Impact,Arial,sans-serif';
 
-/* Selo dinamico V5: "PARTE 1" antes de corte_parte_2, "PARTE 2" a partir de corte_parte_2 */
+/* Selo dinamico V5.2: "PARTE 1" antes de corte_parte_2, "PARTE 2" a partir de corte_parte_2 */
 const URL_PARTE = new URLSearchParams(location.search).get('parte');
 let parteLabel = (URL_PARTE !== null ? URL_PARTE : (typeof window.parteLabel === 'string' ? window.parteLabel : 'PARTE 1')).trim();
 
@@ -197,13 +198,12 @@ function popScale(age, dur=0.11){
   return lerp(1.10, 1.0, ease((k - 0.62) / 0.38));
 }
 
-/* Helper anti-vazamento: mede sempre com a fonte real instalada (Windows/Linux/Colab) */
 function drawFittedText(text, x, y, maxW, maxFs, family, weight='900', align='center'){
   let fs = maxFs;
   g.font = `${weight} ${fs}px ${family}`;
   const w = g.measureText(text).width;
   if (w > maxW && w > 0) {
-    fs = Math.max(18, Math.floor(maxFs * (maxW / w)));
+    fs = Math.max(16, Math.floor(maxFs * (maxW / w)));
     g.font = `${weight} ${fs}px ${family}`;
   }
   g.textAlign = align;
@@ -213,7 +213,7 @@ function drawFittedText(text, x, y, maxW, maxFs, family, weight='900', align='ce
 }
 
 /* ============================================================
-   OTIMIZACAO V5: DOF 1/8 + VINHETA E SCANLINES PRE-RENDER
+   DOF 1/8 + VINHETA E SCANLINES PRE-RENDERIZADAS (V5.2)
    ============================================================ */
 const DOF_SCALE = 0.125;
 const DOF_PAD = 4;
@@ -278,73 +278,69 @@ scanCv.width = W; scanCv.height = H;
 })();
 
 /* ============================================================
-   MARCOS PADRAO V5 (MODO PREVIA SEM AUDIO) - VIDEO 06 (~109s)
+   MARCOS PADRAO V5.2 (MODO PREVIA SEM AUDIO) - VIDEO 07 (~80s)
+   Ritmo 2x agil (atempo=1.14, pausas curtas 0.10s a 0.18s)
    ============================================================ */
 const EV_PREVIEW = {
-  video_id: 6,
+  video_id: 7,
   parte_label: 'PARTE 1',
   cta_modo: 'pausa_meio',
   cta_texto: 'COMENTE EU QUERO',
   gancho: 0.00,
-  entra_elevador: 2.35,
-  andar_12: 4.50,
-  aperta_terreo: 7.20,
-  portas_fecham: 9.00,
-  porta_elevador: 10.60,
-  porta_elevador_duracao: 1.10,
-  painel_desce: 11.75,
-  num_11: 14.30,
-  num_10: 15.10,
-  num_09: 15.85,
-  luz_pisca: 16.50,
-  trava_seco: 18.60,
-  andar_06: 19.65,
-  tranco_elevador: 20.80,
-  tranco_elevador_duracao: 1.20,
-  painel_apaga: 22.20,
-  olha_espelho: 24.80,
-  reflexo_atrasado: 26.80,
-  cta_pausa_in: 29.80,
-  cta_pausa: 30.02,
-  cta_meio_inicio: 29.80,
-  cta_meio_fim: 33.40,
-  cta_fala_inicio: 30.02,
-  cta_fala_fim: 33.18,
-  luz_volta: 33.45,
-  passa_terreo: 38.40,
-  passa_g1: 40.50,
-  passa_g2: 42.30,
-  botao_emergencia: 43.10,
-  alarme_interfone: 46.10,
-  alarme_interfone_duracao: 1.10,
-  dois_subsolos: 47.25,
-  visor_s3: 53.60,
-  portas_abrem_s3: 54.40,
-  corredor_escuro: 56.30,
-  corte_parte_2: 58.30,
-  lado_fora: 58.40,
-  cadeira_metal: 62.60,
-  esmaga_botao: 65.80,
-  interfone_chia: 70.10,
-  interfone: 72.10,
-  interfone_duracao: 1.20,
-  voz_porteiro: 73.35,
-  nao_sai: 76.00,
-  cinco_minutos: 80.50,
-  alguem_dentro: 81.90,
-  olha_camera: 84.50,
-  espelho_novo: 88.60,
-  voltou_terreo: 90.80,
-  celular_vibra: 94.00,
-  msg_amigo: 96.20,
-  igual_voce: 98.40,
-  camera_hall: 101.60,
-  impacto_twist: 103.00,
+  pede_carro: 1.85,
+  tela_app: 3.90,
+  nota_49: 5.95,
+  carro_encosta: 7.90,
+  entra_carro: 9.10,
+  coloca_fone: 10.70,
+  porta_impacto: 11.75,
+  porta_impacto_duracao: 1.00,
+  sem_boa_noite: 12.80,
+  acelera_avenida: 14.30,
+  motor_acelerando: 16.00,
+  motor_acelerando_duracao: 1.10,
+  celular_vibra: 17.15,
+  ligacao_app: 18.90,
+  atende_erro: 20.65,
+  voz_motorista_1: 22.35,
+  nao_e_ele: 25.10,
+  cta_pausa_in: 26.20,
+  cta_pausa: 26.40,
+  cta_meio_inicio: 26.20,
+  cta_meio_fim: 29.40,
+  cta_fala_inicio: 26.40,
+  cta_fala_fim: 29.20,
+  diego_congela: 29.45,
+  olha_retrovisor: 31.10,
+  sem_piscar: 33.00,
+  puxa_macaneta: 34.80,
+  trava_acionada: 36.40,
+  trava_porta_carro: 37.35,
+  trava_porta_carro_duracao: 1.10,
+  gps_desvio: 38.50,
+  estrada_terra: 41.20,
+  corte_parte_2: 43.40,
+  finge_calma: 43.45,
+  esquina_delegacia: 46.20,
+  nao_cai: 49.00,
+  velocimetro_120: 51.30,
+  motor_acelerando_2: 53.50,
+  motor_acelerando_2_duracao: 1.20,
+  motorista_grita: 54.75,
+  fez_ontem: 58.60,
+  olha_carona: 61.20,
+  inclina_corpo: 63.30,
+  quatro_celulares: 66.20,
+  ligacoes_perdidas: 69.10,
+  celular_tocando: 71.10,
+  celular_tocando_duracao: 1.20,
+  rua_sem_saida: 72.35,
+  impacto_twist: 74.40,
   impacto_twist_duracao: 1.40,
-  final_espelho: 104.60,
-  reflexo_sorri: 107.40,
-  plot_twist: 107.40,
-  duracao_total: 109.00
+  final_retrovisor: 75.85,
+  olhos_sorriem: 77.30,
+  plot_twist: 78.60,
+  duracao_total: 80.20
 };
 
 let EV = { ...EV_PREVIEW };
@@ -356,21 +352,21 @@ let KATANA_HITS = [];
 let EXPR_CUES = [];
 let BLINKS = [];
 
-/* Cenas de dispositivo / macro onde o relogio HUD 01:42 nao se duplica */
+/* Cenas onde o relogio HUD 03:10 nao aparece para evitar duplicacao ou colisao */
 const DEVICE_SCENES = new Set([
-  'visor_desce', 'visor_trava_06', 'visor_apaga', 'visor_passa_subsolos', 'visor_s3_macro',
-  'cctv_portaria', 'cctv_portaria_zoom', 'celular_msg', 'celular_msg_zoom', 'cta_tela_cheia'
+  'tela_app_corrida', 'tela_ligacao_app', 'tela_ligacao_ativa',
+  'gps_estrada_terra', 'velocimetro_120', 'ligacao_alerta_grito', 'cta_tela_cheia'
 ]);
 
 /* ============================================================
-   MOTOR DE CORTES DINAMICOS V5 (MAX 1,80s POR PLANO)
+   MOTOR DE CORTES RAPIDOS V5.2 (0,9s A 1,6s POR PLANO)
    ============================================================ */
-function splitShots(rawList, maxDur=1.68){
+function splitShots(rawList, maxDur=1.48){
   const out = [];
   let id = 1;
   for (const s of rawList) {
-    const start = Math.max(0, s.start);
-    const end = Math.max(start + 0.22, s.end);
+    const start = Math.max(0, Number(s.start));
+    const end = Math.max(start + 0.30, Number(s.end));
     const span = end - start;
     const n = Math.max(1, Math.ceil(span / maxDur));
     for (let i = 0; i < n; i++) {
@@ -389,8 +385,8 @@ function splitShots(rawList, maxDur=1.68){
         mood: s.mood,
         vig: s.vig,
         subIdx: i,
-        cam0: [alt ? z0 * 1.045 : z0, cx0 + (alt ? 18 : 0), cy0 + (alt ? -12 : 0)],
-        cam1: [alt ? z1 * 1.075 : z1 * 1.02, cx1 + (alt ? -14 : 0), cy1 + (alt ? 10 : 0)],
+        cam0: [alt ? z0 * 1.04 : z0, cx0 + (alt ? 16 : 0), cy0 + (alt ? -10 : 0)],
+        cam1: [alt ? z1 * 1.07 : z1 * 1.02, cx1 + (alt ? -14 : 0), cy1 + (alt ? 9 : 0)],
         start: Number(a.toFixed(3)),
         end: Number(b.toFixed(3)),
         dur: Number((b - a).toFixed(3))
@@ -402,99 +398,101 @@ function splitShots(rawList, maxDur=1.68){
 
 function buildShots(e){
   const d = e.duracao_total;
-  const portaFim = e.porta_elevador + (e.porta_elevador_duracao || 1.1);
-  const trancoFim = e.tranco_elevador + (e.tranco_elevador_duracao || 1.2);
-  const alarmeFim = e.alarme_interfone + (e.alarme_interfone_duracao || 1.1);
-  const interfFim = e.interfone + (e.interfone_duracao || 1.2);
+  const portaFim = e.porta_impacto + (e.porta_impacto_duracao || 1.0);
+  const motor1Fim = e.motor_acelerando + (e.motor_acelerando_duracao || 1.1);
+  const travaFim = e.trava_porta_carro + (e.trava_porta_carro_duracao || 1.1);
+  const motor2Fim = e.motor_acelerando_2 + (e.motor_acelerando_2_duracao || 1.2);
+  const celFim = e.celular_tocando + (e.celular_tocando_duracao || 1.2);
   const impFim = e.impacto_twist + (e.impacto_twist_duracao || 1.4);
   const ctaA = Number(e.cta_meio_inicio);
   const ctaB = Number(e.cta_meio_fim);
   const cP2 = Number(e.corte_parte_2);
 
   const raw = [
-    /* PARTE 1: O ANDAR QUE NAO EXISTE */
-    { scene: 'hall_12_entrada', mood: 'navy', vig: 0.62, cam0: [1.00, 540, 960], cam1: [1.08, 535, 940], start: 0, end: e.entra_elevador },
-    { scene: 'cabine_entra_12', mood: 'navy', vig: 0.56, cam0: [1.02, 540, 960], cam1: [1.11, 540, 930], start: e.entra_elevador, end: e.aperta_terreo },
-    { scene: 'botoeira_aperta_t', mood: 'navy', vig: 0.52, cam0: [1.03, 540, 940], cam1: [1.14, 540, 960], start: e.aperta_terreo, end: e.portas_fecham },
-    { scene: 'portas_fechando', mood: 'navy', vig: 0.58, cam0: [1.00, 540, 955], cam1: [1.09, 540, 945], start: e.portas_fecham, end: portaFim },
-    { scene: 'visor_desce', mood: 'violet', vig: 0.56, cam0: [1.02, 540, 940], cam1: [1.15, 540, 920], start: portaFim, end: e.luz_pisca },
-    { scene: 'cabine_luz_pisca', mood: 'red', vig: 0.64, cam0: [1.04, 540, 950], cam1: [1.15, 535, 925], start: e.luz_pisca, end: e.tranco_elevador },
-    { scene: 'visor_trava_06', mood: 'red', vig: 0.66, cam0: [1.06, 540, 935], cam1: [1.18, 540, 920], start: e.tranco_elevador, end: trancoFim },
-    { scene: 'visor_apaga', mood: 'dark', vig: 0.72, cam0: [1.00, 540, 945], cam1: [1.10, 540, 945], start: trancoFim, end: e.olha_espelho },
-    { scene: 'espelho_reflexo_atrasado', mood: 'violet', vig: 0.68, cam0: [1.03, 540, 920], cam1: [1.17, 545, 890], start: e.olha_espelho, end: ctaA },
+    /* PARTE 1: A CORRIDA ERRADA (03:10) */
+    { scene: 'calcada_chuva_pede', mood: 'navy', vig: 0.58, cam0: [1.00, 540, 960], cam1: [1.08, 536, 940], start: 0, end: e.tela_app },
+    { scene: 'tela_app_corrida', mood: 'navy', vig: 0.54, cam0: [1.00, 540, 955], cam1: [1.04, 540, 950], start: e.tela_app, end: e.carro_encosta },
+    { scene: 'carro_encosta_chuva', mood: 'navy', vig: 0.60, cam0: [1.00, 540, 960], cam1: [1.10, 548, 946], start: e.carro_encosta, end: e.entra_carro },
+    { scene: 'diego_entra_fone', mood: 'navy', vig: 0.58, cam0: [1.02, 540, 950], cam1: [1.12, 535, 925], start: e.entra_carro, end: portaFim },
+    { scene: 'interior_avenida_acelera', mood: 'violet', vig: 0.62, cam0: [1.02, 540, 950], cam1: [1.12, 540, 932], start: portaFim, end: motor1Fim },
+    { scene: 'tela_ligacao_app', mood: 'violet', vig: 0.56, cam0: [1.00, 540, 955], cam1: [1.04, 540, 950], start: motor1Fim, end: e.voz_motorista_1 },
+    { scene: 'tela_ligacao_ativa', mood: 'red', vig: 0.62, cam0: [1.01, 540, 955], cam1: [1.05, 540, 948], start: e.voz_motorista_1, end: ctaA },
 
-    /* PAUSA DEDICADA V5: CTA EM TELA CHEIA */
+    /* PAUSA DEDICADA V5.2: CTA EM TELA CHEIA */
     { scene: 'cta_tela_cheia', mood: 'yellow', vig: 0.35, cam0: [1.00, 540, 960], cam1: [1.00, 540, 960], start: ctaA, end: ctaB },
 
-    /* ESCALADA FINAL DA PARTE 1 ATE O S3 */
-    { scene: 'cabine_luz_volta', mood: 'navy', vig: 0.62, cam0: [1.02, 540, 955], cam1: [1.11, 535, 935], start: ctaB, end: e.passa_terreo - 0.15 },
-    { scene: 'visor_passa_subsolos', mood: 'red', vig: 0.64, cam0: [1.03, 540, 940], cam1: [1.18, 540, 925], start: e.passa_terreo - 0.15, end: e.botao_emergencia },
-    { scene: 'botoeira_emergencia', mood: 'red', vig: 0.64, cam0: [1.02, 540, 955], cam1: [1.16, 540, 940], start: e.botao_emergencia, end: alarmeFim },
-    { scene: 'cabine_panico_s3', mood: 'red', vig: 0.66, cam0: [1.04, 540, 950], cam1: [1.16, 545, 915], start: alarmeFim, end: Math.max(alarmeFim + 1.0, e.visor_s3 - 1.35) },
-    { scene: 'visor_s3_macro', mood: 'red', vig: 0.68, cam0: [1.04, 540, 935], cam1: [1.22, 540, 925], start: Math.max(alarmeFim + 1.0, e.visor_s3 - 1.35), end: e.portas_abrem_s3 },
-    { scene: 'portas_abrem_breu', mood: 'dark', vig: 0.72, cam0: [1.00, 540, 960], cam1: [1.15, 540, 950], start: e.portas_abrem_s3, end: cP2 },
+    /* ESCALADA FINAL DA PARTE 1 */
+    { scene: 'diego_congela_banco', mood: 'red', vig: 0.64, cam0: [1.02, 540, 945], cam1: [1.14, 536, 920], start: ctaB, end: e.olha_retrovisor },
+    { scene: 'retrovisor_olhos_fixos', mood: 'red', vig: 0.68, cam0: [1.00, 540, 955], cam1: [1.09, 540, 945], start: e.olha_retrovisor, end: e.puxa_macaneta },
+    { scene: 'macaneta_travada', mood: 'red', vig: 0.66, cam0: [1.01, 540, 955], cam1: [1.08, 540, 945], start: e.puxa_macaneta, end: travaFim },
+    { scene: 'gps_estrada_terra', mood: 'red', vig: 0.68, cam0: [1.00, 540, 955], cam1: [1.07, 540, 945], start: travaFim, end: cP2 },
 
     /* === CORTE AUTOMATICO PARTE 2 === */
-    { scene: 'corredor_s3_cadeira', mood: 'dark', vig: 0.70, cam0: [1.00, 540, 955], cam1: [1.13, 540, 945], start: cP2, end: e.cadeira_metal },
-    { scene: 'corredor_cadeira_zoom', mood: 'red', vig: 0.72, cam0: [1.08, 540, 945], cam1: [1.22, 540, 945], start: e.cadeira_metal, end: e.esmaga_botao },
-    { scene: 'botoeira_morta', mood: 'red', vig: 0.66, cam0: [1.03, 540, 955], cam1: [1.15, 540, 940], start: e.esmaga_botao, end: e.interfone_chia },
-    { scene: 'interfone_grade', mood: 'cctv', vig: 0.64, cam0: [1.02, 540, 950], cam1: [1.16, 540, 935], start: e.interfone_chia, end: interfFim },
-    { scene: 'rafael_ouve_interfone', mood: 'navy', vig: 0.62, cam0: [1.03, 540, 940], cam1: [1.14, 535, 920], start: interfFim, end: e.nao_sai + 0.9 },
-    { scene: 'cctv_portaria', mood: 'cctv', vig: 0.60, cam0: [1.00, 540, 950], cam1: [1.10, 540, 940], start: e.nao_sai + 0.9, end: e.cinco_minutos },
-    { scene: 'cctv_portaria_zoom', mood: 'red', vig: 0.66, cam0: [1.08, 540, 940], cam1: [1.22, 540, 910], start: e.cinco_minutos, end: e.olha_camera },
-    { scene: 'camera_teto_led', mood: 'dark', vig: 0.66, cam0: [1.02, 540, 945], cam1: [1.18, 540, 920], start: e.olha_camera, end: e.espelho_novo },
-    { scene: 'cabine_terreo_normal', mood: 'navy', vig: 0.60, cam0: [1.00, 540, 950], cam1: [1.12, 540, 935], start: e.espelho_novo, end: e.celular_vibra },
-    { scene: 'celular_msg', mood: 'violet', vig: 0.56, cam0: [1.00, 540, 950], cam1: [1.09, 540, 945], start: e.celular_vibra, end: e.igual_voce },
-    { scene: 'celular_msg_zoom', mood: 'red', vig: 0.62, cam0: [1.08, 540, 945], cam1: [1.19, 540, 950], start: e.igual_voce, end: e.impacto_twist },
-    { scene: 'big_face', mood: 'red', vig: 0.72, cam0: [1.02, 540, 950], cam1: [1.22, 540, 915], start: e.impacto_twist, end: impFim },
-    { scene: 'final_espelho_sorriso', mood: 'red', vig: 0.74, cam0: [1.02, 540, 945], cam1: [1.18, 540, 915], start: impFim, end: d + 0.25 }
+    { scene: 'diego_finge_telefone', mood: 'navy', vig: 0.62, cam0: [1.02, 540, 945], cam1: [1.13, 535, 920], start: cP2, end: e.nao_cai },
+    { scene: 'motorista_ri_seco', mood: 'red', vig: 0.68, cam0: [1.00, 540, 955], cam1: [1.09, 540, 945], start: e.nao_cai, end: e.velocimetro_120 },
+    { scene: 'velocimetro_120', mood: 'red', vig: 0.68, cam0: [1.00, 540, 955], cam1: [1.08, 540, 945], start: e.velocimetro_120, end: motor2Fim },
+    { scene: 'ligacao_alerta_grito', mood: 'red', vig: 0.64, cam0: [1.00, 540, 955], cam1: [1.05, 540, 948], start: motor2Fim, end: e.olha_carona },
+    { scene: 'diego_inclina_frente', mood: 'violet', vig: 0.64, cam0: [1.02, 540, 945], cam1: [1.15, 545, 925], start: e.olha_carona, end: e.quatro_celulares - 0.15 },
+    { scene: 'quatro_celulares_carona', mood: 'red', vig: 0.66, cam0: [1.00, 540, 955], cam1: [1.08, 540, 945], start: e.quatro_celulares - 0.15, end: celFim },
+    { scene: 'rua_sem_saida', mood: 'dark', vig: 0.72, cam0: [1.00, 540, 955], cam1: [1.14, 540, 942], start: celFim, end: e.impacto_twist },
+    { scene: 'big_face', mood: 'red', vig: 0.74, cam0: [1.02, 540, 945], cam1: [1.20, 540, 918], start: e.impacto_twist, end: impFim },
+    { scene: 'final_retrovisor_sorriso', mood: 'red', vig: 0.74, cam0: [1.00, 540, 955], cam1: [1.09, 540, 945], start: impFim, end: d + 0.25 }
   ];
-  return splitShots(raw, 1.65);
+  return splitShots(raw, 1.48);
 }
 
 /* ============================================================
-   MOTOR KATANA V5 (4 HITS CINETICOS: TRAVOU, S3, 5 MINUTOS, SORRIU)
+   MOTOR KATANA V5.2 (4 HITS: NAO E ELE, TRAVADA, 4 CELULARES, O SEU VAI TOCAR)
    ============================================================ */
 function buildKatanaHits(e){
+  const ctaA = Number(e.cta_meio_inicio);
+  const dur = Number(e.duracao_total);
+  const hit1Start = Math.max(0.2, Math.min(Number(e.nao_e_ele) - 0.02, ctaA - 0.44));
+  const hit4Dur = 0.34;
+  const hit4Start = Math.max(
+    Number(e.final_retrovisor) + 0.35,
+    Math.min(Number(e.plot_twist) - 0.02, dur - hit4Dur - 0.48)
+  );
+
   const hits = [
     {
-      id: 'travou',
-      lines: ['TRAVOU'],
-      accentIdx: 0,
-      start: Math.max(0.2, Number(e.trava_seco) - 0.02),
+      id: 'nao_e_ele',
+      lines: ['NÃO É', 'ELE'],
+      accentIdx: 1,
+      start: hit1Start,
       dur: 0.38,
-      tilt: -0.055,
-      punch: 0.14,
-      shake: 24
+      tilt: -0.052,
+      punch: 0.15,
+      shake: 26
     },
     {
-      id: 's3',
-      lines: ['S3'],
+      id: 'travada',
+      lines: ['TRAVADA'],
       accentIdx: 0,
-      start: Math.max(0.2, Number(e.visor_s3) - 0.02),
-      dur: 0.40,
+      start: Math.max(0.2, Number(e.trava_acionada) - 0.02),
+      dur: 0.38,
       tilt: 0.048,
       punch: 0.16,
       shake: 28
     },
     {
-      id: 'cinco_minutos',
-      lines: ['5', 'MINUTOS'],
+      id: 'quatro_celulares',
+      lines: ['4', 'CELULARES'],
       accentIdx: 0,
-      start: Math.max(0.2, Number(e.cinco_minutos) - 0.02),
+      start: Math.max(0.2, Number(e.quatro_celulares) - 0.02),
       dur: 0.40,
-      tilt: -0.045,
-      punch: 0.14,
-      shake: 24
+      tilt: -0.046,
+      punch: 0.15,
+      shake: 26
     },
     {
-      id: 'sorriu',
-      lines: ['SORRIU'],
-      accentIdx: 0,
-      start: Math.max(0.2, Number(e.reflexo_sorri) - 0.02),
-      dur: Math.min(0.36, Math.max(0.26, (Number(e.duracao_total) - Number(e.reflexo_sorri)) * 0.44)),
-      tilt: 0.052,
-      punch: 0.16,
+      id: 'o_seu_vai_tocar',
+      lines: ['O SEU VAI', 'TOCAR'],
+      accentIdx: 1,
+      start: hit4Start,
+      dur: hit4Dur,
+      tilt: 0.050,
+      punch: 0.17,
       shake: 30
     }
   ];
@@ -612,7 +610,7 @@ function drawKatanaOverlay(t){
 
   const lines = hit.lines;
   const maxW = 920;
-  const maxFs = lines.length === 1 ? 270 : 198;
+  const maxFs = lines.length === 1 ? 260 : 196;
   const stepY = lines.length === 1 ? 0 : 190;
   const startY = lines.length === 1 ? 0 : -stepY * 0.5;
 
@@ -651,8 +649,7 @@ function drawKatanaOverlay(t){
 }
 
 /* ============================================================
-   MOTOR V5: CTA DEDICADA EM TELA CHEIA NO MEIO (100% DA TELA)
-   Interrompe a historia seco, oculta selo/relogio/legendas
+   CTA DEDICADA EM TELA CHEIA NO MEIO (~3s, 100% DA TELA)
    ============================================================ */
 function isFullScreenCtaActive(t){
   const a = Number(EV.cta_meio_inicio);
@@ -672,7 +669,6 @@ function drawFullScreenCta(t){
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
 
-  /* Fundo escuro cinematografico ocupando 100% da tela */
   const bg = g.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#070B16');
   bg.addColorStop(0.52, '#0B1224');
@@ -680,7 +676,6 @@ function drawFullScreenCta(t){
   g.fillStyle = bg;
   g.fillRect(0, 0, W, H);
 
-  /* Grade arquitetonica sutil + halos direcionais (sem poluicao visual) */
   g.strokeStyle = 'rgba(255, 212, 0, 0.05)';
   g.lineWidth = 2;
   for (let x = 90; x < W; x += 90) {
@@ -692,13 +687,11 @@ function drawFullScreenCta(t){
   glow(540, 880, 620, PAL.yellow, 0.14 + 0.05 * Math.sin(t * 7.0));
   glow(540, 1220, 480, PAL.alert, 0.09);
 
-  /* Faixas diagonais discretas no topo e na base (moldura editorial) */
   g.fillStyle = 'rgba(255, 212, 0, 0.12)';
   g.fillRect(0, 0, W, 14);
   g.fillRect(0, H - 14, W, 14);
   g.drawImage(scanCv, 0, 0);
 
-  /* Micro-glitch seco na entrada (0.14s) e na saida (0.11s) sincronizado com glitch_cta */
   let gx = 0, gy = 0;
   const inGlitch = dt < 0.14;
   const outGlitch = rem < 0.11;
@@ -711,7 +704,6 @@ function drawFullScreenCta(t){
     gx = (f % 2 === 0 ? -1 : 1) * (1 - rem / 0.11) * 24;
   }
 
-  /* Flash editorial no frame 0 da entrada */
   if (dt < 0.036) {
     g.fillStyle = 'rgba(255, 255, 255, 0.88)';
     g.fillRect(0, 0, W, H);
@@ -719,7 +711,6 @@ function drawFullScreenCta(t){
 
   g.translate(gx, gy);
 
-  /* Card central editorial com hairline limpa (sem drop shadow generico nem borda lateral unica) */
   const bx = 64, by = 520, bw = W - 128, bh = 860;
   g.fillStyle = 'rgba(8, 12, 24, 0.94)';
   rr(bx, by, bw, bh, 38); g.fill();
@@ -727,15 +718,12 @@ function drawFullScreenCta(t){
   g.lineWidth = 3;
   rr(bx, by, bw, bh, 38); g.stroke();
 
-  /* Eyebrow discreto no topo do cartao */
   g.fillStyle = PAL.yellow;
   drawFittedText('PAUSA RÁPIDA NA HISTÓRIA', 540, by + 84, bw - 140, 28, MONO, '800', 'center');
 
-  /* Linha fina separadora */
   g.fillStyle = 'rgba(245, 247, 251, 0.14)';
   g.fillRect(540 - 160, by + 124, 320, 3);
 
-  /* Titulo principal de alto impacto (2 linhas, display forte, 100% blindado via drawFittedText) */
   const titlePop = popScale(dt - 0.02, 0.14);
   g.save();
   g.translate(540, by + 270);
@@ -746,8 +734,7 @@ function drawFullScreenCta(t){
   drawFittedText('NO AUTOMÁTICO?', 0, 48, bw - 112, 86, COND, '900', 'center');
   g.restore();
 
-  /* Pilula amarela gigante "COMENTE EU QUERO" (padding lateral >= 64px por lado!) */
-  const falaA = Number(EV.cta_fala_inicio || (a + 0.22));
+  const falaA = Number(EV.cta_fala_inicio || (a + 0.20));
   const enfatiza = t >= (falaA + (b - falaA) * 0.56);
   const pillPulse = enfatiza ? (1.03 + 0.03 * Math.sin(t * 18.0)) : (1.0 + 0.015 * Math.sin(t * 7.5));
   const pillPop = popScale(dt - 0.08, 0.16) * pillPulse;
@@ -766,16 +753,13 @@ function drawFullScreenCta(t){
 
   g.fillStyle = PAL.yellow;
   rr(-pillW / 2, -pillH / 2, pillW, pillH, pillH / 2); g.fill();
-  /* Brilho interno discreto no topo da pilula */
   g.fillStyle = 'rgba(255,255,255,0.22)';
   rr(-pillW / 2 + 24, -pillH / 2 + 10, pillW - 48, 28, 14); g.fill();
 
-  /* Texto da pilula com folga lateral ampla (136px total => >= 68px por lado) */
   g.fillStyle = PAL.ink;
   drawFittedText('COMENTE EU QUERO', 0, 4, pillW - 136, 74, COND, '900', 'center');
   g.restore();
 
-  /* Icone vetorial minimalista de comentario + texto auxiliar claro */
   const infoY = by + 678;
   g.save();
   g.translate(226, infoY);
@@ -788,7 +772,6 @@ function drawFullScreenCta(t){
   g.fillStyle = PAL.steelBright;
   drawFittedText('EU TE ENVIO TUDO NO DIRECT', 562, infoY + 2, bw - 220, 32, SANS, '700', 'center');
 
-  /* Barra de retomada da historia (mostra que o elevador volta ja!) */
   const barW = bw - 160, barH = 10, barX = 540 - barW / 2, barY = by + 764;
   g.fillStyle = 'rgba(245, 247, 251, 0.14)';
   rr(barX, barY, barW, barH, 5); g.fill();
@@ -798,7 +781,6 @@ function drawFullScreenCta(t){
   g.fillStyle = PAL.dim;
   drawFittedText('A HISTÓRIA CONTINUA EM INSTANTES', 540, barY + 42, bw - 160, 24, MONO, '700', 'center');
 
-  /* Linhas de interferencia fina somente nos frames de entrada/saida */
   if (inGlitch || outGlitch) {
     g.fillStyle = 'rgba(255,255,255,0.22)';
     for (let i = 0; i < 6; i++) {
@@ -830,24 +812,22 @@ function normalizeEvents(raw, audioDur){
   SHOTS = buildShots(EV);
   KATANA_HITS = buildKatanaHits(EV);
 
-  /* Expressao do Rafael troca escondida na piscada 2 frames (0.067s) antes do evento */
   EXPR_CUES = [
     [0, 'neutral'],
-    [EV.luz_pisca, 'worry'],
-    [EV.trava_seco, 'fear'],
-    [EV.reflexo_atrasado, 'shock'],
-    [EV.luz_volta, 'worry'],
-    [EV.botao_emergencia, 'fear'],
-    [EV.visor_s3, 'shock'],
-    [EV.lado_fora, 'fear'],
-    [EV.cinco_minutos, 'shock'],
-    [EV.voltou_terreo, 'worry'],
-    [EV.igual_voce, 'fear'],
+    [EV.sem_boa_noite, 'worry'],
+    [EV.celular_vibra, 'worry'],
+    [EV.voz_motorista_1, 'fear'],
+    [EV.nao_e_ele, 'shock'],
+    [EV.diego_congela, 'fear'],
+    [EV.puxa_macaneta, 'shock'],
+    [EV.finge_calma, 'fear'],
+    [EV.velocimetro_120, 'shock'],
+    [EV.olha_carona, 'shock'],
     [EV.impacto_twist, 'shock']
   ];
   const bl = [];
-  let bt = 0.85, bi = 0;
-  while (bt < duration + 1) { bl.push(bt); bt += 2.6 + hash(bi++ * 11.3) * 1.6; }
+  let bt = 0.80, bi = 0;
+  while (bt < duration + 1) { bl.push(bt); bt += 2.5 + hash(bi++ * 13.7) * 1.5; }
   for (const [ct] of EXPR_CUES) if (ct > 0.2) bl.push(Math.max(0.05, ct - 0.067));
   BLINKS = bl.sort((a, b) => a - b);
 }
@@ -863,32 +843,64 @@ function faceAt(t){
 }
 
 /* ============================================================
-   FUNDOS VIBRANTES PULSANTES + PARTICULAS CONTINUAS (V5)
+   PARTICULAS, CHUVA NOTURNA E FUNDOS PULSANTES
    ============================================================ */
 const PARTICLES = (() => {
-  const rng = mulberry(202606);
+  const rng = mulberry(202607);
   const arr = [];
   for (let i = 0; i < 42; i++) {
     arr.push({
       x: rng() * (W + 300) - 150,
       y: rng() * (H + 300) - 150,
-      vx: (rng() - 0.48) * 24,
-      vy: -(10 + rng() * 32),
-      r: 2.0 + rng() * 4.8,
+      vx: (rng() - 0.5) * 26,
+      vy: -(12 + rng() * 34),
+      r: 2.0 + rng() * 4.5,
       layer: i < 21 ? 0 : 1,
       ph: rng() * Math.PI * 2,
-      a: 0.12 + rng() * 0.24
+      a: 0.11 + rng() * 0.22
     });
   }
   return arr;
 })();
 
+const RAIN_DROPS = (() => {
+  const rng = mulberry(3102026);
+  const arr = [];
+  for (let i = 0; i < 95; i++) {
+    arr.push({
+      x: rng() * (W + 400) - 200,
+      y: rng() * (H + 400) - 200,
+      len: 36 + rng() * 64,
+      speed: 980 + rng() * 680,
+      a: 0.14 + rng() * 0.26,
+      w: 1.4 + rng() * 1.4
+    });
+  }
+  return arr;
+})();
+
+function drawRain(t, intensity=1.0, slant=-0.22){
+  g.save();
+  g.strokeStyle = rgba(PAL.cyan, 0.28 * intensity);
+  g.lineCap = 'round';
+  const spanW = W + 400, spanH = H + 400;
+  for (let i = 0; i < RAIN_DROPS.length; i++) {
+    const d = RAIN_DROPS[i];
+    const rx = ((((d.x + d.speed * slant * t) + 200) % spanW) + spanW) % spanW - 200;
+    const ry = ((((d.y + d.speed * t) + 200) % spanH) + spanH) % spanH - 200;
+    g.strokeStyle = rgba('#CBE8FF', d.a * intensity);
+    g.lineWidth = d.w;
+    g.beginPath();
+    g.moveTo(rx, ry);
+    g.lineTo(rx + d.len * slant, ry + d.len);
+    g.stroke();
+  }
+  g.restore();
+}
+
 function drawParticles(t, mood){
-  const colPrimary = mood === 'red' ? PAL.alert
-    : (mood === 'yellow' ? PAL.yellow
-      : (mood === 'cctv' ? PAL.cctvBright : PAL.cyan));
-  const colAlt = mood === 'red' ? '#FF8A5B'
-    : (mood === 'cctv' ? PAL.cctvPale : PAL.violet);
+  const colPrimary = mood === 'red' ? PAL.alert : (mood === 'yellow' ? PAL.yellow : PAL.cyan);
+  const colAlt = mood === 'red' ? PAL.amber : PAL.violet;
   g.save();
   g.globalCompositeOperation = 'lighter';
   for (let i = 0; i < PARTICLES.length; i++) {
@@ -897,9 +909,9 @@ function drawParticles(t, mood){
     const spanW = W + 300, spanH = H + 300;
     const px = ((((p.x + p.vx * t * sp) + 150) % spanW) + spanW) % spanW - 150;
     const py = ((((p.y + p.vy * t * sp) + 150) % spanH) + spanH) % spanH - 150;
-    const tw = 0.55 + 0.45 * Math.sin(t * (2.5 + p.layer * 1.3) + p.ph);
+    const tw = 0.55 + 0.45 * Math.sin(t * (2.6 + p.layer * 1.2) + p.ph);
     const col = (i % 3 === 0) ? colAlt : colPrimary;
-    const a = p.a * tw * (mood === 'dark' ? 0.36 : 1.0);
+    const a = p.a * tw * (mood === 'dark' ? 0.34 : 1.0);
     g.fillStyle = rgba(col, a);
     circ(px, py, p.r);
   }
@@ -908,19 +920,14 @@ function drawParticles(t, mood){
 
 function drawBackdrop(t, mood){
   const pulseSlow = 0.5 + 0.5 * Math.sin(t * 3.4);
-  const pulseFast = 0.5 + 0.5 * Math.sin(t * 7.8);
+  const pulseFast = 0.5 + 0.5 * Math.sin(t * 8.2);
   let top = PAL.bgNavy, bot = PAL.bgDeep, glowCol = PAL.cyan, glowA = 0.14;
 
-  if (mood === 'cctv') {
-    top = mixHex('#071418', PAL.bgNavy, pulseSlow * 0.35);
-    bot = '#03080C';
-    glowCol = PAL.cctvBright;
-    glowA = 0.18;
-  } else if (mood === 'violet') {
-    top = mixHex(PAL.bgViolet, PAL.bgNavy, pulseSlow * 0.38);
+  if (mood === 'violet') {
+    top = mixHex(PAL.bgViolet, PAL.bgNavy, pulseSlow * 0.40);
     bot = PAL.bgDeep;
     glowCol = PAL.violet;
-    glowA = 0.20;
+    glowA = 0.19;
   } else if (mood === 'yellow') {
     top = mixHex(PAL.bgNavy, PAL.bgYellow, 0.45 + 0.45 * pulseFast);
     bot = PAL.bgDeep;
@@ -932,12 +939,12 @@ function drawBackdrop(t, mood){
     glowCol = PAL.alert;
     glowA = 0.26 + 0.12 * pulseFast;
   } else if (mood === 'dark') {
-    top = '#05070E';
-    bot = '#020306';
+    top = '#04060C';
+    bot = '#010205';
     glowCol = PAL.alert;
     glowA = 0.09;
   } else {
-    top = mixHex(PAL.bgNavy, '#111B33', pulseSlow * 0.35);
+    top = mixHex(PAL.bgNavy, PAL.bgStorm, pulseSlow * 0.42);
     bot = PAL.bgDeep;
   }
 
@@ -947,7 +954,7 @@ function drawBackdrop(t, mood){
 }
 
 /* ============================================================
-   RIG FLAT EM CAPSULA (10 PONTOS IK) - RAFAEL (#0F766E)
+   RIG FLAT EM CAPSULA (10 PONTOS IK) - DIEGO (MOLETOM #1E3A5F)
    ============================================================ */
 function solveIK(ax, ay, bx, by, l1, l2, bend){
   const dx = bx - ax, dy = by - ay;
@@ -975,8 +982,8 @@ function drawCapsule(ax, ay, bx, by, w, col, shadeCol){
 }
 
 function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0){
-  const lift = { neutral: 0, worry: 0.06, fear: 0.11, shock: 0.14, sinister_smile: 0.05 }[ex] || 0;
-  const tilt = { neutral: 0, worry: 0.11, fear: 0.10, shock: 0.06, sinister_smile: -0.10 }[ex] || 0;
+  const lift = { neutral: 0, worry: 0.06, fear: 0.11, shock: 0.15 }[ex] || 0;
+  const tilt = { neutral: 0, worry: 0.11, fear: 0.10, shock: 0.06 }[ex] || 0;
   const eyePositions = [[cx - r * 0.24, 1], [cx + r * 0.24, -1]];
   g.lineCap = 'round';
 
@@ -1002,12 +1009,12 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0){
     g.translate(x, y);
     g.scale(1, scaleY);
 
-    if (ex === 'shock' || ex === 'fear' || ex === 'worry' || ex === 'sinister_smile') {
-      const rx = ex === 'shock' ? r * 0.22 : (ex === 'sinister_smile' ? r * 0.18 : (ex === 'fear' ? r * 0.19 : r * 0.15));
-      const ry = ex === 'shock' ? r * 0.25 : (ex === 'sinister_smile' ? r * 0.20 : (ex === 'fear' ? r * 0.21 : r * 0.17));
+    if (ex === 'shock' || ex === 'fear' || ex === 'worry') {
+      const rx = ex === 'shock' ? r * 0.22 : (ex === 'fear' ? r * 0.19 : r * 0.15);
+      const ry = ex === 'shock' ? r * 0.25 : (ex === 'fear' ? r * 0.21 : r * 0.17);
       g.fillStyle = PAL.white;
       ell(0, 0, rx, ry);
-      const pr = ex === 'shock' ? r * 0.054 : (ex === 'sinister_smile' ? r * 0.058 : (ex === 'fear' ? r * 0.075 : r * 0.085));
+      const pr = ex === 'shock' ? r * 0.052 : (ex === 'fear' ? r * 0.075 : r * 0.085);
       g.fillStyle = PAL.ink;
       circ(lookX * r * 0.06, lookY * r * 0.05, pr);
       g.fillStyle = PAL.white;
@@ -1024,31 +1031,9 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0){
   }
 }
 
-function drawMouth(cx, cy, r, ex, smileProg=1){
+function drawMouth(cx, cy, r, ex){
   const my = cy + r * 0.36;
   g.lineCap = 'round';
-  if (ex === 'sinister_smile') {
-    /* Sorriso largo e inquietante do reflexo no espelho */
-    const sp = clamp(smileProg);
-    const w = lerp(r * 0.18, r * 0.44, sp);
-    const curve = lerp(r * 0.02, r * 0.24, sp);
-    g.fillStyle = '#09090F';
-    g.beginPath();
-    g.moveTo(cx - w, my - curve * 0.35);
-    g.quadraticCurveTo(cx, my + curve * 1.45, cx + w, my - curve * 0.35);
-    g.quadraticCurveTo(cx, my + curve * 0.22, cx - w, my - curve * 0.35);
-    g.closePath();
-    g.fill();
-    if (sp > 0.35) {
-      g.strokeStyle = 'rgba(248, 250, 252, 0.85)';
-      g.lineWidth = r * 0.042;
-      g.beginPath();
-      g.moveTo(cx - w * 0.72, my - curve * 0.06);
-      g.quadraticCurveTo(cx, my + curve * 0.56, cx + w * 0.72, my - curve * 0.06);
-      g.stroke();
-    }
-    return;
-  }
   if (ex === 'shock') {
     g.fillStyle = '#190C0E';
     ell(cx, my + r * 0.02, r * 0.16, r * 0.21);
@@ -1075,48 +1060,57 @@ function drawMouth(cx, cy, r, ex, smileProg=1){
   }
 }
 
-function drawHeadRafael(cx, cy, r, ex, closed, opt={}){
+function drawHeadDiego(cx, cy, r, ex, closed, opt={}){
   const {
     tilt = 0, rimA = 0.72, rimColor = PAL.cyan, rimAng = -0.35,
-    lookX = 0, lookY = 0, isReflection = false, smileProg = 1, sweat = false
+    lookX = 0, lookY = 0, sweat = false, earbuds = false
   } = opt;
   g.save();
   g.translate(cx, cy);
   g.rotate(tilt);
 
   /* Orelhas discretas */
-  g.fillStyle = isReflection ? '#C4A288' : PAL.skinShadow;
+  g.fillStyle = PAL.skinShadow;
   circ(-r * 0.92, r * 0.06, r * 0.18);
   circ(r * 0.92, r * 0.06, r * 0.18);
 
-  /* Cabeca redonda flat limpa */
-  g.fillStyle = isReflection ? '#CFAF96' : PAL.skin;
+  /* Cabeca redonda flat limpa (sem capacete) */
+  g.fillStyle = PAL.skin;
   circ(0, 0, r);
 
-  /* Sombra sutil no lado oposto a rim light */
   g.save();
   g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.clip();
-  g.fillStyle = rgba(PAL.skinShadow, isReflection ? 0.34 : 0.24);
+  g.fillStyle = rgba(PAL.skinShadow, 0.24);
   circ(-r * 0.36, r * 0.18, r * 0.96);
 
-  /* Cabelo escuro curto moderno do Rafael (silhueta masculina limpa, sem capacete) */
+  /* Cabelo escuro curto moderno do Diego */
   g.fillStyle = PAL.hair;
   g.beginPath();
   g.arc(0, -r * 0.14, r * 1.03, Math.PI * 1.04, Math.PI * 1.96);
-  g.quadraticCurveTo(r * 0.62, -r * 0.42, r * 0.15, -r * 0.56);
-  g.quadraticCurveTo(-r * 0.36, -r * 0.46, -r * 0.96, -r * 0.18);
+  g.quadraticCurveTo(r * 0.56, -r * 0.44, r * 0.12, -r * 0.58);
+  g.quadraticCurveTo(-r * 0.42, -r * 0.48, -r * 0.96, -r * 0.18);
   g.closePath();
   g.fill();
   g.restore();
 
-  /* Topete/franja curta acima da testa */
+  /* Topete curto natural acima da testa */
   g.fillStyle = PAL.hair;
   g.beginPath();
-  g.ellipse(0, -r * 0.72, r * 0.82, r * 0.36, -0.05, Math.PI, Math.PI * 2);
+  g.ellipse(0, -r * 0.73, r * 0.80, r * 0.35, -0.04, Math.PI, Math.PI * 2);
   g.fill();
   g.beginPath();
-  g.ellipse(-r * 0.30, -r * 0.64, r * 0.42, r * 0.22, -0.22, 0, Math.PI * 2);
+  g.ellipse(r * 0.22, -r * 0.65, r * 0.40, r * 0.21, 0.20, 0, Math.PI * 2);
   g.fill();
+
+  /* Fone de ouvido intra-auricular branco quando colocado */
+  if (earbuds) {
+    g.fillStyle = PAL.white;
+    rr(-r * 0.99, r * 0.01, r * 0.14, r * 0.24, r * 0.06); g.fill();
+    rr(r * 0.85, r * 0.01, r * 0.14, r * 0.24, r * 0.06); g.fill();
+    g.fillStyle = PAL.cyan;
+    circ(-r * 0.92, r * 0.07, r * 0.035);
+    circ(r * 0.92, r * 0.07, r * 0.035);
+  }
 
   /* Rim light limpa */
   if (rimA > 0.01) {
@@ -1128,11 +1122,9 @@ function drawHeadRafael(cx, cy, r, ex, closed, opt={}){
     g.stroke();
   }
 
-  /* Olhos + boca */
   drawEyes(0, 0, r, ex, closed, lookX, lookY);
-  drawMouth(0, 0, r, ex, smileProg);
+  drawMouth(0, 0, r, ex);
 
-  /* Gota de suor frio em choque/panico */
   if (sweat || ex === 'shock') {
     g.fillStyle = PAL.sweat;
     g.beginPath();
@@ -1145,13 +1137,11 @@ function drawHeadRafael(cx, cy, r, ex, closed, opt={}){
   g.restore();
 }
 
-function drawRafaelStanding(x, footY, sc, opt={}){
+function drawDiegoStanding(x, footY, sc, opt={}){
   const {
     t = 0, ex = 'neutral', closed = 0, face = 1, fastBreath = false,
-    pose = {}, rimColor = PAL.cyan, rimA = 0.75, lookX = 0, lookY = 0,
-    isReflection = false, smileProg = 1, backView = false
+    pose = {}, rimColor = PAL.cyan, rimA = 0.78, lookX = 0, lookY = 0, earbuds = false
   } = opt;
-
   const breath = Math.sin(t * (fastBreath ? 6.8 : 2.3)) * (fastBreath ? 5.0 : 2.2);
   const walk = pose.walk ? Math.sin(t * 9.0) : 0;
 
@@ -1159,977 +1149,1260 @@ function drawRafaelStanding(x, footY, sc, opt={}){
   g.translate(x, footY);
   g.scale(sc * face, sc);
 
-  /* Sombra de contato nos pes (garante pes sempre firmes no chao!) */
-  if (!isReflection) {
-    g.fillStyle = 'rgba(0,0,0,0.45)';
-    ell(0, 6, 84, 18);
-  }
+  /* Sombra de contato nos pes */
+  g.fillStyle = 'rgba(0,0,0,0.48)';
+  ell(0, 6, 86, 18);
 
   const hipY = -205 + breath * 0.35;
   const shY = -395 + breath;
 
-  /* Pernas articuladas (quadril -> joelho -> tornozelo -> tenis firme no chao) */
+  /* Pernas IK 10 pontos */
   const lFootX = -32 + walk * 26, rFootX = 32 - walk * 26;
   const lFootY = -12 - Math.max(0, walk * 16), rFootY = -12 - Math.max(0, -walk * 16);
   const lKnee = solveIK(-24, hipY, lFootX, lFootY, 102, 102, 1);
   const rKnee = solveIK(24, hipY, rFootX, rFootY, 102, 102, 1);
 
-  const pantsA = isReflection ? '#263448' : PAL.pantsDark;
-  const pantsB = isReflection ? '#2F3F57' : PAL.pants;
-  drawCapsule(-24, hipY, lKnee[0], lKnee[1], 36, pantsA);
-  drawCapsule(lKnee[0], lKnee[1], lFootX, lFootY, 32, pantsA);
-  drawCapsule(24, hipY, rKnee[0], rKnee[1], 36, pantsB);
-  drawCapsule(rKnee[0], rKnee[1], rFootX, rFootY, 32, pantsB);
+  drawCapsule(-24, hipY, lKnee[0], lKnee[1], 36, PAL.pantsDark);
+  drawCapsule(lKnee[0], lKnee[1], lFootX, lFootY, 32, PAL.pantsDark);
+  drawCapsule(24, hipY, rKnee[0], rKnee[1], 36, PAL.pants);
+  drawCapsule(rKnee[0], rKnee[1], rFootX, rFootY, 32, PAL.pants);
 
-  /* Tenis escuros com sola clara firme em y=0 */
   for (const [fx, fy] of [[lFootX, lFootY], [rFootX, rFootY]]) {
-    g.fillStyle = '#0B0F1A';
+    g.fillStyle = '#090D16';
     rr(fx - 22, fy - 4, 52, 20, 9); g.fill();
     g.fillStyle = '#CBD5E1';
     rr(fx - 22, fy + 11, 52, 6, 3); g.fill();
   }
 
-  /* Braco traseiro (ombro -> cotovelo -> mao) */
-  const bHandX = pose.reach ? 116 : (pose.phone ? 64 : -68 - walk * 18);
-  const bHandY = pose.reach ? (shY + 12) : (pose.phone ? (shY + 86) : (shY + 188));
-  const bElbow = solveIK(-48, shY + 18, bHandX, bHandY, 92, 92, pose.reach || pose.phone ? -1 : 1);
-  const topMain = isReflection ? '#146662' : PAL.top;
-  const topSh = isReflection ? '#0E4C49' : PAL.topShade;
-  drawCapsule(-48, shY + 18, bElbow[0], bElbow[1], 30, topSh);
-  drawCapsule(bElbow[0], bElbow[1], bHandX, bHandY, 26, topSh);
-  g.fillStyle = isReflection ? '#C7A68E' : PAL.skinShadow;
-  circ(bHandX, bHandY, 16);
+  /* Braco traseiro */
+  const bHandX = pose.phone ? 72 : -68 - walk * 18;
+  const bHandY = pose.phone ? (shY + 86) : (shY + 188);
+  const bElbow = solveIK(-48, shY + 18, bHandX, bHandY, 92, 92, pose.phone ? -1 : 1);
+  drawCapsule(-48, shY + 18, bElbow[0], bElbow[1], 30, PAL.topShade);
+  drawCapsule(bElbow[0], bElbow[1], bHandX, bHandY, 26, PAL.topShade);
+  g.fillStyle = PAL.skinShadow;
+  circ(bHandX, bHandY, 17);
 
-  /* Tronco flat em capsula (jaqueta verde-petroleo #0F766E com ziper sutil) */
-  g.fillStyle = topMain;
-  rr(-66, shY - 12, 132, 214, 58); g.fill();
+  /* Torso: moletom azul-marinho #1E3A5F com capuz cinza caido nos ombros */
+  g.fillStyle = PAL.top;
+  rr(-64, shY, 128, 212, 54); g.fill();
   g.save();
-  rr(-66, shY - 12, 132, 214, 58); g.clip();
-  g.fillStyle = rgba(PAL.topDeep, 0.42);
-  g.fillRect(-70, shY - 16, 48, 224);
-  if (!backView) {
-    /* Ziper e gola discreta */
-    g.fillStyle = rgba(PAL.steelLight, 0.25);
-    g.fillRect(-3, shY + 12, 6, 186);
-    g.fillStyle = '#0F172A';
-    rr(-22, shY - 14, 44, 24, 10); g.fill();
-  }
+  rr(-64, shY, 128, 212, 54); g.clip();
+  g.fillStyle = PAL.topDeep;
+  g.fillRect(-66, shY, 38, 218);
+  /* Bolso canguru do moletom */
+  g.fillStyle = PAL.topShade;
+  rr(-44, shY + 128, 88, 56, 18); g.fill();
   g.restore();
 
-  /* Rim light no tronco */
-  if (rimA > 0.01) {
-    g.strokeStyle = rgba(rimColor, rimA * 0.75);
-    g.lineWidth = 4;
+  /* Gola do capuz cinza caido nos ombros + cordoes */
+  g.fillStyle = PAL.hoodGrey;
+  rr(-54, shY - 8, 108, 28, 14); g.fill();
+  g.strokeStyle = '#E2E8F0';
+  g.lineWidth = 4;
+  g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-16, shY + 16); g.lineTo(-20, shY + 74); g.stroke();
+  g.beginPath(); g.moveTo(16, shY + 16); g.lineTo(20, shY + 74); g.stroke();
+
+  /* Rim light no ombro */
+  g.strokeStyle = rgba(rimColor, rimA * 0.72);
+  g.lineWidth = 5;
+  g.beginPath();
+  g.moveTo(58, shY + 26);
+  g.lineTo(58, shY + 182);
+  g.stroke();
+
+  /* Pescoso e cabeca */
+  g.fillStyle = PAL.skinShadow;
+  rr(-18, shY - 30, 36, 40, 12); g.fill();
+  drawHeadDiego(0, shY - 82, 74, ex, closed, {
+    tilt: pose.phone ? 0.08 : 0,
+    rimColor, rimA, lookX, lookY, earbuds
+  });
+
+  /* Braco frontal segurando celular ou andando */
+  const fHandX = pose.phone ? 84 : (pose.call ? 56 : 70 + walk * 18);
+  const fHandY = pose.phone ? (shY + 74) : (pose.call ? (shY - 58) : (shY + 188));
+  const fElbow = solveIK(48, shY + 18, fHandX, fHandY, 92, 92, pose.phone || pose.call ? 1 : -1);
+  drawCapsule(48, shY + 18, fElbow[0], fElbow[1], 30, PAL.top);
+  drawCapsule(fElbow[0], fElbow[1], fHandX, fHandY, 26, PAL.top);
+  g.fillStyle = PAL.skin;
+  circ(fHandX, fHandY, 17);
+
+  if (pose.phone) {
+    g.save();
+    g.translate(fHandX + 18, fHandY - 22);
+    g.rotate(-0.30);
+    g.fillStyle = PAL.phone;
+    rr(-12, -26, 26, 52, 6); g.fill();
+    g.fillStyle = PAL.cyan;
+    rr(-8, -21, 18, 42, 4); g.fill();
+    glow(4, 0, 95, PAL.cyan, 0.36);
+    g.restore();
+  }
+  if (pose.call) {
+    g.save();
+    g.translate(fHandX + 12, fHandY - 12);
+    g.rotate(-0.24);
+    g.fillStyle = PAL.phone;
+    rr(-10, -26, 22, 52, 6); g.fill();
+    g.fillStyle = PAL.appGreen;
+    rr(-6, -20, 14, 40, 4); g.fill();
+    g.restore();
+  }
+
+  g.restore();
+}
+
+function drawDiegoSeated(cx, cy, sc, opt={}){
+  const {
+    t = 0, ex = 'neutral', closed = 0, fastBreath = false,
+    rimColor = PAL.cyan, rimA = 0.80, lookX = 0, lookY = 0,
+    earbuds = true, holdPhoneEar = false, leanForward = 0
+  } = opt;
+  const breath = Math.sin(t * (fastBreath ? 7.2 : 2.5)) * (fastBreath ? 5.5 : 2.2);
+
+  g.save();
+  g.translate(cx, cy + leanForward * 24);
+  g.scale(sc, sc);
+
+  /* Torso do moletom sentado no banco traseiro */
+  const shY = -80 + breath;
+  g.fillStyle = PAL.top;
+  rr(-118, shY, 236, 330, 86); g.fill();
+  g.save();
+  rr(-118, shY, 236, 330, 86); g.clip();
+  g.fillStyle = PAL.topDeep;
+  g.fillRect(-122, shY, 68, 340);
+  g.restore();
+
+  /* Gola cinza do capuz + cordoes */
+  g.fillStyle = PAL.hoodGrey;
+  rr(-86, shY - 10, 172, 36, 18); g.fill();
+  g.strokeStyle = '#E2E8F0';
+  g.lineWidth = 5;
+  g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-26, shY + 24); g.lineTo(-30, shY + 108); g.stroke();
+  g.beginPath(); g.moveTo(26, shY + 24); g.lineTo(30, shY + 108); g.stroke();
+
+  /* Cinto de seguranca diagonal sobre o peito */
+  g.save();
+  rr(-118, shY, 236, 330, 86); g.clip();
+  g.strokeStyle = '#090D16';
+  g.lineWidth = 28;
+  g.beginPath(); g.moveTo(-98, shY + 8); g.lineTo(106, shY + 286); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.10)';
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(-88, shY + 8); g.lineTo(114, shY + 286); g.stroke();
+  g.restore();
+
+  /* Pescoso e cabeca */
+  g.fillStyle = PAL.skinShadow;
+  rr(-28, shY - 46, 56, 56, 18); g.fill();
+  drawHeadDiego(0, shY - 124, 114, ex, closed, {
+    tilt: holdPhoneEar ? 0.06 : (leanForward * -0.05),
+    rimColor, rimA, lookX, lookY, earbuds,
+    sweat: ex === 'shock' || ex === 'fear'
+  });
+
+  /* Mao segurando celular no ouvido quando finge calma */
+  if (holdPhoneEar) {
+    const hx = 108, hy = shY - 94;
+    const elb = solveIK(94, shY + 46, hx, hy, 120, 118, 1);
+    drawCapsule(94, shY + 46, elb[0], elb[1], 44, PAL.top);
+    drawCapsule(elb[0], elb[1], hx, hy, 38, PAL.top);
+    g.save();
+    g.translate(hx - 14, hy - 22);
+    g.rotate(-0.18);
+    g.fillStyle = PAL.phone;
+    rr(-16, -42, 34, 84, 9); g.fill();
+    g.fillStyle = PAL.appGreen;
+    rr(-11, -34, 24, 68, 5); g.fill();
+    glow(0, 0, 95, PAL.appGreen, 0.25);
+    g.restore();
+    g.fillStyle = PAL.skin;
+    circ(hx, hy, 25);
+  }
+
+  g.restore();
+}
+
+/* ============================================================
+   CENARIOS E PROPS DO VIDEO 07 ("A CORRIDA DAS 03H10")
+   ============================================================ */
+
+/* 1. Calcada de madrugada com chuva fora do trabalho */
+function drawNightSidewalk(t, showCar=false, carProg=0){
+  drawBackdrop(t, 'navy');
+
+  /* Predios comerciais escuros no fundo */
+  g.fillStyle = '#090F1E';
+  g.fillRect(-100, 260, 420, 1080);
+  g.fillRect(340, 190, 460, 1150);
+  g.fillRect(820, 290, 380, 1050);
+
+  /* Fachada de vidro do trabalho + janelas apagadas */
+  g.fillStyle = '#111B30';
+  rr(120, 460, 520, 860, 14); g.fill();
+  g.strokeStyle = 'rgba(56, 217, 255, 0.16)';
+  g.lineWidth = 4;
+  rr(120, 460, 520, 860, 14); g.stroke();
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 3; col++) {
+      const lit = (row === 3 && col === 1);
+      g.fillStyle = lit ? 'rgba(245, 158, 11, 0.28)' : 'rgba(6, 10, 20, 0.65)';
+      rr(155 + col * 155, 510 + row * 175, 125, 130, 8); g.fill();
+    }
+  }
+
+  /* Letreiro discreto de porta comercial */
+  g.fillStyle = 'rgba(10, 15, 29, 0.90)';
+  rr(170, 385, 420, 54, 12); g.fill();
+  g.strokeStyle = rgba(PAL.cyan, 0.40);
+  g.lineWidth = 2;
+  rr(170, 385, 420, 54, 12); g.stroke();
+  g.fillStyle = PAL.cyan;
+  drawFittedText('EDIFÍCIO COMERCIAL - SAÍDA', 380, 412, 370, 22, MONO, '700', 'center');
+
+  /* Poste de luz ambar com halo de chuva */
+  g.fillStyle = '#1F2937';
+  g.fillRect(865, 340, 22, 1010);
+  g.fillRect(760, 340, 128, 18);
+  g.fillStyle = PAL.amberSoft;
+  rr(764, 354, 58, 18, 6); g.fill();
+  glow(792, 395, 340, PAL.amber, 0.32 + 0.04 * Math.sin(t * 9.0));
+
+  /* Calcada molhada e asfalto escuro (acima da zona de legendas y=1495) */
+  g.fillStyle = PAL.sidewalk;
+  g.fillRect(-200, 1245, W + 400, 145);
+  g.fillStyle = '#2B364B';
+  g.fillRect(-200, 1375, W + 400, 20);
+  g.fillStyle = PAL.asphalt;
+  g.fillRect(-200, 1395, W + 400, 640);
+
+  /* Reflexo da luz do poste no asfalto molhado */
+  glow(790, 1520, 280, PAL.amber, 0.16);
+  g.fillStyle = 'rgba(255,255,255,0.08)';
+  for (let i = 0; i < 6; i++) {
+    rr(80 + i * 190, 1620, 105, 16, 4); g.fill();
+  }
+
+  /* Seda prata encostando na calcada */
+  if (showCar) {
+    const cx = lerp(-640, 590, easeOut(carProg));
+    drawSilverSedanSide(cx, 1330, t);
+  }
+
+  drawRain(t, 0.95);
+}
+
+function drawSilverSedanSide(cx, wheelY, t){
+  g.save();
+  g.translate(cx, wheelY);
+
+  /* Sombra sob o carro */
+  g.fillStyle = 'rgba(0,0,0,0.72)';
+  ell(0, 62, 360, 38);
+
+  /* Facho dos farois iluminando a chuva na frente */
+  const beam = g.createLinearGradient(320, -25, 760, 40);
+  beam.addColorStop(0, 'rgba(254, 249, 195, 0.52)');
+  beam.addColorStop(1, 'rgba(254, 249, 195, 0)');
+  g.fillStyle = beam;
+  g.beginPath();
+  g.moveTo(315, -52);
+  g.lineTo(780, -140);
+  g.lineTo(780, 125);
+  g.lineTo(315, 22);
+  g.closePath();
+  g.fill();
+
+  /* Carroceria prata metalica */
+  const bodyG = g.createLinearGradient(0, -175, 0, 45);
+  bodyG.addColorStop(0, '#E2E8F0');
+  bodyG.addColorStop(0.55, PAL.silverMid);
+  bodyG.addColorStop(1, PAL.silverDark);
+  g.fillStyle = bodyG;
+  g.beginPath();
+  g.moveTo(-335, 34);
+  g.lineTo(-335, -45);
+  g.quadraticCurveTo(-320, -78, -210, -82);
+  g.lineTo(-115, -166);
+  g.lineTo(120, -166);
+  g.lineTo(228, -82);
+  g.quadraticCurveTo(325, -72, 338, -22);
+  g.lineTo(338, 34);
+  g.closePath();
+  g.fill();
+
+  /* Vidros escurecidos (insulfilm bem escuro) */
+  g.fillStyle = '#070B14';
+  g.beginPath();
+  g.moveTo(-185, -80);
+  g.lineTo(-105, -148);
+  g.lineTo(108, -148);
+  g.lineTo(195, -80);
+  g.closePath();
+  g.fill();
+  /* Coluna central B */
+  g.fillStyle = '#1E293B';
+  g.fillRect(-10, -150, 22, 72);
+
+  /* Silhueta escura do motorista no volante */
+  g.fillStyle = '#161F32';
+  circ(76, -110, 26);
+  rr(46, -86, 58, 34, 12); g.fill();
+
+  /* Farol dianteiro e lanterna vermelha traseira */
+  g.fillStyle = '#FEF9C3';
+  rr(292, -52, 42, 26, 8); g.fill();
+  glow(325, -38, 120, '#FEF08A', 0.50);
+  g.fillStyle = PAL.alert;
+  rr(-334, -52, 36, 26, 8); g.fill();
+  glow(-325, -38, 110, PAL.alert, 0.45);
+
+  /* Macanetas e friso */
+  g.fillStyle = '#334155';
+  rr(-92, -56, 32, 10, 4); g.fill();
+  rr(42, -56, 32, 10, 4); g.fill();
+
+  /* Rodas */
+  for (const wx of [-205, 205]) {
+    g.fillStyle = '#090D16';
+    circ(wx, 34, 62);
+    g.fillStyle = '#94A3B8';
+    circ(wx, 34, 34);
+    g.fillStyle = '#1E293B';
+    circ(wx, 34, 14);
+  }
+  g.restore();
+}
+
+/* 2. Tela realista do aplicativo de corridas (03:10, Carlos, Carro Prata, 4.9) */
+function drawPhoneStatusBar(px, py, pw){
+  /* Barra de status com horario UNICO 03:10 desenhada sempre acima do fundo */
+  g.fillStyle = PAL.white;
+  drawFittedText('03:10', px + 70, py + 36, 110, 26, MONO, '800', 'left');
+  /* Ilha superior discreta */
+  g.fillStyle = '#03050A';
+  rr(px + pw / 2 - 70, py + 18, 140, 32, 16); g.fill();
+  /* Sinal e bateria */
+  g.fillStyle = PAL.steelBright;
+  for (let i = 0; i < 4; i++) {
+    rr(px + pw - 142 + i * 11, py + 40 - i * 4, 7, 10 + i * 4, 2); g.fill();
+  }
+  g.strokeStyle = PAL.steelBright;
+  g.lineWidth = 2.5;
+  rr(px + pw - 86, py + 26, 38, 20, 4); g.stroke();
+  g.fillStyle = PAL.appGreen;
+  rr(px + pw - 82, py + 30, 26, 12, 2); g.fill();
+}
+
+function drawPhoneShell(px, py, pw, ph, accentCol=PAL.cyan){
+  /* Corpo metalico do smartphone dentro da zona segura (y=336..1260, longe de PARTE 1 e legendas) */
+  g.fillStyle = '#050811';
+  rr(px - 16, py - 16, pw + 32, ph + 32, 54); g.fill();
+  g.strokeStyle = PAL.phoneEdge;
+  g.lineWidth = 4;
+  rr(px - 16, py - 16, pw + 32, ph + 32, 54); g.stroke();
+
+  g.fillStyle = PAL.appBg;
+  rr(px, py, pw, ph, 40); g.fill();
+  glow(px + pw / 2, py + ph / 2, 440, accentCol, 0.14);
+}
+
+function drawRideAppScreen(t, highlightNota=false){
+  const px = 192, py = 336, pw = 696, ph = 924;
+  drawPhoneShell(px, py, pw, ph, PAL.cyan);
+
+  g.save();
+  rr(px, py, pw, ph, 40); g.clip();
+
+  /* Mini mapa escuro no topo do app */
+  const mapY = py + 72, mapH = 382;
+  g.fillStyle = '#0B1324';
+  g.fillRect(px, mapY, pw, mapH);
+  g.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+  g.lineWidth = 8;
+  for (let i = 0; i < 6; i++) {
+    g.beginPath(); g.moveTo(px, mapY + 56 + i * 70); g.lineTo(px + pw, mapY + 38 + i * 70); g.stroke();
+    g.beginPath(); g.moveTo(px + 84 + i * 120, mapY); g.lineTo(px + 70 + i * 120, mapY + mapH); g.stroke();
+  }
+
+  /* Rota azul luminosa no mapa */
+  g.strokeStyle = PAL.cyan;
+  g.lineWidth = 10;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(px + 140, mapY + 305);
+  g.lineTo(px + 318, mapY + 266);
+  g.lineTo(px + 398, mapY + 158);
+  g.lineTo(px + 545, mapY + 130);
+  g.stroke();
+
+  /* Ponto do passageiro (Diego) + marcador do carro se aproximando */
+  const carK = clamp((t - EV.tela_app) / Math.max(1.2, EV.carro_encosta - EV.tela_app));
+  const carX = lerp(px + 140, px + 345, easeOut(carK));
+  const carY = lerp(mapY + 305, mapY + 235, easeOut(carK));
+  g.fillStyle = PAL.white;
+  circ(carX, carY, 17);
+  g.fillStyle = PAL.cyan;
+  circ(carX, carY, 9);
+
+  g.fillStyle = PAL.appGreen;
+  circ(px + 545, mapY + 130, 15);
+  g.strokeStyle = rgba(PAL.appGreen, 0.45);
+  g.lineWidth = 6;
+  g.beginPath(); g.arc(px + 545, mapY + 130, 24 + 8 * Math.sin(t * 7), 0, Math.PI * 2); g.stroke();
+
+  /* Pilula flutuante de tempo de chegada */
+  g.fillStyle = '#090F1D';
+  rr(px + 38, mapY + 22, 326, 54, 27); g.fill();
+  g.strokeStyle = rgba(PAL.cyan, 0.60);
+  g.lineWidth = 2.5;
+  rr(px + 38, mapY + 22, 326, 54, 27); g.stroke();
+  g.fillStyle = PAL.cyan;
+  drawFittedText('CHEGANDO EM 2 MIN', px + 201, mapY + 50, 290, 25, MONO, '800', 'center');
+
+  /* Cartao inferior do motorista */
+  const cardY = mapY + mapH + 14;
+  g.fillStyle = PAL.appCard;
+  rr(px + 24, cardY, pw - 48, 424, 26); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,0.08)';
+  g.lineWidth = 2;
+  rr(px + 24, cardY, pw - 48, 424, 26); g.stroke();
+
+  /* Avatar do motorista Carlos */
+  g.fillStyle = '#25334F';
+  circ(px + 106, cardY + 88, 48);
+  g.fillStyle = PAL.skin;
+  circ(px + 106, cardY + 76, 22);
+  g.fillStyle = PAL.hair;
+  g.beginPath(); g.arc(px + 106, cardY + 71, 22, Math.PI, Math.PI * 2); g.fill();
+  g.fillStyle = '#334155';
+  rr(px + 80, cardY + 100, 52, 28, 14); g.fill();
+
+  /* Nome, veiculo e selo nota 4.9 */
+  g.fillStyle = PAL.dim;
+  drawFittedText('MOTORISTA CONFIRMADO', px + 178, cardY + 54, 420, 21, MONO, '700', 'left');
+  g.fillStyle = PAL.white;
+  drawFittedText('Carlos', px + 178, cardY + 94, 260, 42, SANS, '800', 'left');
+
+  const notaScale = highlightNota ? (1.06 + 0.04 * Math.sin(t * 14)) : 1.0;
+  g.save();
+  g.translate(px + 532, cardY + 88);
+  g.scale(notaScale, notaScale);
+  g.fillStyle = highlightNota ? PAL.yellow : 'rgba(255, 212, 0, 0.18)';
+  rr(-82, -32, 164, 64, 32); g.fill();
+  g.strokeStyle = PAL.yellow;
+  g.lineWidth = 3;
+  rr(-82, -32, 164, 64, 32); g.stroke();
+  /* Estrela vetorial desenhada em canvas (zero emoji!) */
+  g.fillStyle = highlightNota ? PAL.ink : PAL.yellow;
+  drawStar(-36, 0, 15, 6.5);
+  drawFittedText('4.9', 18, 2, 90, 34, MONO, '900', 'center');
+  g.restore();
+
+  /* Faixa do carro prata + placa */
+  g.fillStyle = '#0C1425';
+  rr(px + 46, cardY + 166, pw - 92, 118, 18); g.fill();
+  g.strokeStyle = rgba(PAL.cyan, 0.30);
+  g.lineWidth = 2;
+  rr(px + 46, cardY + 166, pw - 92, 118, 18); g.stroke();
+
+  g.fillStyle = PAL.silverCar;
+  drawFittedText('CARRO PRATA', px + 76, cardY + 206, 340, 33, SANS, '800', 'left');
+  g.fillStyle = PAL.dim;
+  drawFittedText('SEDA COMPACTO  |  PLACA BRA-4E19', px + 76, cardY + 250, 530, 22, MONO, '700', 'left');
+
+  /* Botoes inferiores do app */
+  g.fillStyle = '#1E293B';
+  rr(px + 46, cardY + 310, 286, 80, 18); g.fill();
+  g.fillStyle = PAL.white;
+  drawFittedText('MENSAGEM', px + 189, cardY + 350, 230, 27, SANS, '800', 'center');
+
+  g.fillStyle = PAL.appGreen;
+  rr(px + 354, cardY + 310, 296, 80, 18); g.fill();
+  g.fillStyle = PAL.ink;
+  drawFittedText('LIGAR', px + 502, cardY + 350, 230, 29, SANS, '900', 'center');
+
+  drawPhoneStatusBar(px, py, pw);
+  g.restore();
+}
+
+function drawStar(cx, cy, rOut, rIn){
+  g.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rad = i % 2 === 0 ? rOut : rIn;
+    const x = cx + Math.cos(ang) * rad;
+    const y = cy + Math.sin(ang) * rad;
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
+  g.closePath();
+  g.fill();
+}
+
+/* 3. Interior do carro a noite com postes passando rapido */
+function drawCarCabinInterior(t, speed=1.0, redAlert=false){
+  drawBackdrop(t, redAlert ? 'red' : 'navy');
+
+  /* Janelas traseira e laterais mostrando a avenida noturna passando rapido */
+  const winY = 250, winH = 680;
+  g.fillStyle = '#060A15';
+  g.fillRect(-100, winY, W + 200, winH);
+
+  /* Postes de luz ambar cruzando o fundo em alta velocidade */
+  for (let i = 0; i < 6; i++) {
+    const cycle = ((t * 1.45 * speed + i * 0.28) % 1.6);
+    const px = lerp(1220, -240, cycle / 1.6);
+    g.fillStyle = rgba(PAL.amber, 0.22);
+    g.fillRect(px - 22, winY + 20, 44, winH - 40);
+    glow(px, winY + 130, 175, PAL.amber, 0.34);
+    g.fillStyle = rgba(PAL.amberSoft, 0.72);
+    rr(px - 42, winY + 95, 84, 22, 11); g.fill();
+  }
+
+  /* Gotas de chuva correndo no vidro */
+  drawRain(t, 0.55, -0.45 * speed);
+
+  /* Teto e colunas do interior do carro (moldura claustrofobica) */
+  g.fillStyle = PAL.cabinDark;
+  g.fillRect(-200, -100, W + 400, 390);
+  g.beginPath();
+  g.moveTo(-120, 260); g.lineTo(130, 280); g.lineTo(70, 1080); g.lineTo(-120, 1080); g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(1200, 260); g.lineTo(950, 280); g.lineTo(1010, 1080); g.lineTo(1200, 1080); g.closePath(); g.fill();
+
+  /* Painel frontal e bancos dianteiros em perspectiva POV do banco de tras */
+  g.fillStyle = '#0B101B';
+  g.fillRect(-160, 885, W + 320, 1120);
+
+  /* Brilho vermelho/azul do painel */
+  glow(310, 960, 260, redAlert ? PAL.alert : PAL.cyan, redAlert ? 0.38 : 0.20);
+
+  /* Banco do motorista (esquerda) + silhueta escura do motorista no volante */
+  g.fillStyle = PAL.leather;
+  rr(120, 740, 355, 620, 72); g.fill();
+  g.strokeStyle = PAL.cabinEdge;
+  g.lineWidth = 4;
+  rr(120, 740, 355, 620, 72); g.stroke();
+  /* Encosto de cabeca */
+  rr(212, 608, 170, 128, 36); g.fill();
+  /* Silhueta escura da cabeca e ombros do motorista */
+  g.fillStyle = '#05070D';
+  circ(297, 650, 74);
+  rr(164, 722, 266, 220, 68); g.fill();
+  /* Rim light tensa no ombro do motorista */
+  g.strokeStyle = rgba(redAlert ? PAL.alert : PAL.amber, 0.42);
+  g.lineWidth = 5;
+  g.beginPath(); g.arc(297, 650, 73, -0.65, 0.55); g.stroke();
+
+  /* Banco do carona (direita) */
+  g.fillStyle = PAL.leather;
+  rr(605, 760, 355, 600, 72); g.fill();
+  g.strokeStyle = PAL.cabinEdge;
+  g.lineWidth = 4;
+  rr(605, 760, 355, 600, 72); g.stroke();
+  rr(698, 632, 170, 124, 36); g.fill();
+
+  /* Espelho retrovisor central no topo (abaixo de y=320 para nunca bater no relogio!) */
+  g.fillStyle = '#05070D';
+  g.fillRect(524, 240, 32, 110);
+  rr(376, 336, 328, 108, 28); g.fill();
+  g.strokeStyle = '#334155';
+  g.lineWidth = 4;
+  rr(376, 336, 328, 108, 28); g.stroke();
+  g.fillStyle = '#111B2E';
+  rr(390, 348, 300, 84, 18); g.fill();
+
+  /* Olhos frios espiando discretamente no retrovisor */
+  g.fillStyle = redAlert ? PAL.alert : '#E2E8F0';
+  ell(494, 390, 22, 11);
+  ell(586, 390, 22, 11);
+  g.fillStyle = PAL.ink;
+  circ(494, 390, 7);
+  circ(586, 390, 7);
+}
+
+/* 4. Tela de ligacao do aplicativo (incoming / active / alert red) */
+function drawAppCallScreen(t, mode='incoming'){
+  const isAlert = mode === 'alert';
+  const isActive = mode === 'active' || isAlert;
+  const accent = isAlert ? PAL.alert : (isActive ? PAL.appGreen : PAL.cyan);
+  const px = 192, py = 336, pw = 696, ph = 924;
+  drawPhoneShell(px, py, pw, ph, accent);
+
+  g.save();
+  rr(px, py, pw, ph, 40); g.clip();
+
+  const bgG = g.createLinearGradient(0, py, 0, py + ph);
+  bgG.addColorStop(0, isAlert ? '#24070B' : '#0B1325');
+  bgG.addColorStop(1, '#050811');
+  g.fillStyle = bgG;
+  g.fillRect(px, py, pw, ph);
+
+  /* Etiqueta superior da chamada do app */
+  g.fillStyle = rgba(accent, 0.18);
+  rr(px + 124, py + 92, pw - 248, 52, 26); g.fill();
+  g.strokeStyle = rgba(accent, 0.65);
+  g.lineWidth = 2.5;
+  rr(px + 124, py + 92, pw - 248, 52, 26); g.stroke();
+  g.fillStyle = isAlert ? PAL.alert : PAL.cyan;
+  drawFittedText(
+    isAlert ? 'CHAMADA DE EMERGÊNCIA' : 'LIGAÇÃO DO APLICATIVO',
+    px + pw / 2, py + 119, pw - 280, 23, MONO, '800', 'center'
+  );
+
+  /* Avatar pulsante do motorista real Carlos */
+  const pulse = 0.5 + 0.5 * Math.sin(t * (isAlert ? 14 : 6.5));
+  const avX = px + pw / 2, avY = py + 292;
+  g.strokeStyle = rgba(accent, 0.35 + pulse * 0.35);
+  g.lineWidth = 6;
+  g.beginPath(); g.arc(avX, avY, 108 + pulse * 24, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#1B2842';
+  circ(avX, avY, 90);
+  g.fillStyle = PAL.skin;
+  circ(avX, avY - 20, 34);
+  g.fillStyle = PAL.hair;
+  g.beginPath(); g.arc(avX, avY - 26, 34, Math.PI, Math.PI * 2); g.fill();
+  g.fillStyle = '#334155';
+  rr(avX - 46, avY + 18, 92, 46, 22); g.fill();
+
+  /* Nome do motorista e status */
+  g.fillStyle = PAL.white;
+  drawFittedText('Carlos (Motorista)', avX, py + 450, pw - 96, 46, SANS, '900', 'center');
+  g.fillStyle = isAlert ? PAL.alert : PAL.dim;
+  drawFittedText(
+    isAlert ? 'MOTORISTA REAL NA LINHA!' : (isActive ? '00:08  |  CARRO PRATA - 4.9' : 'CHAMANDO PELO APP...'),
+    avX, py + 502, pw - 110, 25, MONO, '700', 'center'
+  );
+
+  /* Onda de audio telefonica ativa */
+  if (isActive) {
+    const waveY = py + 616;
+    const bars = 21;
+    const bw = 13, gap = 11;
+    const startX = avX - ((bars * bw + (bars - 1) * gap) / 2);
+    for (let i = 0; i < bars; i++) {
+      const distC = 1 - Math.abs(i - 10) / 11;
+      const amp = (0.28 + 0.72 * Math.abs(Math.sin(t * (isAlert ? 22 : 14) + i * 0.65))) * distC;
+      const bh = 18 + amp * (isAlert ? 124 : 92);
+      g.fillStyle = isAlert ? (i % 2 === 0 ? PAL.alert : PAL.yellow) : PAL.appGreen;
+      rr(startX + i * (bw + gap), waveY - bh / 2, bw, bh, 7); g.fill();
+    }
+    /* Caixa com frase-chave da ligacao */
+    g.fillStyle = isAlert ? 'rgba(255, 59, 48, 0.16)' : 'rgba(16, 185, 129, 0.14)';
+    rr(px + 44, py + 712, pw - 88, 108, 22); g.fill();
+    g.strokeStyle = rgba(accent, 0.55);
+    g.lineWidth = 2.5;
+    rr(px + 44, py + 712, pw - 88, 108, 22); g.stroke();
+    g.fillStyle = PAL.white;
+    drawFittedText(
+      isAlert ? 'OLHA PRO BANCO DO CARONA AGORA!' : 'TÔ AQUI NA FRENTE BUZINANDO...',
+      avX, py + 766, pw - 130, 31, COND, '900', 'center'
+    );
+  } else {
+    /* Botoes Recusar / Atender na tela de chamada recebida */
+    const vib = Math.sin(t * 42) * 5;
+    g.fillStyle = PAL.alert;
+    circ(px + 196, py + 732, 62);
+    g.fillStyle = PAL.white;
+    drawFittedText('RECUSAR', px + 196, py + 826, 160, 23, MONO, '800', 'center');
+
+    g.save();
+    g.translate(px + pw - 196 + vib, py + 732);
+    g.fillStyle = PAL.appGreen;
+    circ(0, 0, 62);
+    g.strokeStyle = PAL.ink;
+    g.lineWidth = 9;
+    g.lineCap = 'round';
+    g.beginPath(); g.arc(0, 8, 26, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+    g.restore();
+    g.fillStyle = PAL.white;
+    drawFittedText('ATENDER', px + pw - 196, py + 826, 160, 23, MONO, '800', 'center');
+  }
+
+  drawPhoneStatusBar(px, py, pw);
+  g.restore();
+}
+
+/* 5. Close nos olhos do motorista no espelho retrovisor (fixo sem piscar / sorrindo) */
+function drawRearviewMirrorEyes(t, mode='stare', smileProg=0){
+  const isSmile = mode === 'smile';
+  const isLaugh = mode === 'laugh';
+
+  /* Fundo desfocado do para-brisa noturno */
+  withBlur(9, () => {
+    drawBackdrop(t, 'red');
+    for (let i = 0; i < 4; i++) {
+      const lx = ((t * 420 + i * 320) % 1300) - 120;
+      glow(lx, 560, 240, isSmile ? PAL.alert : PAL.amber, 0.34);
+    }
+    drawRain(t, 0.7);
+  });
+
+  /* Haste do retrovisor abaixo de y=340 para manter folga limpa do relogio 03:10 mesmo no zoom */
+  g.fillStyle = '#05070E';
+  g.fillRect(512, 345, 56, 200);
+  rr(476, 345, 128, 30, 12); g.fill();
+
+  /* Moldura larga do espelho retrovisor ocupando o centro nobre (y=535..985) */
+  const mx = 74, my = 535, mw = W - 148, mh = 448;
+  g.fillStyle = '#04060C';
+  rr(mx - 20, my - 20, mw + 40, mh + 40, 72); g.fill();
+  g.strokeStyle = isSmile ? rgba(PAL.alert, 0.72) : '#334155';
+  g.lineWidth = 6;
+  rr(mx - 20, my - 20, mw + 40, mh + 40, 72); g.stroke();
+
+  g.save();
+  rr(mx, my, mw, mh, 54); g.clip();
+
+  /* Fundo escuro do reflexo no vidro do espelho */
+  const mg = g.createLinearGradient(0, my, 0, my + mh);
+  mg.addColorStop(0, '#0D1322');
+  mg.addColorStop(0.5, '#19141C');
+  mg.addColorStop(1, '#070A12');
+  g.fillStyle = mg;
+  g.fillRect(mx, my, mw, mh);
+
+  /* Rosto sombreado do motorista no centro do espelho */
+  const cx = 540, cy = my + mh * 0.56;
+  g.fillStyle = '#2A2223';
+  ell(cx, cy + 40, 315, 290);
+  g.fillStyle = '#18141A';
+  ell(cx - 180, cy + 40, 140, 260);
+  ell(cx + 180, cy + 40, 140, 260);
+
+  /* Faixa de luz vermelha/fria atravessando exatamente a linha dos olhos */
+  const bandG = g.createLinearGradient(mx, cy - 80, mx + mw, cy + 30);
+  bandG.addColorStop(0, 'rgba(255,59,48,0)');
+  bandG.addColorStop(0.5, isSmile ? 'rgba(255,59,48,0.28)' : 'rgba(56,217,255,0.20)');
+  bandG.addColorStop(1, 'rgba(255,59,48,0)');
+  g.fillStyle = bandG;
+  g.fillRect(mx, cy - 115, mw, 165);
+
+  /* Olhos do motorista (NUNCA PISCAM!) */
+  const eyeY = cy - 26;
+  const sp = isSmile ? clamp(smileProg) : (isLaugh ? 0.55 : 0);
+  const eyePositions = [[cx - 122, 1], [cx + 122, -1]];
+
+  for (const [ex, side] of eyePositions) {
+    /* Sobrancelha pesada e sinistra */
+    g.strokeStyle = '#07090F';
+    g.lineWidth = 22;
+    g.lineCap = 'round';
     g.beginPath();
-    g.moveTo(64, shY + 26); g.lineTo(64, shY + 158);
+    g.moveTo(ex - side * 72, eyeY - 62 - sp * 10);
+    g.quadraticCurveTo(ex, eyeY - 82 + sp * 12, ex + side * 66, eyeY - 46 + (isSmile ? -12 : 10));
+    g.stroke();
+
+    /* Globo ocular fixo, bem aberto */
+    g.fillStyle = '#F8FAFC';
+    g.beginPath();
+    g.ellipse(ex, eyeY, 64, 34 - sp * 9, 0, 0, Math.PI * 2);
+    g.fill();
+
+    /* Palpebra inferior subindo quando os olhos sorriem! */
+    if (sp > 0.05) {
+      g.fillStyle = '#2A2223';
+      g.beginPath();
+      g.ellipse(ex, eyeY + 34 - sp * 14, 68, 22, 0, Math.PI, Math.PI * 2);
+      g.fill();
+      /* Linhas de expressao ("pes de galinha") dos olhos sorrindo */
+      g.strokeStyle = '#0A0A10';
+      g.lineWidth = 5;
+      g.beginPath();
+      g.moveTo(ex - side * 56, eyeY + 8);
+      g.lineTo(ex - side * 82, eyeY + 14);
+      g.moveTo(ex - side * 52, eyeY + 18);
+      g.lineTo(ex - side * 78, eyeY + 28);
+      g.stroke();
+    }
+
+    /* Pupila minuscula travada no espectador */
+    g.fillStyle = '#05060B';
+    circ(ex, eyeY - sp * 3, isSmile ? 13 : 11);
+    g.fillStyle = isSmile ? PAL.alert : '#FFFFFF';
+    circ(ex - 4, eyeY - 5 - sp * 3, 4.5);
+
+    /* Contorno duro da palpebra superior */
+    g.strokeStyle = '#05060B';
+    g.lineWidth = 8;
+    g.beginPath();
+    g.ellipse(ex, eyeY, 65, 34 - sp * 9, 0, Math.PI * 1.05, Math.PI * 1.95);
     g.stroke();
   }
 
-  /* Pescoco */
-  g.fillStyle = isReflection ? '#BA977E' : PAL.skinShadow;
-  rr(-16, shY - 38, 32, 34, 12); g.fill();
-
-  /* Cabeca */
-  if (backView) {
-    /* Vista de costas: cabelo escuro cobrindo a nuca + orelhas */
-    g.fillStyle = PAL.skinShadow;
-    circ(-62, shY - 86, 12); circ(62, shY - 86, 12);
-    g.fillStyle = PAL.hair;
-    circ(0, shY - 94, 68);
-    g.fillStyle = '#1E2433';
-    g.beginPath(); g.arc(0, shY - 94, 66, -0.7, 0.7); g.strokeStyle = rgba(rimColor, rimA * 0.65); g.lineWidth = 4; g.stroke();
-  } else {
-    drawHeadRafael(0, shY - 94, 68, ex, closed, {
-      tilt: pose.headTilt || 0, rimA, rimColor, rimAng: 0.15,
-      lookX, lookY, isReflection, smileProg, sweat: ex === 'shock'
-    });
+  /* Parte superior do sorriso sinistro aparecendo na base do espelho no final */
+  if (isSmile || isLaugh) {
+    const sy = cy + 116;
+    const sw = lerp(74, 154, sp);
+    const sc = lerp(16, 46, sp);
+    g.fillStyle = '#07080E';
+    g.beginPath();
+    g.moveTo(cx - sw, sy - sc * 0.4);
+    g.quadraticCurveTo(cx, sy + sc * 1.4, cx + sw, sy - sc * 0.4);
+    g.quadraticCurveTo(cx, sy + sc * 0.25, cx - sw, sy - sc * 0.4);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = 'rgba(248, 250, 252, 0.85)';
+    g.lineWidth = 7;
+    g.beginPath();
+    g.moveTo(cx - sw * 0.72, sy);
+    g.quadraticCurveTo(cx, sy + sc * 0.62, cx + sw * 0.72, sy);
+    g.stroke();
   }
 
-  /* Braco frontal (relaxado ao lado do corpo em idle; articulado em press/phone/panic) */
-  const fHandX = pose.press ? 128 : (pose.phone ? 78 : (pose.panic ? 84 + Math.sin(t * 28) * 14 : 70 + walk * 16));
-  const fHandY = pose.press ? (shY + 8) : (pose.phone ? (shY + 74) : (pose.panic ? (shY - 18) : (shY + 188)));
-  const fElbow = solveIK(48, shY + 20, fHandX, fHandY, 92, 92, pose.press || pose.phone || pose.panic ? 1 : -1);
-  drawCapsule(48, shY + 20, fElbow[0], fElbow[1], 30, topMain, rgba(PAL.topDeep, 0.25));
-  drawCapsule(fElbow[0], fElbow[1], fHandX, fHandY, 26, topMain, rgba(PAL.topDeep, 0.25));
-  g.fillStyle = isReflection ? '#CFAF96' : PAL.skin;
-  circ(fHandX, fHandY, 17);
-
-  /* Celular aceso na mao se pose.phone */
-  if (pose.phone && !backView) {
-    g.save();
-    g.translate(fHandX + 12, fHandY - 12);
-    g.rotate(-0.22);
-    g.fillStyle = PAL.phone;
-    rr(-18, -32, 36, 64, 7); g.fill();
-    g.fillStyle = PAL.cyan;
-    rr(-14, -26, 28, 52, 4); g.fill();
-    glow(0, 0, 120, PAL.cyan, 0.36);
-    g.restore();
-  }
+  /* Reflexo diagonal de vidro sobre o espelho */
+  g.fillStyle = 'rgba(255,255,255,0.06)';
+  g.beginPath();
+  g.moveTo(mx + 60, my);
+  g.lineTo(mx + 220, my);
+  g.lineTo(mx + 70, my + mh);
+  g.lineTo(mx - 40, my + mh);
+  g.closePath();
+  g.fill();
 
   g.restore();
+
+  /* Halo vermelho de tensao sob o espelho */
+  glow(540, my + mh, 340, PAL.alert, isSmile ? 0.34 : 0.22);
 }
 
-/* ============================================================
-   CENARIOS EXCLUSIVOS DO VIDEO 06 ("O ELEVADOR DO SUBSOLO 2")
-   ============================================================ */
+/* 6. Macro na macaneta interna da porta com trava infantil vermelha */
+function drawLockedDoorHandle(t, localP){
+  drawBackdrop(t, 'red');
 
-/* Visor LED vermelho compacto dentro da cabine */
-function drawMiniLedVisor(cx, cy, label, isOn=true, arrow='down', redPulse=false){
-  g.save();
-  g.translate(cx, cy);
-  g.fillStyle = '#090B12';
-  rr(-114, -36, 228, 72, 13); g.fill();
-  g.strokeStyle = isOn ? rgba(PAL.ledRed, redPulse ? 0.85 : 0.45) : '#1E293B';
-  g.lineWidth = 3;
-  rr(-114, -36, 228, 72, 13); g.stroke();
-
-  if (isOn) {
-    glow(0, 0, 130, PAL.ledRed, redPulse ? 0.34 : 0.20);
-    g.fillStyle = PAL.ledRed;
-    drawFittedText(label, -18, 2, 124, 50, MONO, '900', 'center');
-    /* Seta vetorial de descida */
-    if (arrow === 'down') {
-      g.beginPath();
-      g.moveTo(54, -10); g.lineTo(80, -10); g.lineTo(67, 13); g.closePath();
-      g.fill();
-    } else if (arrow === 'stop') {
-      g.fillRect(56, -4, 22, 8);
-    }
-  } else {
-    g.fillStyle = PAL.ledDim;
-    drawFittedText('--', 0, 2, 114, 44, MONO, '900', 'center');
-  }
-  g.restore();
-}
-
-/* Interior do elevador brasileiro em aco inox com espelho amplo e reflexo controlavel */
-function drawElevatorCabin(t, opt={}){
-  const {
-    light = 0.88,
-    redAlert = false,
-    visorText = '12',
-    visorOn = true,
-    visorArrow = 'down',
-    doorOpen = 0,
-    showMirror = true,
-    mirrorRafael = null,
-    cameraBlink = true
-  } = opt;
-
-  /* Paredes laterais de aco inox escovado */
-  const wallBg = g.createLinearGradient(0, -180, W, H + 180);
-  wallBg.addColorStop(0, mixHex('#0B101B', '#233044', light * 0.65));
-  wallBg.addColorStop(0.5, mixHex('#0F172A', '#3B4C66', light * 0.62));
-  wallBg.addColorStop(1, mixHex('#090D16', '#1D293B', light * 0.65));
-  g.fillStyle = wallBg;
-  g.fillRect(-240, -240, W + 480, H + 480);
-
-  /* Reflexos verticais de aco escovado */
-  g.fillStyle = `rgba(226, 232, 240, ${0.07 * light})`;
-  g.fillRect(42, -160, 58, H + 320);
-  g.fillRect(980, -160, 58, H + 320);
-
-  /* Teto metalico com luminaria fluorescente central + camera dome no canto */
-  g.fillStyle = '#0E1525';
-  g.beginPath();
-  g.moveTo(-120, -160); g.lineTo(W + 120, -160);
-  g.lineTo(950, 275); g.lineTo(130, 275);
-  g.closePath();
-  g.fill();
-
-  /* Placa luminosa no teto */
-  const lampCol = redAlert ? mixHex('#FCA5A5', '#EF4444', 0.6) : '#E2F1FF';
-  g.fillStyle = rgba(lampCol, clamp(0.14 + light * 0.78));
-  g.beginPath();
-  g.moveTo(270, 58); g.lineTo(810, 58);
-  g.lineTo(750, 178); g.lineTo(330, 178);
-  g.closePath();
-  g.fill();
-  if (light > 0.08) glow(540, 140, 560, redAlert ? PAL.alert : '#BAE6FD', 0.24 * light);
-
-  /* Mini camera dome no canto superior direito do teto */
-  g.fillStyle = '#1E293B';
-  ell(860, 246, 42, 16);
-  g.fillStyle = '#020617';
-  g.beginPath(); g.arc(860, 250, 26, 0, Math.PI); g.fill();
-  if (cameraBlink && Math.sin(t * 5.2) > 0.1) {
-    g.fillStyle = PAL.ledRed;
-    circ(860, 258, 5);
-    glow(860, 258, 42, PAL.ledRed, 0.55);
-  }
-
-  /* Piso de granito escuro com reflexo suave */
-  g.fillStyle = '#090D16';
-  g.beginPath();
-  g.moveTo(130, 1345); g.lineTo(950, 1345);
-  g.lineTo(W + 180, H + 220); g.lineTo(-180, H + 220);
-  g.closePath();
-  g.fill();
-  g.strokeStyle = 'rgba(148, 163, 184, 0.18)';
-  g.lineWidth = 3;
-  g.beginPath(); g.moveTo(130, 1345); g.lineTo(950, 1345); g.stroke();
-
-  /* Moldura da parede de fundo */
-  g.fillStyle = mixHex('#0A0F1A', '#1E293B', light * 0.55);
-  g.fillRect(130, 275, 820, 1070);
-  g.strokeStyle = 'rgba(203, 213, 225, 0.20)';
-  g.lineWidth = 4;
-  g.strokeRect(130, 275, 820, 1070);
-
-  /* ESPELHO AMPLO DO FUNDO (com reflexo proprio, bem abaixo do visor LED!) */
-  if (showMirror) {
-    const mx = 186, my = 414, mw = 708, mh = 710;
-    g.fillStyle = mixHex('#070D17', '#162536', light * 0.72);
-    rr(mx, my, mw, mh, 10); g.fill();
-
-    g.save();
-    rr(mx, my, mw, mh, 10); g.clip();
-
-    /* Reflexo do teto e luz dentro do espelho */
-    const mGrad = g.createLinearGradient(mx, my, mx + mw, my + mh);
-    mGrad.addColorStop(0, `rgba(186, 230, 253, ${0.14 * light})`);
-    mGrad.addColorStop(0.5, 'rgba(15, 23, 42, 0.08)');
-    mGrad.addColorStop(1, `rgba(56, 189, 248, ${0.08 * light})`);
-    g.fillStyle = mGrad;
-    g.fillRect(mx, my, mw, mh);
-
-    /* Desenho do reflexo do Rafael no espelho (pode ter atraso ou sorrir primeiro!) */
-    if (mirrorRafael) {
-      drawRafaelStanding(mirrorRafael.x, mirrorRafael.footY, mirrorRafael.sc, {
-        ...mirrorRafael,
-        t,
-        isReflection: true
-      });
-    }
-
-    /* Riscos diagonais sutis de vidro espelhado */
-    g.fillStyle = `rgba(255, 255, 255, ${0.06 * (0.3 + light * 0.7)})`;
-    g.beginPath();
-    g.moveTo(mx + 60, my); g.lineTo(mx + 150, my);
-    g.lineTo(mx - 40, my + mh); g.lineTo(mx - 130, my + mh);
-    g.closePath(); g.fill();
-    g.beginPath();
-    g.moveTo(mx + 420, my); g.lineTo(mx + 475, my);
-    g.lineTo(mx + 285, my + mh); g.lineTo(mx + 230, my + mh);
-    g.closePath(); g.fill();
-    g.restore();
-
-    /* Moldura cromada do espelho + corrimao metalico */
-    g.strokeStyle = 'rgba(203, 213, 225, 0.38)';
-    g.lineWidth = 6;
-    rr(mx, my, mw, mh, 10); g.stroke();
-
-    /* Corrimao cilindrico de inox */
-    const railY = my + mh - 74;
-    const railG = g.createLinearGradient(0, railY - 12, 0, railY + 14);
-    railG.addColorStop(0, '#E2E8F0');
-    railG.addColorStop(0.5, '#64748B');
-    railG.addColorStop(1, '#1E293B');
-    g.fillStyle = railG;
-    rr(mx - 14, railY - 11, mw + 28, 22, 11); g.fill();
-  }
-
-  /* Visor vermelho de andar acima do espelho (y=346: zero colisao com relogio HUD 01:42!) */
-  drawMiniLedVisor(540, 346, visorText, visorOn, visorArrow, redAlert);
-
-  /* Botoeira lateral na parede direita da cabine (em perspectiva) */
-  g.fillStyle = '#0F172A';
-  rr(964, 620, 72, 340, 10); g.fill();
-  g.strokeStyle = 'rgba(203,213,225,0.28)'; g.lineWidth = 3;
-  rr(964, 620, 72, 340, 10); g.stroke();
-  for (let r = 0; r < 6; r++) {
-    g.fillStyle = (r === 5) ? PAL.alert : (visorOn && r === 4 ? PAL.yellow : '#334155');
-    circ(985, 658 + r * 44, 9);
-    g.fillStyle = '#334155';
-    circ(1015, 658 + r * 44, 9);
-  }
-
-  /* Portas de inox na frente (quando fechando/abrindo em primeiro plano) */
-  if (doorOpen > 0.001 && doorOpen < 0.999) {
-    const gap = lerp(0, 440, ease(doorOpen));
-    const doorG = g.createLinearGradient(0, 0, W, 0);
-    doorG.addColorStop(0, '#1E293B');
-    doorG.addColorStop(0.5, '#475569');
-    doorG.addColorStop(1, '#1E293B');
-    g.fillStyle = doorG;
-    g.fillRect(-100, 180, 640 - gap, 1460);
-    g.fillRect(540 + gap, 180, 640 - gap, 1460);
-    /* Borracha de encontro */
-    g.fillStyle = '#020617';
-    g.fillRect(532 - gap, 180, 12, 1460);
-    g.fillRect(536 + gap, 180, 12, 1460);
-  }
-
-  /* Tint vermelho de emergencia quando alerta */
-  if (redAlert) {
-    g.fillStyle = `rgba(255, 42, 42, ${0.12 + 0.08 * Math.sin(t * 14)})`;
-    g.fillRect(-240, -240, W + 480, H + 480);
-  }
-}
-
-/* Macro da botoeira metalica do elevador brasileiro (12..T, G1, G2 + Emergencia + Fechar) */
-function drawButtonPanelMacro(t, mode, localP){
-  vgrad('#0D1422', '#050811');
-
-  /* Placa escovada de aco inox */
-  const px = 148, py = 265, pw = 784, ph = 1030;
-  const plateG = g.createLinearGradient(px, py, px + pw, py + ph);
-  plateG.addColorStop(0, '#334155');
-  plateG.addColorStop(0.45, '#475569');
-  plateG.addColorStop(0.75, '#1E293B');
-  plateG.addColorStop(1, '#334155');
-  g.fillStyle = plateG;
-  rr(px, py, pw, ph, 28); g.fill();
-  g.strokeStyle = 'rgba(226, 232, 240, 0.35)';
+  /* Painel interno escuro da porta do carro (y=330..1270) */
+  const px = 86, py = 330, pw = W - 172, ph = 940;
+  g.fillStyle = '#111622';
+  rr(px, py, pw, ph, 46); g.fill();
+  g.strokeStyle = '#273449';
   g.lineWidth = 5;
-  rr(px, py, pw, ph, 28); g.stroke();
+  rr(px, py, pw, ph, 46); g.stroke();
 
-  /* Parafusos nos 4 cantos */
-  g.fillStyle = '#0F172A';
-  for (const [sx, sy] of [[px + 34, py + 34], [px + pw - 34, py + 34], [px + 34, py + ph - 34], [px + pw - 34, py + ph - 34]]) {
-    circ(sx, sy, 10);
-  }
+  /* Costura horizontal do couro da porta */
+  g.strokeStyle = 'rgba(255,255,255,0.10)';
+  g.lineWidth = 3;
+  g.setLineDash([12, 10]);
+  g.beginPath(); g.moveTo(px + 34, py + 135); g.lineTo(px + pw - 34, py + 135); g.stroke();
+  g.setLineDash([]);
 
-  /* Grade de botoes (3 colunas x 5 linhas): 12..01, T, G1, G2 */
-  const labels = ['12', '11', '10', '09', '08', '07', '06', '05', '04', '03', '02', '01', 'T', 'G1', 'G2'];
-  const dead = (mode === 'morta');
-  const tLit = (mode === 'terreo' && localP > 0.35);
+  /* Alojamento da macaneta interna */
+  const hx = 215, hy = 555, hw = 650, hh = 210;
+  g.fillStyle = '#070A12';
+  rr(hx, hy, hw, hh, 44); g.fill();
+  g.strokeStyle = '#334155';
+  g.lineWidth = 5;
+  rr(hx, hy, hw, hh, 44); g.stroke();
 
-  for (let i = 0; i < labels.length; i++) {
-    const col = i % 3;
-    const row = Math.floor(i / 3);
-    const bx = px + 175 + col * 216;
-    const by = py + 148 + row * 138;
-    const lbl = labels[i];
-    const isT = lbl === 'T';
-    const isLit = isT && tLit;
-
-    /* Anel metalico externo */
-    g.fillStyle = '#0F172A';
-    circ(bx, by, 52);
-    g.fillStyle = isLit ? '#3B2C06' : '#1E293B';
-    circ(bx, by, 44);
-    g.strokeStyle = isLit ? PAL.yellow : (dead ? '#1E293B' : '#94A3B8');
-    g.lineWidth = isLit ? 6 : 3;
-    g.beginPath(); g.arc(bx, by, 44, 0, Math.PI * 2); g.stroke();
-
-    if (isLit) glow(bx, by, 105, PAL.yellow, 0.45);
-
-    g.fillStyle = isLit ? PAL.yellow : (dead ? '#475569' : '#E2E8F0');
-    drawFittedText(lbl, bx, by + 2, 68, 38, MONO, '900', 'center');
-  }
-
-  /* Fileira inferior: Botao FECHAR PORTA (esquerda) e EMERGENCIA VERMELHO (direita) */
-  const closeX = px + 240, emergX = px + 544, botY = py + 878;
-  const pressClose = (mode === 'morta');
-  const pressEmerg = (mode === 'emergencia');
-
-  /* Botao FECHAR PORTA (>| |<) */
-  g.fillStyle = '#0F172A'; circ(closeX, botY, 64);
-  g.fillStyle = '#1E293B'; circ(closeX, botY, 54);
-  g.strokeStyle = dead ? '#334155' : '#94A3B8'; g.lineWidth = 4;
-  g.beginPath(); g.arc(closeX, botY, 54, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = dead ? '#475569' : '#E2E8F0';
-  /* Triangulos apontando para o centro */
-  g.beginPath(); g.moveTo(closeX - 30, botY - 14); g.lineTo(closeX - 8, botY); g.lineTo(closeX - 30, botY + 14); g.closePath(); g.fill();
-  g.beginPath(); g.moveTo(closeX + 30, botY - 14); g.lineTo(closeX + 8, botY); g.lineTo(closeX + 30, botY + 14); g.closePath(); g.fill();
-  g.fillRect(closeX - 2, botY - 18, 4, 36);
-
-  /* Botao VERMELHO DE EMERGENCIA */
-  const emFlash = pressEmerg && (Math.sin(t * 26) > 0);
-  g.fillStyle = '#0F172A'; circ(emergX, botY, 66);
-  g.fillStyle = emFlash ? '#FF4D4D' : (dead ? '#450A0A' : '#B91C1C');
-  circ(emergX, botY, 56);
-  g.strokeStyle = emFlash ? '#FFFFFF' : PAL.alert; g.lineWidth = 5;
-  g.beginPath(); g.arc(emergX, botY, 56, 0, Math.PI * 2); g.stroke();
-  if (pressEmerg) glow(emergX, botY, 165, PAL.alert, 0.50);
-  /* Icone vetorial de sino de emergencia */
-  g.fillStyle = '#FFFFFF';
-  g.beginPath();
-  g.arc(emergX, botY - 6, 18, Math.PI, 0);
-  g.lineTo(emergX + 24, botY + 14);
-  g.lineTo(emergX - 24, botY + 14);
-  g.closePath(); g.fill();
-  circ(emergX, botY + 20, 6);
-
-  /* Legenda tecnica gravada no inox */
-  g.fillStyle = '#94A3B8';
-  drawFittedText('FECHAR', closeX, botY + 86, 160, 22, MONO, '800', 'center');
-  g.fillStyle = PAL.alert;
-  drawFittedText('EMERGÊNCIA', emergX, botY + 86, 180, 22, MONO, '800', 'center');
-
-  /* Mao/dedo estilizado do Rafael pressionando o botao alvo! */
-  let targetX = px + 175, targetY = py + 148 + 4 * 138;
-  let push = 0;
-  if (mode === 'terreo') {
-    push = easeOut(clamp(localP * 2.2));
-  } else if (mode === 'emergencia') {
-    targetX = emergX; targetY = botY;
-    push = 0.72 + 0.28 * Math.abs(Math.sin(t * 16));
-  } else if (mode === 'morta') {
-    targetX = closeX; targetY = botY;
-    push = 0.70 + 0.30 * Math.abs(Math.sin(t * 20));
-  }
-
-  const hx = lerp(W + 140, targetX + 12, push);
-  const hy = lerp(targetY + 260, targetY + 20, push);
+  /* Puxoes desesperados na macaneta travada (trepidacao seca) */
+  const yank = Math.abs(Math.sin(t * 24)) * 18;
   g.save();
-  g.translate(hx, hy);
-  g.rotate(-0.42);
-  /* Manga verde-petroleo do Rafael */
-  g.fillStyle = PAL.top;
-  rr(120, -48, 340, 120, 44); g.fill();
-  /* Palma e dedo indicador estendido */
+  g.translate(hx + 76, hy + 105);
+  g.rotate(-yank * 0.014);
+  const handleG = g.createLinearGradient(0, -45, 0, 45);
+  handleG.addColorStop(0, '#E2E8F0');
+  handleG.addColorStop(0.5, '#94A3B8');
+  handleG.addColorStop(1, '#475569');
+  g.fillStyle = handleG;
+  rr(0, -42, 415, 84, 30); g.fill();
+  g.restore();
+
+  /* Mao de Diego puxando a macaneta (recortada acima do indicador TRAVA INFANTIL) */
+  const badgeY = py + 625;
+  const handX = hx + 335 - yank * 0.7;
+  const handY = hy + 178 - yank * 0.3;
+  g.save();
+  g.beginPath();
+  g.rect(px, py, pw, badgeY - py - 14);
+  g.clip();
+  drawCapsule(handX + 260, handY + 120, handX + 25, handY + 26, 72, PAL.top, PAL.topShade);
+  g.restore();
   g.fillStyle = PAL.skin;
-  rr(-10, -28, 175, 52, 26); g.fill();
-  rr(64, -36, 108, 108, 38); g.fill();
-  g.fillStyle = PAL.skinShadow;
-  rr(60, 18, 92, 26, 12); g.fill();
+  rr(handX - 96, handY - 56, 178, 128, 44); g.fill();
+  /* Dedos agarrando a macaneta */
+  for (let i = 0; i < 4; i++) {
+    g.fillStyle = i % 2 === 0 ? PAL.skin : PAL.skinShadow;
+    rr(handX - 88 + i * 42, handY - 98, 34, 68, 16); g.fill();
+  }
+
+  /* Indicador luminoso da TRAVA INFANTIL ATIVA */
+  const blink = 0.55 + 0.45 * Math.sin(t * 16);
+  g.fillStyle = '#090D16';
+  rr(px + 72, badgeY, pw - 144, 198, 28); g.fill();
+  g.strokeStyle = rgba(PAL.alert, 0.5 + blink * 0.5);
+  g.lineWidth = 4;
+  rr(px + 72, badgeY, pw - 144, 198, 28); g.stroke();
+  glow(540, badgeY + 99, 280, PAL.alert, 0.25 * blink);
+
+  /* Icone de cadeado fechado vetorial */
+  g.save();
+  g.translate(px + 170, badgeY + 100);
+  g.strokeStyle = PAL.alert;
+  g.lineWidth = 10;
+  g.beginPath(); g.arc(0, -24, 24, Math.PI, Math.PI * 2); g.stroke();
+  g.fillStyle = PAL.alert;
+  rr(-36, -24, 72, 60, 14); g.fill();
+  g.fillStyle = '#090D16';
+  circ(0, 6, 10);
   g.restore();
+
+  g.fillStyle = PAL.alert;
+  drawFittedText('TRAVA INFANTIL', px + 520, badgeY + 74, 480, 44, COND, '900', 'center');
+  g.fillStyle = PAL.white;
+  drawFittedText('PORTA BLOQUEADA POR FORA', px + 520, badgeY + 132, 480, 26, MONO, '700', 'center');
 }
 
-/* Macro dramatico no visor LED digital vermelho (11->10->09, 06, OFF, T->G1->G2, S3) */
-function drawVisorMacro(t, digit, isOn, arrow, isDanger, glitchAmt=0){
-  vgrad(isDanger ? '#1C0508' : '#080C17', '#020308');
+/* 7. Macro no GPS do painel virando para estrada de terra */
+function drawDashboardGps(t, localP){
+  drawBackdrop(t, 'red');
 
-  /* Lintel superior de aco inox */
-  g.fillStyle = '#1E293B';
-  g.fillRect(-180, 320, W + 360, 740);
-  g.fillStyle = 'rgba(226, 232, 240, 0.06)';
-  for (let y = 340; y < 1040; y += 22) g.fillRect(-180, y, W + 360, 4);
+  /* Moldura central do painel multimidia (y=320..1240) */
+  const gx = 84, gy = 330, gw = W - 168, gh = 900;
+  g.fillStyle = '#060911';
+  rr(gx - 18, gy - 18, gw + 36, gh + 36, 46); g.fill();
+  g.strokeStyle = '#334155';
+  g.lineWidth = 5;
+  rr(gx - 18, gy - 18, gw + 36, gh + 36, 46); g.stroke();
 
-  /* Caixa preta do visor LED */
-  const vx = 104, vy = 450, vw = 872, vh = 480;
-  g.fillStyle = '#040508';
-  rr(vx, vy, vw, vh, 32); g.fill();
-  g.strokeStyle = isOn ? rgba(PAL.ledRed, isDanger ? 0.85 : 0.45) : '#1E293B';
-  g.lineWidth = 8;
-  rr(vx, vy, vw, vh, 32); g.stroke();
+  g.save();
+  rr(gx, gy, gw, gh, 34); g.clip();
 
-  /* Matriz de LEDs apagados no fundo (realismo de painel digital) */
-  g.fillStyle = 'rgba(80, 12, 16, 0.34)';
-  for (let gx = vx + 44; gx < vx + vw - 30; gx += 28) {
-    for (let gy = vy + 44; gy < vy + vh - 30; gy += 28) {
-      circ(gx, gy, 4);
-    }
+  /* Fundo de mapa escuro */
+  g.fillStyle = '#0A101E';
+  g.fillRect(gx, gy, gw, gh);
+
+  /* Grade urbana na metade inferior; zona vazia de terra na metade superior */
+  g.strokeStyle = 'rgba(148, 163, 184, 0.16)';
+  g.lineWidth = 9;
+  for (let i = 0; i < 6; i++) {
+    g.beginPath(); g.moveTo(gx, gy + 520 + i * 74); g.lineTo(gx + gw, gy + 520 + i * 74); g.stroke();
+  }
+  for (let i = 0; i < 7; i++) {
+    g.beginPath(); g.moveTo(gx + 90 + i * 135, gy + 500); g.lineTo(gx + 90 + i * 135, gy + gh); g.stroke();
   }
 
-  if (isOn) {
-    const jx = glitchAmt > 0 ? noise(t * 60, 19) * 16 * glitchAmt : 0;
-    const jy = glitchAmt > 0 ? noise(t * 55, 23) * 8 * glitchAmt : 0;
-    glow(540 + jx, vy + vh * 0.5 + jy, 440, PAL.ledRed, isDanger ? 0.48 : 0.32);
-
-    if (glitchAmt > 0.2) {
-      g.fillStyle = rgba(PAL.cyan, 0.42);
-      drawFittedText(digit, 455 + jx + 10, vy + vh * 0.52 + jy, 520, 290, MONO, '900', 'center');
-    }
-
-    g.fillStyle = PAL.ledRed;
-    drawFittedText(digit, 455 + jx, vy + vh * 0.52 + jy, 520, 290, MONO, '900', 'center');
-    g.fillStyle = 'rgba(255, 220, 220, 0.55)';
-    drawFittedText(digit, 455 + jx, vy + vh * 0.52 + jy, 520, 286, MONO, '900', 'center');
-
-    if (arrow === 'down') {
-      const ay = vy + vh * 0.5 + Math.sin(t * 10) * 12;
-      g.fillStyle = PAL.ledRed;
-      g.beginPath();
-      g.moveTo(760, ay - 52); g.lineTo(880, ay - 52); g.lineTo(820, ay + 64);
-      g.closePath(); g.fill();
-    } else if (arrow === 'warn') {
-      g.fillStyle = PAL.yellow;
-      g.beginPath();
-      g.moveTo(820, vy + 166); g.lineTo(886, vy + 286); g.lineTo(754, vy + 286);
-      g.closePath(); g.fill();
-      g.fillStyle = PAL.ink;
-      drawFittedText('!', 820, vy + 244, 60, 74, MONO, '900', 'center');
-    }
-  } else {
-    g.fillStyle = '#24080A';
-    drawFittedText('OFF', 540, vy + vh * 0.52, 480, 180, MONO, '900', 'center');
-  }
-
-  /* Etiqueta gravada abaixo do visor */
-  g.fillStyle = '#94A3B8';
-  drawFittedText(isDanger ? 'ANDAR NÃO IDENTIFICADO' : 'ELEVADOR SOCIAL', 540, vy + vh + 58, 760, 30, MONO, '800', 'center');
-  g.drawImage(scanCv, 0, 0);
-}
-
-/* Corredor de concreto umido do Subsolo S3 + cadeira de metal isolada encarando o elevador */
-function drawS3Corridor(t, localP, zoomChair=false){
-  vgrad('#06080E', '#020306');
-
-  /* Perspectiva do corredor de concreto umido */
-  const flk = 0.65 + 0.35 * (Math.sin(t * 19) > -0.35 ? 1 : 0.25);
-
-  /* Parede do fundo */
-  g.fillStyle = '#12161E';
-  g.fillRect(230, 330, 620, 820);
-
-  /* Paredes laterais convergentes */
-  g.fillStyle = '#171C26';
-  g.beginPath(); g.moveTo(-140, 120); g.lineTo(230, 330); g.lineTo(230, 1150); g.lineTo(-140, 1520); g.closePath(); g.fill();
-  g.beginPath(); g.moveTo(W + 140, 120); g.lineTo(850, 330); g.lineTo(850, 1150); g.lineTo(W + 140, 1520); g.closePath(); g.fill();
-
-  /* Teto de concreto */
-  g.fillStyle = '#0D1017';
-  g.beginPath(); g.moveTo(-140, 120); g.lineTo(W + 140, 120); g.lineTo(850, 330); g.lineTo(230, 330); g.closePath(); g.fill();
-
-  /* Piso de concreto umido com pocas e reflexo */
-  const flG = g.createLinearGradient(0, 1150, 0, 1660);
-  flG.addColorStop(0, '#10141C');
-  flG.addColorStop(0.5, '#1D2532');
-  flG.addColorStop(1, '#080A10');
-  g.fillStyle = flG;
-  g.beginPath(); g.moveTo(230, 1150); g.lineTo(850, 1150); g.lineTo(W + 160, 1660); g.lineTo(-160, 1660); g.closePath(); g.fill();
-
-  /* Manchas verticais de umidade no concreto */
-  g.fillStyle = 'rgba(0, 0, 0, 0.36)';
-  for (let i = 0; i < 8; i++) {
-    const wx = 260 + i * 76;
-    g.fillRect(wx, 340 + (i % 3) * 40, 18 + (i % 2) * 14, 480 + (i % 3) * 80);
-  }
-  /* Poca d'agua brilhando no chao */
-  g.fillStyle = `rgba(125, 211, 252, ${0.12 * flk})`;
-  ell(540, 1290, 290, 44);
-  ell(370, 1225, 110, 18);
-
-  /* Lampada tubular fria piscando no teto + cone de luz sobre a cadeira */
-  g.fillStyle = `rgba(224, 242, 254, ${0.85 * flk})`;
-  rr(452, 242, 176, 16, 8); g.fill();
-  const cone = g.createLinearGradient(540, 255, 540, 1340);
-  cone.addColorStop(0, `rgba(186, 230, 253, ${0.30 * flk})`);
-  cone.addColorStop(1, 'rgba(186, 230, 253, 0)');
-  g.fillStyle = cone;
+  /* Area rural escura / mata no topo */
+  g.fillStyle = '#0E151B';
+  g.fillRect(gx, gy, gw, 505);
+  g.strokeStyle = 'rgba(180, 83, 9, 0.35)';
+  g.lineWidth = 14;
+  g.setLineDash([20, 14]);
   g.beginPath();
-  g.moveTo(455, 258); g.lineTo(625, 258); g.lineTo(840, 1340); g.lineTo(240, 1340);
-  g.closePath(); g.fill();
+  g.moveTo(gx + 460, gy + 510);
+  g.quadraticCurveTo(gx + 540, gy + 360, gx + 710, gy + 200);
+  g.stroke();
+  g.setLineDash([]);
 
-  /* Placa pintada na parede umida: "S3" */
-  g.fillStyle = 'rgba(255, 59, 48, 0.48)';
-  drawFittedText('S3', 540, 470, 260, 118, COND, '900', 'center');
+  /* Rota original cancelada para CASA (tracejada cinza a esquerda) */
+  g.strokeStyle = 'rgba(148, 163, 184, 0.40)';
+  g.lineWidth = 10;
+  g.setLineDash([14, 14]);
+  g.beginPath();
+  g.moveTo(gx + 460, gy + 740);
+  g.lineTo(gx + 460, gy + 580);
+  g.lineTo(gx + 190, gy + 580);
+  g.stroke();
+  g.setLineDash([]);
 
-  /* CADEIRA DE METAL ISOLADA BEM NO MEIO DO CORREDOR, DE FRENTE PRO ELEVADOR */
-  const cScale = zoomChair ? lerp(1.12, 1.30, easeOut(localP)) : 0.96;
-  const cx = 540, cy = 1140;
+  g.fillStyle = '#1E293B';
+  rr(gx + 92, gy + 536, 152, 46, 12); g.fill();
+  g.fillStyle = PAL.dim;
+  drawFittedText('CASA (X)', gx + 168, gy + 560, 130, 22, MONO, '800', 'center');
+
+  /* ROTA VERMELHA PULSANTE desviando para fora da cidade */
+  const pulse = 0.55 + 0.45 * Math.sin(t * 14);
+  g.strokeStyle = PAL.alert;
+  g.lineWidth = 16;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(gx + 460, gy + 830);
+  g.lineTo(gx + 460, gy + 520);
+  g.quadraticCurveTo(gx + 540, gy + 360, gx + 710, gy + 200);
+  g.stroke();
+  glow(gx + 710, gy + 200, 180, PAL.alert, 0.35 + pulse * 0.28);
+
+  /* Seta do carro subindo pela rota vermelha */
+  const carK = clamp(localP);
+  const cx = lerp(gx + 460, gx + 610, ease(carK));
+  const cy = lerp(gy + 680, gy + 315, ease(carK));
   g.save();
   g.translate(cx, cy);
-  g.scale(cScale, cScale);
-
-  /* Sombra pesada sob a cadeira no concreto molhado */
-  g.fillStyle = 'rgba(0,0,0,0.68)';
-  ell(0, 72, 136, 26);
-
-  /* Pernas traseiras metalicas */
-  g.strokeStyle = '#64748B'; g.lineWidth = 12; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(-78, -238); g.lineTo(-92, 62); g.stroke();
-  g.beginPath(); g.moveTo(78, -238); g.lineTo(92, 62); g.stroke();
-
-  /* Encosto metalico ripado */
-  g.fillStyle = '#475569';
-  rr(-86, -242, 172, 92, 10); g.fill();
-  g.strokeStyle = '#94A3B8'; g.lineWidth = 4;
-  rr(-86, -242, 172, 92, 10); g.stroke();
-  g.fillStyle = 'rgba(226, 232, 240, 0.28)';
-  g.fillRect(-74, -232, 148, 12);
-
-  /* Assento de metal frio */
-  g.fillStyle = '#334155';
-  g.beginPath();
-  g.moveTo(-90, -56); g.lineTo(90, -56); g.lineTo(106, -10); g.lineTo(-106, -10);
-  g.closePath(); g.fill();
-  g.strokeStyle = '#CBD5E1'; g.lineWidth = 4;
-  g.beginPath(); g.moveTo(-90, -56); g.lineTo(90, -56); g.stroke();
-
-  /* Pernas dianteiras + travessa */
-  g.strokeStyle = '#94A3B8'; g.lineWidth = 13;
-  g.beginPath(); g.moveTo(-98, -14); g.lineTo(-104, 72); g.stroke();
-  g.beginPath(); g.moveTo(98, -14); g.lineTo(104, 72); g.stroke();
-  g.lineWidth = 8;
-  g.beginPath(); g.moveTo(-99, 32); g.lineTo(99, 32); g.stroke();
+  g.rotate(carK > 0.35 ? 0.55 : 0);
+  g.fillStyle = PAL.white;
+  g.beginPath(); g.moveTo(0, -34); g.lineTo(26, 26); g.lineTo(0, 12); g.lineTo(-26, 26); g.closePath(); g.fill();
   g.restore();
 
-  /* Batente das portas abertas do elevador no primeiro plano (enquadramento POV de dentro da cabine!) */
-  const frameW = zoomChair ? 88 : 138;
-  g.fillStyle = '#0A0F1A';
-  g.fillRect(-160, -160, frameW + 160, H + 320);
-  g.fillRect(W - frameW, -160, frameW + 160, H + 320);
-  g.fillRect(-160, -160, W + 320, 310);
-  g.strokeStyle = 'rgba(148, 163, 184, 0.30)';
-  g.lineWidth = 6;
-  g.beginPath();
-  g.moveTo(frameW, 150); g.lineTo(frameW, H);
-  g.moveTo(W - frameW, 150); g.lineTo(W - frameW, H);
-  g.stroke();
-}
-
-/* Grade metalica do interfone da cabine chiando com ondas de audio */
-function drawIntercomGrille(t){
-  vgrad('#0C1322', '#050811');
-
-  const bx = 130, by = 320, bw = 820, bh = 900;
-  const metalG = g.createLinearGradient(bx, by, bx + bw, by + bh);
-  metalG.addColorStop(0, '#334155');
-  metalG.addColorStop(0.5, '#1E293B');
-  metalG.addColorStop(1, '#0F172A');
-  g.fillStyle = metalG;
-  rr(bx, by, bw, bh, 30); g.fill();
-  g.strokeStyle = 'rgba(203, 213, 225, 0.35)';
-  g.lineWidth = 5;
-  rr(bx, by, bw, bh, 30); g.stroke();
-
-  /* Etiqueta superior + LED piscando */
-  const ledOn = Math.sin(t * 14) > -0.2;
-  g.fillStyle = ledOn ? PAL.ledRed : '#3F1111';
-  circ(bx + 84, by + 78, 15);
-  if (ledOn) glow(bx + 84, by + 78, 70, PAL.ledRed, 0.6);
-
-  g.fillStyle = PAL.text;
-  drawFittedText('INTERFONE  •  PORTARIA', bx + 440, by + 80, 620, 34, MONO, '900', 'center');
-
-  /* Fendas horizontais do alto-falante metalico */
-  for (let i = 0; i < 11; i++) {
-    const sy = by + 168 + i * 44;
-    g.fillStyle = '#04060B';
-    rr(bx + 90, sy, bw - 180, 22, 11); g.fill();
-    g.fillStyle = 'rgba(226, 232, 240, 0.14)';
-    g.fillRect(bx + 96, sy + 20, bw - 192, 3);
-  }
-
-  /* Ondas reativas de chiado/voz dentro de visor inferior (termina acima de y=1160!) */
-  const wx = bx + 84, wy = by + 686, ww = bw - 168, wh = 148;
-  g.fillStyle = '#050B10';
-  rr(wx, wy, ww, wh, 16); g.fill();
-  g.strokeStyle = rgba(PAL.cctvBright, 0.45); g.lineWidth = 3;
-  rr(wx, wy, ww, wh, 16); g.stroke();
-
-  g.fillStyle = PAL.cctvBright;
-  const nBars = 32;
-  for (let i = 0; i < nBars; i++) {
-    const env = 0.25 + 0.75 * Math.sin((i / (nBars - 1)) * Math.PI);
-    const amp = (0.18 + 0.82 * Math.abs(noise(t * 24 + i * 0.7, 71))) * env;
-    const h = Math.max(8, amp * (wh - 42));
-    const x = wx + 22 + (i / nBars) * (ww - 44);
-    g.fillRect(x, wy + wh * 0.5 - h * 0.5, 10, h);
-  }
-
-  g.drawImage(scanCv, 0, 0);
-}
-
-/* Tela CCTV da Portaria mostrando o elevador parado no Terreo com figura encarando a camera */
-function drawCctvPortaria(t, zoomIn=false, localP=0){
-  vgrad('#060D12', '#020508');
-
-  /* sy=294 garante folga limpa abaixo do selo PARTE 2 (y=165..217) mesmo sob zoom 1.15x! */
-  const sx = 64, sy = 294, sw = W - 128, sh = 986;
-  g.fillStyle = '#0B1418';
-  rr(sx, sy, sw, sh, 28); g.fill();
-
-  g.save();
-  rr(sx, sy, sw, sh, 28); g.clip();
-
-  /* Fundo CCTV esverdeado-frio do interior do elevador visto do alto */
-  const z = zoomIn ? lerp(1.06, 1.28, easeOut(localP)) : lerp(1.00, 1.08, localP);
-  g.save();
-  g.translate(sx + sw * 0.5, sy + sh * 0.52);
-  g.scale(z, z);
-  g.translate(-(sx + sw * 0.5), -(sy + sh * 0.52));
-
-  g.fillStyle = '#0F1E24';
-  g.fillRect(sx, sy, sw, sh);
-  /* Paredes da cabine em grande-angular CCTV */
-  g.strokeStyle = 'rgba(125, 211, 252, 0.24)'; g.lineWidth = 4;
-  g.strokeRect(sx + 130, sy + 150, sw - 260, sh - 300);
-  g.beginPath();
-  g.moveTo(sx, sy + 60); g.lineTo(sx + 130, sy + 150);
-  g.moveTo(sx + sw, sy + 60); g.lineTo(sx + sw - 130, sy + 150);
-  g.moveTo(sx, sy + sh - 70); g.lineTo(sx + 130, sy + sh - 150);
-  g.moveTo(sx + sw, sy + sh - 70); g.lineTo(sx + sw - 130, sy + sh - 150);
-  g.stroke();
-
-  /* Figura identica ao Rafael parada completamente imovel no centro encarando reto a lente IR */
-  const px = sx + sw * 0.5, py = sy + sh * 0.72;
-  /* Sombra pesada no piso */
-  g.fillStyle = 'rgba(0, 0, 0, 0.55)';
-  ell(px, py + 72, 118, 30);
-  /* Tronco em capsula de jaqueta escura */
-  g.fillStyle = '#071418';
-  rr(px - 96, py - 245, 192, 310, 78); g.fill();
-  g.strokeStyle = 'rgba(125, 211, 252, 0.22)'; g.lineWidth = 4;
-  rr(px - 96, py - 245, 192, 310, 78); g.stroke();
-  /* Gola e ziper fraco sob visao noturna */
-  g.fillStyle = 'rgba(125, 211, 252, 0.14)';
-  g.fillRect(px - 3, py - 225, 6, 265);
-  /* Cabeca erguida olhando diretamente para cima na lente */
-  g.fillStyle = '#182C34';
-  circ(px, py - 322, 82);
-  /* Cabelo escuro curto do Rafael */
-  g.save();
-  g.beginPath(); g.arc(px, py - 322, 82, 0, Math.PI * 2); g.clip();
-  g.fillStyle = '#03070A';
-  g.beginPath();
-  g.arc(px, py - 336, 84, Math.PI * 1.05, Math.PI * 1.95);
-  g.quadraticCurveTo(px + 20, py - 355, px - 78, py - 332);
-  g.closePath(); g.fill();
-  g.restore();
-  g.strokeStyle = rgba(PAL.cctvBright, 0.34); g.lineWidth = 3;
-  g.beginPath(); g.arc(px, py - 322, 82, 0, Math.PI * 2); g.stroke();
-
-  /* Olheiras fundas e olhos palidos arregalados sem piscar mirando a camera */
-  g.fillStyle = 'rgba(2, 6, 9, 0.75)';
-  ell(px - 26, py - 328, 22, 18);
-  ell(px + 26, py - 328, 22, 18);
-  g.fillStyle = PAL.cctvPale;
-  ell(px - 26, py - 330, 14, 15);
-  ell(px + 26, py - 330, 14, 15);
-  g.fillStyle = '#020609';
-  circ(px - 26, py - 333, 5.5);
-  circ(px + 26, py - 333, 5.5);
-  /* Boca reta e gelida (o sorriso fica guardado para o espelho final!) */
-  g.strokeStyle = 'rgba(2, 6, 9, 0.85)';
-  g.lineWidth = 5;
-  g.beginPath(); g.moveTo(px - 18, py - 286); g.lineTo(px + 18, py - 286); g.stroke();
-
-  g.restore();
-
-  /* Interferencia horizontal sutil de sinal CCTV */
-  g.fillStyle = 'rgba(125, 211, 252, 0.10)';
-  const bandY = sy + ((t * 210) % sh);
-  g.fillRect(sx, bandY, sw, 46);
-
-  /* Barra HUD superior CCTV (UNICO relogio 01:42 na tela!) */
-  g.fillStyle = 'rgba(4, 10, 14, 0.86)';
-  g.fillRect(sx, sy, sw, 80);
-  if (Math.sin(t * 5.0) > -0.2) {
-    g.fillStyle = PAL.alert;
-    circ(sx + 40, sy + 40, 10);
-  }
-  g.fillStyle = PAL.cctvPale;
-  drawFittedText('REC  CAM 01  •  ELEVADOR', sx + 64, sy + 41, 540, 26, MONO, '800', 'left');
+  /* Barra superior de alerta do GPS */
+  g.fillStyle = 'rgba(127, 29, 29, 0.94)';
+  rr(gx + 28, gy + 28, gw - 56, 118, 22); g.fill();
+  g.strokeStyle = PAL.alert;
+  g.lineWidth = 3;
+  rr(gx + 28, gy + 28, gw - 56, 118, 22); g.stroke();
   g.fillStyle = PAL.yellow;
-  drawFittedText('01:42', sx + sw - 30, sy + 41, 160, 30, MONO, '900', 'right');
+  drawFittedText('ROTA DESVIADA  |  03:10', gx + gw / 2, gy + 64, gw - 110, 26, MONO, '800', 'center');
+  g.fillStyle = PAL.white;
+  drawFittedText('ESTRADA DE TERRA - FORA DA CIDADE', gx + gw / 2, gy + 108, gw - 110, 34, COND, '900', 'center');
 
-  /* Barra HUD inferior CCTV (termina em sy+sh = 1280, bem acima da legenda em 1495!) */
-  g.fillStyle = 'rgba(4, 10, 14, 0.88)';
-  g.fillRect(sx, sy + sh - 88, sw, 88);
+  /* Destino vermelho no final da estrada */
   g.fillStyle = PAL.alert;
-  drawFittedText('ANDAR: TÉRREO (T)  •  PARADO HÁ 05:00', sx + sw * 0.5, sy + sh - 44, sw - 72, 28, MONO, '900', 'center');
+  circ(gx + 710, gy + 200, 20);
+  g.strokeStyle = PAL.white;
+  g.lineWidth = 4;
+  g.beginPath(); g.arc(gx + 710, gy + 200, 32 + pulse * 14, 0, Math.PI * 2); g.stroke();
 
-  g.drawImage(scanCv, 0, 0);
   g.restore();
-
-  g.strokeStyle = zoomIn ? PAL.alert : rgba(PAL.cctvBright, 0.55);
-  g.lineWidth = 6;
-  rr(sx, sy, sw, sh, 28); g.stroke();
 }
 
-/* Contra-plongee da camera dome no teto com LED vermelho piscando */
-function drawCeilingCamera(t){
-  vgrad('#0A101E', '#04070E');
+/* 8. Macro no velocimetro cravando 120 km/h com painel pulsando em vermelho */
+function drawSpeedometer120(t, localP){
+  drawBackdrop(t, 'red');
 
-  /* Placas metalicas do teto em perspectiva */
-  g.strokeStyle = 'rgba(148, 163, 184, 0.20)';
+  const cx = 540, cy = 790, R = 365;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 18);
+
+  /* Painel de instrumentos escuro */
+  g.fillStyle = '#060810';
+  rr(76, 345, W - 152, 880, 64); g.fill();
+  g.strokeStyle = rgba(PAL.alert, 0.45 + pulse * 0.45);
   g.lineWidth = 5;
-  g.strokeRect(120, 220, 840, 1080);
-  g.beginPath();
-  g.moveTo(540, 220); g.lineTo(540, 1300);
-  g.moveTo(120, 760); g.lineTo(960, 760);
-  g.stroke();
+  rr(76, 345, W - 152, 880, 64); g.stroke();
+  glow(cx, cy, 480, PAL.alert, 0.25 + pulse * 0.18);
 
-  /* Base circular metalica da camera dome */
-  const cx = 540, cy = 760;
-  g.fillStyle = '#1E293B'; circ(cx, cy, 260);
-  g.strokeStyle = '#64748B'; g.lineWidth = 8;
-  g.beginPath(); g.arc(cx, cy, 260, 0, Math.PI * 2); g.stroke();
+  /* Mostrador circular */
+  g.fillStyle = '#0A0E18';
+  circ(cx, cy, R);
+  g.strokeStyle = '#334155';
+  g.lineWidth = 10;
+  g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
 
-  /* Cupula de vidro fumê escura */
-  const domeG = g.createRadialGradient(cx - 60, cy - 60, 20, cx, cy, 210);
-  domeG.addColorStop(0, '#1E293B');
-  domeG.addColorStop(0.55, '#070B14');
-  domeG.addColorStop(1, '#020409');
-  g.fillStyle = domeG; circ(cx, cy, 205);
+  /* Arco colorido (0 a 160 km/h) */
+  const startA = Math.PI * 0.78;
+  const endA = Math.PI * 2.22;
+  const spanA = endA - startA;
+  g.strokeStyle = 'rgba(255,255,255,0.12)';
+  g.lineWidth = 24;
+  g.lineCap = 'round';
+  g.beginPath(); g.arc(cx, cy, R - 46, startA, endA); g.stroke();
 
-  /* Lente interna acompanhando Rafael */
-  const lx = cx + Math.sin(t * 1.6) * 18;
-  const ly = cy + Math.cos(t * 1.2) * 10;
-  g.fillStyle = '#0F172A'; circ(lx, ly, 76);
-  g.strokeStyle = '#334155'; g.lineWidth = 6;
-  g.beginPath(); g.arc(lx, ly, 76, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = '#020617'; circ(lx, ly, 42);
-  g.fillStyle = 'rgba(56, 217, 255, 0.35)'; circ(lx - 14, ly - 14, 12);
+  /* Velocidade sobe de 68 para 120+ km/h com trepidacao */
+  const spd = lerp(74, 120, easeOut(clamp(localP * 1.35))) + Math.sin(t * 36) * 1.8;
+  const spdFrac = clamp(spd / 160);
+  g.strokeStyle = PAL.alert;
+  g.lineWidth = 24;
+  g.beginPath(); g.arc(cx, cy, R - 46, startA, startA + spanA * spdFrac); g.stroke();
 
-  /* Pontinho vermelho piscando da gravacao */
-  const blink = Math.sin(t * 6.5) > -0.25;
-  if (blink) {
-    glow(cx + 128, cy - 88, 170, PAL.ledRed, 0.72);
-    g.fillStyle = PAL.ledRed;
-    circ(cx + 128, cy - 88, 18);
-    g.fillStyle = '#FFFFFF';
-    circ(cx + 124, cy - 92, 6);
-  } else {
-    g.fillStyle = '#450A0A';
-    circ(cx + 128, cy - 88, 16);
+  /* Marcacoes numericas */
+  for (let v = 0; v <= 160; v += 20) {
+    const ang = startA + spanA * (v / 160);
+    const isRed = v >= 100;
+    g.strokeStyle = isRed ? PAL.alert : PAL.steelBright;
+    g.lineWidth = v % 40 === 0 ? 7 : 4;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(ang) * (R - 82), cy + Math.sin(ang) * (R - 82));
+    g.lineTo(cx + Math.cos(ang) * (R - 58), cy + Math.sin(ang) * (R - 58));
+    g.stroke();
+
+    g.fillStyle = isRed ? PAL.alert : PAL.steelBright;
+    const lx = cx + Math.cos(ang) * (R - 122);
+    const ly = cy + Math.sin(ang) * (R - 122);
+    drawFittedText(String(v), lx, ly, 68, 30, MONO, '800', 'center');
   }
-}
 
-/* Celular do Rafael com notificacao do amigo la de cima (DOF atras, relogio unico 01:42) */
-function drawFriendPhone(t, showSecondPart, localP){
-  /* py=296 garante folga limpa abaixo do selo PARTE 2 mesmo sob zoom 1.19x! */
-  const px = 152, py = 296, pw = 776, ph = 984;
-
-  /* Chassi do smartphone */
-  g.fillStyle = '#060912';
-  rr(px - 16, py - 16, pw + 32, ph + 32, 64); g.fill();
-  g.strokeStyle = PAL.phoneEdge; g.lineWidth = 6;
-  rr(px - 16, py - 16, pw + 32, ph + 32, 64); g.stroke();
-
+  /* Ponteiro vermelho cravando no 120 */
+  const needleA = startA + spanA * spdFrac;
   g.save();
-  rr(px, py, pw, ph, 50); g.clip();
-
-  /* Tela de bloqueio escura */
-  const scrG = g.createLinearGradient(px, py, px, py + ph);
-  scrG.addColorStop(0, '#0D1528');
-  scrG.addColorStop(1, '#060912');
-  g.fillStyle = scrG;
-  g.fillRect(px, py, pw, ph);
-
-  /* Notch / camera frontal */
-  g.fillStyle = '#000000';
-  rr(540 - 82, py + 18, 164, 30, 15); g.fill();
-
-  /* UNICO relogio da tela (01:42) */
-  g.fillStyle = PAL.white;
-  drawFittedText('01:42', 540, py + 126, 420, 102, MONO, '900', 'center');
-  g.fillStyle = PAL.dim;
-  drawFittedText('QUINTA-FEIRA  •  PRÉDIO', 540, py + 194, 480, 24, SANS, '600', 'center');
-
-  /* Card de notificacao de mensagem 1 */
-  const pop1 = popScale(localP * 0.9, 0.16);
-  g.save();
-  g.translate(540, py + 370);
-  g.scale(pop1, pop1);
-  g.fillStyle = 'rgba(17, 24, 39, 0.96)';
-  rr(-336, -115, 672, 230, 28); g.fill();
-  g.strokeStyle = rgba(PAL.msgGreen, 0.65); g.lineWidth = 3;
-  rr(-336, -115, 672, 230, 28); g.stroke();
-
-  /* Avatar + Nome do amigo */
-  g.fillStyle = PAL.msgGreen; circ(-274, -60, 24);
-  g.fillStyle = PAL.ink; drawFittedText('L', -274, -58, 34, 28, SANS, '900', 'center');
-  g.fillStyle = PAL.text;
-  drawFittedText('LUCAS (APTO 1204)', -234, -60, 360, 26, SANS, '800', 'left');
-  g.fillStyle = PAL.dim;
-  drawFittedText('agora', 306, -60, 100, 22, SANS, '600', 'right');
-
-  /* Texto da primeira mensagem */
-  g.fillStyle = PAL.white;
-  drawFittedText('Cara, você esqueceu a', -300, 6, 600, 38, SANS, '700', 'left');
-  drawFittedText('mochila aqui...', -300, 56, 600, 38, SANS, '700', 'left');
+  g.translate(cx, cy);
+  g.rotate(needleA);
+  g.fillStyle = PAL.alert;
+  g.beginPath();
+  g.moveTo(-26, -10);
+  g.lineTo(R - 72, -3);
+  g.lineTo(R - 72, 3);
+  g.lineTo(-26, 10);
+  g.closePath();
+  g.fill();
   g.restore();
 
-  /* Card de notificacao de mensagem 2 (plot twist da camera do hall!) */
-  if (showSecondPart) {
-    const pop2 = popScale(localP, 0.16);
+  /* Centro do ponteiro */
+  g.fillStyle = '#1E293B';
+  circ(cx, cy, 34);
+  g.fillStyle = PAL.alert;
+  circ(cx, cy, 14);
+
+  /* Leitor digital 120 KM/H com folga dos numeros 0 e 160 */
+  g.fillStyle = '#070A12';
+  rr(cx - 134, cy + 150, 268, 114, 20); g.fill();
+  g.strokeStyle = PAL.alert;
+  g.lineWidth = 3;
+  rr(cx - 134, cy + 150, 268, 114, 20); g.stroke();
+  g.fillStyle = PAL.white;
+  drawFittedText(`${Math.round(spd)} KM/H`, cx, cy + 195, 232, 54, MONO, '900', 'center');
+  g.fillStyle = PAL.alert;
+  drawFittedText('EXCESSO DE VELOCIDADE', cx, cy + 240, 236, 18, MONO, '800', 'center');
+}
+
+/* 9. Banco do carona no escuro: 4 celulares acesos vibrando com corridas ativas e ligacoes perdidas */
+function drawFourPhonesPassengerSeat(t){
+  drawBackdrop(t, 'red');
+
+  /* Perspectiva escura do banco de couro do carona (y=310..1310) */
+  g.fillStyle = '#0B0E17';
+  rr(70, 325, W - 140, 985, 56); g.fill();
+  g.strokeStyle = '#242D40';
+  g.lineWidth = 5;
+  rr(70, 325, W - 140, 985, 56); g.stroke();
+
+  /* Costuras de gomo do banco de couro */
+  g.strokeStyle = 'rgba(255,255,255,0.06)';
+  g.lineWidth = 4;
+  for (let y = 480; y <= 1160; y += 170) {
+    g.beginPath(); g.moveTo(110, y); g.lineTo(W - 110, y); g.stroke();
+  }
+
+  /* 4 celulares jogados no banco, todos acesos e vibrando */
+  const phones = [
+    { x: 318, y: 565, ang: -0.20, calls: '14 LIGAÇÕES PERDIDAS', phase: 0.0, col: PAL.cyan },
+    { x: 734, y: 590, ang: 0.16,  calls: '21 LIGAÇÕES PERDIDAS', phase: 1.7, col: PAL.appGreen },
+    { x: 344, y: 985, ang: 0.13,  calls: '9 LIGAÇÕES PERDIDAS',  phase: 3.1, col: PAL.yellow },
+    { x: 742, y: 1015, ang: -0.17, calls: '32 LIGAÇÕES PERDIDAS', phase: 4.4, col: PAL.alert }
+  ];
+
+  for (let i = 0; i < phones.length; i++) {
+    const p = phones[i];
+    const vib = Math.sin(t * 48 + p.phase) * 5.5;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 11 + p.phase);
+
+    glow(p.x, p.y, 235, PAL.alert, 0.16 + pulse * 0.10);
+    glow(p.x, p.y, 185, p.col, 0.16);
+
     g.save();
-    g.translate(540, py + 694);
-    g.scale(pop2, pop2);
-    g.fillStyle = 'rgba(30, 10, 16, 0.97)';
-    rr(-336, -168, 672, 336, 28); g.fill();
-    g.strokeStyle = PAL.alert; g.lineWidth = 4;
-    rr(-336, -168, 672, 336, 28); g.stroke();
+    g.translate(p.x + vib, p.y);
+    g.rotate(p.ang);
 
-    g.fillStyle = PAL.alert; circ(-274, -110, 22);
-    g.fillStyle = PAL.white; drawFittedText('!', -274, -108, 30, 28, MONO, '900', 'center');
-    g.fillStyle = PAL.alert;
-    drawFittedText('LUCAS (APTO 1204)', -234, -110, 420, 26, SANS, '800', 'left');
+    const w = 264, h = 368;
+    /* Sombra no couro */
+    g.fillStyle = 'rgba(0,0,0,0.72)';
+    rr(-w / 2 + 12, -h / 2 + 16, w, h, 34); g.fill();
 
+    /* Carcaca do aparelho */
+    g.fillStyle = '#070A12';
+    rr(-w / 2, -h / 2, w, h, 32); g.fill();
+    g.strokeStyle = '#475569';
+    g.lineWidth = 4;
+    rr(-w / 2, -h / 2, w, h, 32); g.stroke();
+
+    /* Tela acesa */
+    g.fillStyle = '#0E172A';
+    rr(-w / 2 + 12, -h / 2 + 14, w - 24, h - 28, 22); g.fill();
+
+    /* Mini mapa de corrida ativa */
+    g.fillStyle = '#15223B';
+    rr(-w / 2 + 22, -h / 2 + 54, w - 44, 132, 14); g.fill();
+    g.strokeStyle = p.col;
+    g.lineWidth = 6;
+    g.beginPath();
+    g.moveTo(-82, -h / 2 + 160);
+    g.lineTo(-18, -h / 2 + 115);
+    g.lineTo(68, -h / 2 + 86);
+    g.stroke();
     g.fillStyle = PAL.white;
-    drawFittedText('E quem é esse cara', -300, -38, 600, 40, SANS, '800', 'left');
+    circ(68, -h / 2 + 86, 8);
+
+    /* Etiqueta CORRIDA ATIVA */
+    g.fillStyle = PAL.appGreen;
+    drawFittedText('CORRIDA ATIVA', 0, -h / 2 + 34, w - 48, 19, MONO, '800', 'center');
+
+    /* Notificacao vermelha de ligacoes perdidas */
+    g.fillStyle = 'rgba(255, 59, 48, 0.92)';
+    rr(-w / 2 + 22, 26, w - 44, 72, 14); g.fill();
+    g.fillStyle = PAL.white;
+    drawFittedText(p.calls, 0, 62, w - 64, 21, COND, '900', 'center');
+
+    /* Alerta secundario */
+    g.fillStyle = 'rgba(255,255,255,0.08)';
+    rr(-w / 2 + 22, 112, w - 44, 48, 12); g.fill();
     g.fillStyle = PAL.yellow;
-    drawFittedText('IGUAL A VOCÊ', -300, 16, 600, 44, COND, '900', 'left');
-    g.fillStyle = PAL.white;
-    drawFittedText('que acabou de sair do', -300, 70, 600, 38, SANS, '700', 'left');
-    g.fillStyle = PAL.alert;
-    drawFittedText('elevador na câmera do hall?', -300, 122, 600, 38, SANS, '800', 'left');
+    drawFittedText('ONDE VOCÊ ESTÁ?', 0, 136, w - 64, 18, MONO, '700', 'center');
+
+    /* Linhas de vibracao externas */
+    g.strokeStyle = rgba(PAL.yellow, 0.45 + pulse * 0.45);
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(-w / 2 - 14, -36); g.lineTo(-w / 2 - 22, 0); g.lineTo(-w / 2 - 14, 36);
+    g.moveTo(w / 2 + 14, -36); g.lineTo(w / 2 + 22, 0); g.lineTo(w / 2 + 14, 36);
+    g.stroke();
+
     g.restore();
   }
-
-  g.restore();
 }
 
-/* Close final duplo: Rafael congelado de frente pro espelho enquanto o reflexo SORRI PRIMEIRO */
-function drawFinalMirrorSmile(t, localP){
-  vgrad('#09050B', '#020205');
+/* 10. Para-brisa entrando numa rua sem saida sob farois altos */
+function drawDeadEndStreet(t, localP){
+  drawBackdrop(t, 'dark');
 
-  /* Moldura ampla do espelho cobrindo ate a base para nao criar faixa preta atras da legenda */
-  const mx = 74, my = 246, mw = W - 148, mh = 1620;
-  g.fillStyle = '#0D1724';
-  rr(mx, my, mw, mh, 16); g.fill();
+  /* Asfalto molhado convergindo ate o muro de concreto */
+  g.fillStyle = '#080B12';
+  g.fillRect(-100, 920, W + 200, 1080);
 
-  g.save();
-  rr(mx, my, mw, mh, 16); g.clip();
+  /* Facho duplo de farois altos estourando contra o muro */
+  const zoomK = ease(localP);
+  const wallY = lerp(520, 440, zoomK);
+  const wallH = lerp(520, 620, zoomK);
+  glow(340, wallY + wallH * 0.62, 340, '#FEF08A', 0.44);
+  glow(740, wallY + wallH * 0.62, 340, '#FEF08A', 0.44);
 
-  /* Fundo sombrio refletido com pulso vermelho sinistro */
-  const p = 0.5 + 0.5 * Math.sin(t * 10);
-  vgrad(mixHex('#121E2E', '#3A0A10', 0.45 + 0.35 * p), '#060A12', my, my + mh);
-  glow(580, 760, 460, PAL.alert, 0.30 + 0.14 * p);
+  /* Muro de concreto no fim da rua */
+  g.fillStyle = '#1B212C';
+  g.fillRect(60, wallY, W - 120, wallH);
+  g.strokeStyle = '#090D16';
+  g.lineWidth = 6;
+  g.strokeRect(60, wallY, W - 120, wallH);
 
-  /* O REFLEXO NO ESPELHO: olha fixo e abre o sorriso largo primeiro! */
-  const smileP = easeOut(clamp(prog(t, EV.final_espelho + 0.35, EV.reflexo_sorri + 0.18)));
-  const rJitter = Math.sin(t * 42) * 3.5 * smileP;
+  /* Faixas de advertencia zebradas no muro */
+  g.fillStyle = PAL.yellow;
+  g.fillRect(110, wallY + wallH - 96, W - 220, 46);
+  g.fillStyle = PAL.ink;
+  for (let x = 120; x < W - 140; x += 92) {
+    g.beginPath();
+    g.moveTo(x, wallY + wallH - 96);
+    g.lineTo(x + 42, wallY + wallH - 96);
+    g.lineTo(x + 18, wallY + wallH - 50);
+    g.lineTo(x - 24, wallY + wallH - 50);
+    g.closePath();
+    g.fill();
+  }
 
-  g.save();
-  g.translate(585 + rJitter, 860);
-  /* Ombros refletidos (jaqueta #0F766E escura) */
-  g.fillStyle = '#0D5C58';
-  rr(-240, 210, 480, 880, 145); g.fill();
-  g.fillStyle = '#073A38';
-  rr(-240, 210, 150, 880, 90); g.fill();
-  /* Pescoco */
-  g.fillStyle = '#A88770';
-  rr(-46, 146, 92, 92, 32); g.fill();
-  /* Cabeca grande do reflexo abrindo o sorriso sinistro! */
-  drawHeadRafael(0, -18, 224, 'sinister_smile', 0, {
-    tilt: lerp(0.0, 0.06, smileP),
-    rimA: 0.92,
-    rimColor: PAL.alert,
-    rimAng: -0.25,
-    lookX: -0.15,
-    lookY: 0.05,
-    isReflection: true,
-    smileProg: Math.max(0.25, smileP)
-  });
-  g.restore();
+  /* Placa metalica RUA SEM SAIDA sob farol */
+  g.fillStyle = '#2B3548';
+  g.fillRect(528, wallY + 40, 24, 340);
+  g.fillStyle = PAL.alert;
+  rr(320, wallY + 48, 440, 174, 20); g.fill();
+  g.strokeStyle = PAL.white;
+  g.lineWidth = 8;
+  rr(334, wallY + 62, 412, 146, 12); g.stroke();
+  g.fillStyle = PAL.white;
+  drawFittedText('RUA SEM SAÍDA', 540, wallY + 136, 370, 56, COND, '900', 'center');
 
-  /* Riscos frios de vidro do espelho */
-  g.fillStyle = 'rgba(224, 242, 254, 0.09)';
+  /* Moldura do para-brisa + painel escuro na base */
+  drawRain(t, 0.85, -0.10);
+  g.fillStyle = '#04060B';
+  g.fillRect(-100, -100, W + 200, 320);
   g.beginPath();
-  g.moveTo(mx + 120, my); g.lineTo(mx + 220, my);
-  g.lineTo(mx - 40, my + mh); g.lineTo(mx - 140, my + mh);
-  g.closePath(); g.fill();
-  g.restore();
-
-  /* Moldura cromada do espelho */
-  g.strokeStyle = rgba(PAL.alert, 0.65);
-  g.lineWidth = 6;
-  rr(mx, my, mw, mh, 16); g.stroke();
-
-  /* Primeiro plano esquerdo (fora do espelho): nuca e ombro rigido do Rafael real paralisado */
-  g.save();
-  g.fillStyle = '#050A0E';
-  rr(-95, 1080, 430, 860, 130); g.fill();
-  g.fillStyle = PAL.topDeep;
-  rr(-70, 1110, 380, 830, 120); g.fill();
-  g.fillStyle = PAL.hair;
-  circ(132, 1015, 148);
-  g.strokeStyle = rgba(PAL.alert, 0.60);
-  g.lineWidth = 6;
-  g.beginPath(); g.arc(132, 1015, 146, -0.8, 0.7); g.stroke();
-  g.restore();
+  g.moveTo(-120, 1220);
+  g.quadraticCurveTo(540, 1135, W + 120, 1220);
+  g.lineTo(W + 120, H + 200);
+  g.lineTo(-120, H + 200);
+  g.closePath();
+  g.fill();
 }
 
 /* ============================================================
-   SELO DINAMICO V5 ("PARTE 1" -> "PARTE 2") E RELOGIO 01:42
+   SELO DINAMICO V5.2 ("PARTE 1" -> "PARTE 2") E RELOGIO 03:10
    ============================================================ */
 function getActiveParteLabel(t){
   if (!parteLabel) return '';
@@ -2157,9 +2430,9 @@ function drawParteBadge(t){
   const bh = 52;
   const bx = 64, by = 165;
 
-  g.fillStyle = 'rgba(10, 15, 29, 0.74)';
+  g.fillStyle = 'rgba(10, 15, 29, 0.76)';
   rr(bx, by, bw, bh, 12); g.fill();
-  g.strokeStyle = isP2 ? rgba(PAL.yellow, 0.65) : 'rgba(245, 247, 251, 0.30)';
+  g.strokeStyle = isP2 ? rgba(PAL.yellow, 0.70) : 'rgba(245, 247, 251, 0.32)';
   g.lineWidth = 2;
   rr(bx, by, bw, bh, 12); g.stroke();
 
@@ -2172,331 +2445,216 @@ function drawClock(t, shot){
   if (DEVICE_SCENES.has(shot.scene)) return;
   if (katanaStateAt(t) !== null) return;
   if (isFullScreenCtaActive(t)) return;
-  const isRed = (shot.mood === 'red' || shot.scene === 'big_face' || shot.scene === 'final_espelho_sorriso');
+  const isRed = (shot.mood === 'red' || shot.scene === 'big_face' || shot.scene === 'final_retrovisor_sorriso');
 
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.translate(540, 191);
-  g.fillStyle = 'rgba(10, 15, 29, 0.82)';
+  g.fillStyle = 'rgba(10, 15, 29, 0.84)';
   rr(-126, -42, 252, 84, 20); g.fill();
   g.strokeStyle = isRed ? PAL.alert : rgba(PAL.cyan, 0.55);
   g.lineWidth = 3;
   rr(-126, -42, 252, 84, 20); g.stroke();
 
   g.fillStyle = isRed ? PAL.alert : PAL.text;
-  drawFittedText('01:42', 0, 2, 205, 52, MONO, '900', 'center');
+  drawFittedText('03:10', 0, 2, 205, 52, MONO, '900', 'center');
   g.restore();
 }
 
 /* ============================================================
-   DESENHO DAS CENAS DO VIDEO 06 ("O Elevador do Subsolo 2")
+   DESENHO DAS CENAS DO VIDEO 07 ("A Corrida das 03h10")
    ============================================================ */
 function drawScene(shot, t){
   const f = faceAt(t);
   const localP = prog(t, shot.start, shot.end);
 
   switch (shot.scene) {
-    /* 1. Hall escuro do 12o andar + porta aberta do elevador */
-    case 'hall_12_entrada': {
-      drawBackdrop(t, 'navy');
-      drawElevatorCabin(t, { light: 0.86, visorText: '12', visorArrow: 'stop', doorOpen: 0.92 });
-      const rx = lerp(260, 495, ease(localP));
-      drawRafaelStanding(rx, 1410, 1.04, {
-        t, ex: 'neutral', closed: f.closed, pose: { walk: 1 }, rimColor: PAL.cyan, rimA: 0.78, lookX: 0.20
+    /* 1. Calcada de madrugada com chuva: Diego pede carro no celular */
+    case 'calcada_chuva_pede': {
+      drawNightSidewalk(t, false, 0);
+      drawDiegoStanding(495, 1348, 1.16, {
+        t, ex: 'neutral', closed: f.closed, pose: { phone: 1 },
+        rimColor: PAL.cyan, rimA: 0.85, lookX: 0.18, lookY: 0.25
       });
       break;
     }
 
-    /* 2. Rafael entra sozinho no elevador no 12o andar */
-    case 'cabine_entra_12': {
-      drawBackdrop(t, 'navy');
-      drawElevatorCabin(t, {
-        light: 0.90, visorText: '12', visorArrow: 'stop',
-        mirrorRafael: { x: 540, footY: 1100, sc: 0.76, ex: 'neutral', closed: f.closed, lookX: 0 }
-      });
-      drawRafaelStanding(520, 1425, 1.12, {
-        t, ex: 'neutral', closed: f.closed, backView: true, rimColor: PAL.cyan, rimA: 0.72
+    /* 2. Tela do aplicativo de corridas (03:10, Carlos, Carro Prata, 4.9) */
+    case 'tela_app_corrida': {
+      withBlur(9, () => { drawNightSidewalk(t, false, 0); });
+      drawRideAppScreen(t, t >= EV.nota_49 - 0.15);
+      break;
+    }
+
+    /* 3. Seda prata encosta na calcada sob chuva */
+    case 'carro_encosta_chuva': {
+      const cp = prog(t, EV.carro_encosta, EV.entra_carro);
+      drawNightSidewalk(t, true, cp);
+      drawDiegoStanding(795, 1348, 1.04, {
+        t, ex: 'neutral', closed: f.closed, face: -1, pose: { walk: 1 },
+        rimColor: PAL.amber, rimA: 0.82, lookX: -0.25
       });
       break;
     }
 
-    /* 3. Close na botoeira apertando o Terreo */
-    case 'botoeira_aperta_t': {
-      drawButtonPanelMacro(t, 'terreo', localP);
-      break;
-    }
-
-    /* 4. Portas de aco inox fechando devagar ([SFX:porta_elevador:1.1]) */
-    case 'portas_fechando': {
-      const closeP = 1 - prog(t, EV.portas_fecham, EV.porta_elevador + (EV.porta_elevador_duracao || 1.1));
-      drawElevatorCabin(t, {
-        light: 0.88, visorText: '12', visorArrow: 'down', doorOpen: clamp(closeP, 0.01, 0.96),
-        mirrorRafael: { x: 540, footY: 1100, sc: 0.75, ex: 'neutral', closed: f.closed }
-      });
-      drawRafaelStanding(535, 1420, 1.08, {
-        t, ex: 'neutral', closed: f.closed, rimColor: PAL.cyan, rimA: 0.76, lookX: 0.10
+    /* 4. Diego entra no banco traseiro e coloca o fone + batida da porta */
+    case 'diego_entra_fone': {
+      withBlur(6, () => { drawCarCabinInterior(t, 0.2, false); });
+      drawDiegoSeated(540, 1085, 1.18, {
+        t, ex: 'neutral', closed: f.closed,
+        earbuds: t >= EV.coloca_fone - 0.10,
+        rimColor: PAL.cyan, rimA: 0.80, lookX: 0.10
       });
       break;
     }
 
-    /* 5. Painel vermelho descendo: 11 -> 10 -> 09 */
-    case 'visor_desce': {
-      let dig = '12';
-      if (t >= EV.num_09 - 0.05) dig = '09';
-      else if (t >= EV.num_10 - 0.05) dig = '10';
-      else if (t >= EV.num_11 - 0.05) dig = '11';
-      drawVisorMacro(t, dig, true, 'down', false, 0.05);
+    /* 5. Motorista nao da boa noite, acelera forte na avenida deserta */
+    case 'interior_avenida_acelera': {
+      const fast = t >= EV.acelera_avenida - 0.15 ? 2.6 : 1.1;
+      drawCarCabinInterior(t, fast, t >= EV.motor_acelerando - 0.10);
       break;
     }
 
-    /* 6. Luz pisca freneticamente e elevador trava seco no 06 */
-    case 'cabine_luz_pisca': {
-      const flk = (Math.sin(t * 38) > -0.15) ? 0.82 : 0.14;
-      const is06 = t >= EV.andar_06 - 0.15;
-      drawElevatorCabin(t, {
-        light: flk, redAlert: t >= EV.trava_seco - 0.1, visorText: is06 ? '06' : '08',
-        visorArrow: is06 ? 'stop' : 'down',
-        mirrorRafael: { x: 540, footY: 1100, sc: 0.78, ex: 'fear', closed: f.closed }
-      });
-      drawRafaelStanding(540, 1435, 1.16, {
+    /* 6. Celular vibra com ligacao do proprio aplicativo */
+    case 'tela_ligacao_app': {
+      withBlur(9, () => { drawCarCabinInterior(t, 1.6, false); });
+      drawAppCallScreen(t, t >= EV.atende_erro - 0.15 ? 'active' : 'incoming');
+      break;
+    }
+
+    /* 7. Voz telefonica do motorista real Carlos na linha */
+    case 'tela_ligacao_ativa': {
+      withBlur(9, () => { drawCarCabinInterior(t, 2.2, true); });
+      drawAppCallScreen(t, 'active');
+      break;
+    }
+
+    /* 8. Diego congela no banco traseiro apos a CTA */
+    case 'diego_congela_banco': {
+      withBlur(7, () => { drawCarCabinInterior(t, 2.2, true); });
+      drawDiegoSeated(540, 1075, 1.24, {
         t, ex: 'fear', closed: f.closed, fastBreath: true,
-        pose: { panic: 1 }, rimColor: PAL.alert, rimA: 0.88, lookY: -0.35
+        earbuds: true, rimColor: PAL.alert, rimA: 0.90, lookY: -0.22
       });
       break;
     }
 
-    /* 7. Visor cravado em 06 durante o tranco nos cabos ([SFX:tranco_elevador:1.2]) */
-    case 'visor_trava_06': {
-      const on = Math.sin(t * 42) > -0.25;
-      drawVisorMacro(t, '06', on, 'warn', true, 0.55);
+    /* 9. Close nos olhos do motorista no retrovisor encarando fixo sem piscar */
+    case 'retrovisor_olhos_fixos': {
+      drawRearviewMirrorEyes(t, 'stare', 0);
       break;
     }
 
-    /* 8. Painel inteiro apaga */
-    case 'visor_apaga': {
-      drawVisorMacro(t, 'OFF', false, 'stop', false, 0);
+    /* 10. Diego puxa a macaneta travada (trava infantil acionada) */
+    case 'macaneta_travada': {
+      drawLockedDoorHandle(t, localP);
       break;
     }
 
-    /* 9. Rafael olha pro espelho atras dele: o reflexo demora 0,5s a mais para virar a cabeca! */
-    case 'espelho_reflexo_atrasado': {
-      const delayStart = EV.reflexo_atrasado;
-      const rafTurn = easeOut(prog(t, EV.olha_espelho, EV.olha_espelho + 0.35));
-      /* O reflexo congela olhando reto e so comeca a virar 0,55s depois! */
-      const refTurn = easeOut(prog(t, delayStart + 0.45, delayStart + 1.05));
-      const eeriness = prog(t, delayStart, delayStart + 0.55);
-
-      drawElevatorCabin(t, {
-        light: 0.24, redAlert: eeriness > 0.3, visorText: '--', visorOn: false,
-        mirrorRafael: {
-          x: 540, footY: 1105, sc: 0.84,
-          ex: eeriness > 0.2 ? 'sinister_smile' : 'neutral',
-          smileProg: eeriness * 0.38,
-          closed: 0,
-          pose: { headTilt: lerp(0.0, 0.14, refTurn) },
-          lookX: lerp(0.0, 0.35, refTurn)
-        }
-      });
-      drawRafaelStanding(410, 1465, 1.24, {
-        t, ex: eeriness > 0.2 ? 'shock' : 'worry', closed: f.closed, fastBreath: true,
-        pose: { headTilt: lerp(0.0, -0.14, rafTurn) },
-        rimColor: eeriness > 0.2 ? PAL.alert : PAL.violet, rimA: 0.86,
-        lookX: lerp(0.1, -0.45, rafTurn)
-      });
+    /* 11. GPS do painel desviando para estrada de terra fora da cidade (fim seco Parte 1) */
+    case 'gps_estrada_terra': {
+      drawDashboardGps(t, prog(t, EV.gps_desvio, EV.corte_parte_2));
       break;
     }
 
-    /* 10. CTA dedicada em tela cheia (desenhada em camada exclusiva no renderAt) */
-    case 'cta_tela_cheia': {
-      drawBackdrop(t, 'dark');
-      break;
-    }
-
-    /* 11. Luz volta fraca piscando e elevador volta a descer */
-    case 'cabine_luz_volta': {
-      const flk = 0.42 + 0.28 * (Math.sin(t * 24) > -0.2 ? 1 : 0.25);
-      drawElevatorCabin(t, {
-        light: flk, visorText: '03', visorArrow: 'down',
-        mirrorRafael: { x: 540, footY: 1100, sc: 0.76, ex: 'worry', closed: f.closed }
-      });
-      drawRafaelStanding(520, 1435, 1.14, {
-        t, ex: 'worry', closed: f.closed, fastBreath: true, rimColor: PAL.cyan, rimA: 0.80, lookY: -0.25
-      });
-      break;
-    }
-
-    /* 12. Visor passa direto por T -> G1 -> G2 */
-    case 'visor_passa_subsolos': {
-      let dig = '01';
-      if (t >= EV.passa_g2 - 0.08) dig = 'G2';
-      else if (t >= EV.passa_g1 - 0.08) dig = 'G1';
-      else if (t >= EV.passa_terreo - 0.08) dig = 'T';
-      drawVisorMacro(t, dig, true, 'down', dig === 'G1' || dig === 'G2', 0.32);
-      break;
-    }
-
-    /* 13. Rafael aperta o botao vermelho de emergencia desesperado ([SFX:alarme_interfone:1.1]) */
-    case 'botoeira_emergencia': {
-      drawButtonPanelMacro(t, 'emergencia', localP);
-      break;
-    }
-
-    /* 14. Panico na cabine: o predio so tem dois subsolos */
-    case 'cabine_panico_s3': {
-      drawElevatorCabin(t, {
-        light: 0.48, redAlert: true, visorText: 'G2', visorArrow: 'down',
-        mirrorRafael: { x: 540, footY: 1105, sc: 0.80, ex: 'fear', closed: f.closed }
-      });
-      drawRafaelStanding(545, 1455, 1.24, {
+    /* 12. PARTE 2: Diego finge calma falando alto com o pai no telefone */
+    case 'diego_finge_telefone': {
+      withBlur(7, () => { drawCarCabinInterior(t, 2.1, false); });
+      drawDiegoSeated(515, 1085, 1.22, {
         t, ex: 'fear', closed: f.closed, fastBreath: true,
-        pose: { panic: 1 }, rimColor: PAL.alert, rimA: 0.94, lookY: -0.35
+        holdPhoneEar: true, earbuds: false, rimColor: PAL.cyan, rimA: 0.88, lookX: -0.25, lookY: -0.14
       });
       break;
     }
 
-    /* 15. Macro no visor digital vermelho acendendo a letra impossivel: "S3" */
-    case 'visor_s3_macro': {
-      const showS3 = t >= EV.visor_s3 - 0.45;
-      drawVisorMacro(t, showS3 ? 'S3' : 'G2', true, showS3 ? 'warn' : 'down', true, showS3 ? 0.65 : 0.20);
+    /* 13. O cara no volante nao cai e ri seco */
+    case 'motorista_ri_seco': {
+      drawRearviewMirrorEyes(t, 'laugh', 0.55);
       break;
     }
 
-    /* 16. Portas abrem revelando o breu absoluto do S3 (gancho seco da Parte 1!) */
-    case 'portas_abrem_breu': {
-      const openP = prog(t, EV.portas_abrem_s3, EV.corte_parte_2);
-      drawS3Corridor(t, 0, false);
-      /* Portas de inox abrindo do centro para os lados */
-      const gap = lerp(18, 490, ease(openP));
-      const dG = g.createLinearGradient(0, 0, W, 0);
-      dG.addColorStop(0, '#1E293B'); dG.addColorStop(0.5, '#475569'); dG.addColorStop(1, '#1E293B');
-      g.fillStyle = dG;
-      g.fillRect(-100, 150, 640 - gap, 1580);
-      g.fillRect(540 + gap, 150, 640 - gap, 1580);
-      g.fillStyle = '#020617';
-      g.fillRect(532 - gap, 150, 12, 1580);
-      g.fillRect(536 + gap, 150, 12, 1580);
-      /* Breu mais intenso nos primeiros instantes */
-      g.fillStyle = `rgba(2, 4, 9, ${lerp(0.75, 0.25, openP)})`;
-      g.fillRect(540 - gap, 150, gap * 2, 1580);
+    /* 14. Velocimetro cravando 120 km/h com painel pulsando vermelho */
+    case 'velocimetro_120': {
+      drawSpeedometer120(t, prog(t, EV.velocimetro_120, EV.motor_acelerando_2 + 1.0));
       break;
     }
 
-    /* 17 & 18. PARTE 2: Corredor de concreto umido com a cadeira de metal isolada! */
-    case 'corredor_s3_cadeira': {
-      drawS3Corridor(t, localP, false);
-      break;
-    }
-    case 'corredor_cadeira_zoom': {
-      drawS3Corridor(t, localP, true);
+    /* 15. Motorista real gritando na linha: olha pro banco do carona! */
+    case 'ligacao_alerta_grito': {
+      withBlur(9, () => { drawCarCabinInterior(t, 3.2, true); });
+      drawAppCallScreen(t, 'alert');
       break;
     }
 
-    /* 19. Rafael esmaga o botao de fechar porta (painel morto) */
-    case 'botoeira_morta': {
-      drawButtonPanelMacro(t, 'morta', localP);
-      break;
-    }
-
-    /* 20. Interfone do elevador chia sozinho ([SFX:interfone:1.2]) */
-    case 'interfone_grade': {
-      drawIntercomGrille(t);
-      break;
-    }
-
-    /* 21. Rafael ouve a voz tremula do porteiro */
-    case 'rafael_ouve_interfone': {
-      withBlur(8, () => {
-        drawElevatorCabin(t, { light: 0.40, redAlert: true, visorText: 'S3', visorArrow: 'warn', showMirror: false });
-      });
-      drawRafaelStanding(520, 1520, 1.38, {
-        t, ex: 'fear', closed: f.closed, fastBreath: true,
-        pose: { panic: 1 }, rimColor: PAL.cctvBright, rimA: 0.90, lookX: 0.35
+    /* 16. Diego inclina o corpo para frente em panico */
+    case 'diego_inclina_frente': {
+      withBlur(7, () => { drawCarCabinInterior(t, 3.0, true); });
+      drawDiegoSeated(540, 1060, 1.28, {
+        t, ex: 'shock', closed: f.closed, fastBreath: true,
+        leanForward: ease(localP), earbuds: false, rimColor: PAL.alert, rimA: 0.92, lookX: 0.25, lookY: 0.25
       });
       break;
     }
 
-    /* 22 & 23. Tela CCTV da portaria: elevador no Terreo ha 5 minutos + figura olhando pra camera */
-    case 'cctv_portaria': {
-      drawCctvPortaria(t, false, localP);
-      break;
-    }
-    case 'cctv_portaria_zoom': {
-      drawCctvPortaria(t, true, localP);
+    /* 17. POV no banco do carona escuro: 4 celulares acesos vibrando */
+    case 'quatro_celulares_carona': {
+      drawFourPhonesPassengerSeat(t);
       break;
     }
 
-    /* 24. Rafael olha pro teto, pro pontinho vermelho da camera */
-    case 'camera_teto_led': {
-      drawCeilingCamera(t);
+    /* 18. O carro entra numa rua sem saida */
+    case 'rua_sem_saida': {
+      drawDeadEndStreet(t, localP);
       break;
     }
 
-    /* 25. Corredor sumiu, porta fechou e o elevador esta no Terreo (T) */
-    case 'cabine_terreo_normal': {
-      drawElevatorCabin(t, {
-        light: 0.82, redAlert: false, visorText: 'T', visorArrow: 'stop',
-        mirrorRafael: { x: 540, footY: 1105, sc: 0.78, ex: 'worry', closed: f.closed }
-      });
-      drawRafaelStanding(510, 1440, 1.16, {
-        t, ex: 'worry', closed: f.closed, fastBreath: true, rimColor: PAL.cyan, rimA: 0.82, lookX: -0.15
-      });
-      break;
-    }
-
-    /* 26 & 27. Celular vibra com a mensagem do amigo la de cima */
-    case 'celular_msg':
-    case 'celular_msg_zoom': {
-      withBlur(8, () => {
-        drawElevatorCabin(t, { light: 0.52, redAlert: shot.scene === 'celular_msg_zoom', visorText: 'T', showMirror: false });
-      });
-      drawFriendPhone(t, shot.scene === 'celular_msg_zoom' || t >= EV.igual_voce - 0.15, localP);
-      break;
-    }
-
-    /* 28. MODULO bigFace DO RAFAEL EM CHOQUE EXTREMO ([SFX:impacto_twist:1.4]) */
+    /* 19. MODULO bigFace DO DIEGO EM TERROR EXTREMO ([SFX:impacto_twist:1.4]) */
     case 'big_face': {
       withBlur(8, () => {
         drawBackdrop(t, 'red');
-        drawElevatorCabin(t, { light: 0.26, redAlert: true, visorText: 'T', showMirror: false });
+        drawCarCabinInterior(t, 0.3, true);
       });
-      const jitX = noise(t * 48, 1) * 9;
-      const jitY = noise(t * 48, 2) * 9;
+      const jitX = noise(t * 50, 1) * 9;
+      const jitY = noise(t * 50, 2) * 9;
       g.save();
       g.translate(540 + jitX, 920 + jitY);
       g.fillStyle = PAL.top;
       rr(-310, 265, 620, 880, 175); g.fill();
       g.save();
       rr(-310, 265, 620, 880, 175); g.clip();
-      g.fillStyle = rgba(PAL.topDeep, 0.48);
+      g.fillStyle = rgba(PAL.topDeep, 0.50);
       g.fillRect(-320, 255, 175, 900);
       g.restore();
+      g.fillStyle = PAL.hoodGrey;
+      rr(-190, 248, 380, 72, 36); g.fill();
       g.fillStyle = PAL.skinShadow;
       rr(-64, 190, 128, 120, 40); g.fill();
 
-      drawHeadRafael(0, -15, 290, 'shock', f.closed, {
-        tilt: -0.04 + noise(t * 22, 3) * 0.016,
+      drawHeadDiego(0, -15, 290, 'shock', f.closed, {
+        tilt: -0.04 + noise(t * 24, 3) * 0.016,
         rimA: 0.98,
         rimColor: PAL.alert,
-        rimAng: 0.12,
-        lookX: 0.12,
+        rimAng: 0.14,
+        lookX: 0.10,
         sweat: true
       });
-      glow(0, 340, 380, PAL.cyan, 0.26);
-      glow(320, -20, 420, PAL.alert, 0.36);
+      glow(0, 340, 380, PAL.cyan, 0.24);
+      glow(320, -20, 420, PAL.alert, 0.38);
       g.restore();
       break;
     }
 
-    /* 29. FRAME FINAL SECO PARA LOOP: no espelho atras do Rafael, o reflexo sorri primeiro! */
-    case 'final_espelho_sorriso': {
-      drawFinalMirrorSmile(t, localP);
+    /* 20. QUADRO FINAL SECO PARA LOOP: os olhos do homem sorriem no retrovisor! */
+    case 'final_retrovisor_sorriso': {
+      const sp = ease(prog(t, EV.olhos_sorriem - 0.15, EV.olhos_sorriem + 0.85));
+      drawRearviewMirrorEyes(t, 'smile', sp);
       break;
     }
   }
 }
 
 /* ============================================================
-   CAMERA VIVA V5 + PUNCH-IN KATANA + SCREEN SHAKE AMORTECIDO
+   CAMERA VIVA V5.2 + PUNCH-IN KATANA + SCREEN SHAKE AMORTECIDO
    ============================================================ */
 function pickShot(t){
   for (let i = 0; i < SHOTS.length; i++) {
@@ -2512,8 +2670,8 @@ function cameraFor(shot, t){
   const cx = lerp(shot.cam0[1], shot.cam1[1], k);
   const cy = lerp(shot.cam0[2], shot.cam1[2], k);
 
-  let sx = noise(t * 2.1, 11) * 4.5;
-  let sy = noise(t * 1.9, 29) * 4.5;
+  let sx = noise(t * 2.3, 11) * 4.5;
+  let sy = noise(t * 2.1, 29) * 4.5;
 
   for (let i = 0; i < KATANA_HITS.length; i++) {
     const kh = KATANA_HITS[i];
@@ -2527,11 +2685,12 @@ function cameraFor(shot, t){
   }
 
   const impacts = [
-    [EV.porta_elevador + 0.75, 12, 8.0],
-    [EV.tranco_elevador + 0.04, 30, 5.2],
-    [EV.alarme_interfone + 0.04, 14, 7.5],
-    [EV.celular_vibra, 11, 8.0],
-    [EV.impacto_twist, 28, 5.0]
+    [EV.porta_impacto + 0.04, 18, 7.2],
+    [EV.motor_acelerando + 0.04, 16, 6.2],
+    [EV.trava_porta_carro + 0.04, 24, 6.0],
+    [EV.motor_acelerando_2 + 0.04, 28, 5.2],
+    [EV.celular_tocando + 0.04, 14, 6.5],
+    [EV.impacto_twist, 30, 4.8]
   ];
   for (const [ti, amp, dec] of impacts) {
     if (t >= ti && t < ti + 0.90) {
@@ -2552,19 +2711,17 @@ function finish(vig){
 }
 
 /* ============================================================
-   LEGENDAS POP-IN (2-3 PALAVRAS, MAIUSCULAS, AMARELO/VERMELHO)
-   Ocultas durante Katana hits e durante a CTA tela cheia V5
+   LEGENDAS POP-IN V5.2 (ANTI-COLISAO + BARREIRA DURA PARTE 2)
    ============================================================ */
 const RED_WORDS = new Set([
-  'sozinho', 'trava', 'seco', 'apaga', 'espelho', 'reflexo', 'atrasado',
-  'emergencia', 'desesperado', 'subsolos', 's', 'tres', 'escuro', 'cadeira',
-  'metal', 'interfone', 'nao', 'sai', 'cinco', 'minutos', 'alguem', 'camera',
-  'vermelho', 'sumiu', 'igual', 'voce', 'hall', 'sorri', 'primeiro'
+  'deserta', 'erro', 'cancelar', 'congela', 'retrovisor', 'piscar', 'trava',
+  'infantil', 'acionada', 'vermelha', 'terra', 'delegacia', 'ri', 'cento',
+  'vinte', 'gritar', 'placa', 'ontem', 'carona', 'quatro', 'celulares',
+  'perdidas', 'saida', 'sorriem', 'relaxa', 'companhia', 'nao'
 ]);
 function normWord(w){
   return w.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
 }
-
 function groupLen(slice){
   return slice.reduce((acc, p) => acc + String(p.palavra || '').length, 0) + Math.max(0, slice.length - 1);
 }
@@ -2572,22 +2729,21 @@ function groupLen(slice){
 function buildPreviewCaptions(){
   const e = EV;
   const lines = [
-    [e.gancho, e.entra_elevador - 0.15, 'Uma e quarenta e dois da manhã.'],
-    [e.entra_elevador, e.aperta_terreo - 0.18, 'Rafael entra sozinho no elevador no décimo segundo andar.'],
-    [e.aperta_terreo, e.porta_elevador - 0.08, 'Ele aperta o térreo. As portas fecham devagar.'],
-    [e.painel_desce, e.luz_pisca - 0.16, 'No painel vermelho, os números descem: onze, dez, nove.'],
-    [e.luz_pisca, e.tranco_elevador - 0.08, 'A luz pisca e o elevador trava seco no sexto andar.'],
-    [e.painel_apaga, e.cta_meio_inicio - 0.15, 'O painel apaga. O reflexo no espelho demorou meio segundo a mais pra virar.'],
-    [e.luz_volta, e.botao_emergencia - 0.16, 'O elevador volta a descer e passa direto pelo térreo, subsolo um e dois.'],
-    [e.botao_emergencia, e.alarme_interfone - 0.08, 'Rafael aperta o botão de emergência desesperado.'],
-    [e.dois_subsolos, e.portas_abrem_s3 - 0.10, 'O prédio só tem dois subsolos. Mas o visor acende S três.'],
-    [e.portas_abrem_s3, e.corte_parte_2 - 0.08, 'As portas começam a abrir num corredor completamente escuro.'],
-    [e.lado_fora, e.esmaga_botao - 0.16, 'Lá fora só tem concreto úmido e uma cadeira de metal de frente pro elevador.'],
-    [e.esmaga_botao, e.interfone - 0.08, 'Rafael esmaga o botão de fechar. O interfone chia sozinho.'],
-    [e.voz_porteiro, e.olha_camera - 0.16, 'Seu Rafael, não sai daí. O elevador tá parado no térreo há cinco minutos.'],
-    [e.olha_camera, e.celular_vibra - 0.16, 'Rafael olha pro teto. O corredor sumiu e o elevador tá no térreo.'],
-    [e.celular_vibra, e.impacto_twist - 0.08, 'Quem é esse cara igual a você saindo do elevador na câmera do hall?'],
-    [e.final_espelho, e.duracao_total - 0.20, 'No espelho atrás do Rafael, o reflexo sorri primeiro.']
+    [e.gancho, e.tela_app - 0.14, 'Três e dez da manhã. Diego pede um carro por aplicativo na saída do trabalho.'],
+    [e.tela_app, e.carro_encosta - 0.14, 'O app mostra: motorista Carlos, carro prata, nota quatro ponto nove, chegando em dois minutos.'],
+    [e.carro_encosta, e.porta_impacto - 0.08, 'O carro encosta. Diego entra sem olhar a placa e já coloca o fone.'],
+    [e.sem_boa_noite, e.motor_acelerando - 0.08, 'O motorista não dá boa noite. Só acelera forte na avenida deserta.'],
+    [e.celular_vibra, e.voz_motorista_1 - 0.12, 'Dois minutos depois, o celular do Diego vibra com uma ligação do próprio aplicativo. Ele atende achando que é erro do sistema.'],
+    [e.voz_motorista_1, e.cta_meio_inicio - 0.12, 'Irmão, tô aqui na frente do seu trabalho buzinando. Você vai descer ou posso cancelar?'],
+    [e.diego_congela, e.puxa_macaneta - 0.12, 'Diego congela. Ele olha pro motorista no retrovisor. O cara tá encarando ele fixo, sem piscar.'],
+    [e.puxa_macaneta, e.trava_porta_carro - 0.08, 'Diego puxa a maçaneta da porta. Trava infantil acionada.'],
+    [e.gps_desvio, e.corte_parte_2 - 0.08, 'O GPS no painel não tá indo pra casa dele. A linha vermelha aponta pra uma estrada de terra fora da cidade.'],
+    [e.finge_calma, e.nao_cai - 0.12, 'Diego finge calma e fala alto pro telefone: Pai, já tô dobrando a esquina da delegacia, pode abrir o portão.'],
+    [e.nao_cai, e.motor_acelerando_2 - 0.08, 'O cara no volante não cai. Ele ri seco e joga o carro a cento e vinte por hora.'],
+    [e.motorista_grita, e.inclina_corpo - 0.12, 'Na linha, o motorista real começa a gritar: Irmão, eu vi o carro prata arrancando com você! Eu conheço essa placa, esse cara já fez isso ontem! Olha pro banco do carona agora!'],
+    [e.inclina_corpo, e.celular_tocando - 0.08, 'Diego inclina o corpo e olha pro banco da frente. No escuro, a luz ilumina quatro celulares jogados ali, todos com a tela do aplicativo em corrida ativa e dezenas de ligações perdidas.'],
+    [e.rua_sem_saida, e.impacto_twist - 0.08, 'O carro entra numa rua sem saída.'],
+    [e.final_retrovisor, e.duracao_total - 0.16, 'No retrovisor, os olhos do homem sorriem: Relaxa, o seu já vai fazer companhia pra eles.']
   ];
   const groups = [];
   for (const [t0, t1, txt] of lines) {
@@ -2635,7 +2791,6 @@ function layoutCaptionGroup(grp){
   for (let iter = 0; iter < 16; iter++) {
     g.font = `900 ${fs}px ${COND}`;
     lw = Math.max(10, Math.round(fs * 0.20));
-    /* Reserva folga real do contorno (lw) + expansao lateral do pop-in (POP_MAX) */
     gap = Math.max(26, Math.round(fs * 0.36) + Math.round(lw * 0.50));
     wds = words.map(w => g.measureText(w.txt).width);
     boxes = wds.map(w => w * POP_MAX + lw);
@@ -2665,7 +2820,6 @@ function pickCaptionGroup(t){
     const c = captionGroups[i];
     const ini = Number(c.inicio);
     const fim = Number(c.fim);
-    /* Barreira dura entre Parte 1 e Parte 2: legenda da Parte 1 nunca vaza para 0:00 da Parte 2 */
     if (temCorte) {
       const grpEhP2 = ini >= cP2 - 0.005;
       if (naParte2 && !grpEhP2) continue;
@@ -2768,10 +2922,10 @@ function renderAt(t){
   g.fillStyle = '#000';
   g.fillRect(0, 0, W, H);
 
-  /* 1. CTA dedicada em tela cheia V5 (ocupa 100% da tela, oculta selo/relogio/legendas) */
+  /* 1. CTA dedicada em tela cheia V5.2 */
   if (drawFullScreenCta(t)) return;
 
-  /* 2. Motor Katana + Cenas + Loop seco sem tela preta no fim da Parte 1 nem da Parte 2 */
+  /* 2. Motor Katana + Cenas + Loop seco sem tela preta no fim */
   const shot = pickShot(t);
   const katanaActive = drawKatanaOverlay(t);
 
@@ -2784,21 +2938,21 @@ function renderAt(t){
     drawScene(shot, t);
     g.restore();
 
-    finish(shot.vig || 0.60);
+    finish(shot.vig || 0.62);
     drawClock(t, shot);
 
     const cutAge = t - shot.start;
-    if (shot.id > 1 && cutAge >= 0 && cutAge < 0.06) {
-      const k = 1 - cutAge / 0.06;
-      g.fillStyle = shot.mood === 'red' ? `rgba(255,59,48,${k * 0.16})` : `rgba(0,0,0,${k * 0.35})`;
+    if (shot.id > 1 && cutAge >= 0 && cutAge < 0.055) {
+      const k = 1 - cutAge / 0.055;
+      g.fillStyle = shot.mood === 'red' ? `rgba(255,59,48,${k * 0.16})` : `rgba(0,0,0,${k * 0.34})`;
       g.fillRect(0, 0, W, H);
     }
   }
 
-  /* 3. Selo dinamico V5 ("PARTE 1" -> "PARTE 2" a partir de corte_parte_2) */
+  /* 3. Selo dinamico V5.2 ("PARTE 1" -> "PARTE 2") */
   drawParteBadge(t);
 
-  /* 4. Legendas sincronizadas (2-3 palavras, ocultas na CTA tela cheia e Katana hits) */
+  /* 4. Legendas sincronizadas */
   if (ccOn) drawCaptions(t);
 }
 
@@ -2889,11 +3043,11 @@ async function load(){
   }
 
   if (audio && evData) {
-    status.textContent = `Audio (${audioSrc}) sincronizado V5 (${fmt(duration)} s | CTA tela cheia | Corte P2 em ${fmt(EV.corte_parte_2)} s).`;
+    status.textContent = `Audio (${audioSrc}) sincronizado V5.2 (${fmt(duration)} s | CTA tela cheia | Corte P2 em ${fmt(EV.corte_parte_2)} s).`;
   } else if (audio) {
     status.textContent = `Audio (${audioSrc}) carregado sem eventos.json (${fmt(duration)} s).`;
   } else {
-    status.textContent = `Modo Previa V5: sem audio, usando marcos padrao do roteiro_06 (0 a ${fmt(duration)} s | Corte P2 em ${fmt(EV.corte_parte_2)} s).`;
+    status.textContent = `Modo Previa V5.2: sem audio, usando marcos padrao do roteiro_07 (0 a ${fmt(duration)} s | Corte P2 em ${fmt(EV.corte_parte_2)} s).`;
   }
   seek.max = duration;
   btn.disabled = false; seek.disabled = false; btn.removeAttribute('aria-busy');

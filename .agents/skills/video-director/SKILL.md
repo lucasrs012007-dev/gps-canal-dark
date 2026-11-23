@@ -388,3 +388,13 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 | `scripts/qa_video.py` | Every render after the first draft. It needs ffmpeg/ffprobe, numpy and Pillow. Pass `--beats timeline.json` so it can read the planned size, frame rate, length, cuts, silences, hero, loop and clock |
 
 After delivery, propose at most one new rule learned from this film, with its number and the failure that taught it. Add it to your notes only if the user agrees. Rules written down that way become case law; rules made up in advance mostly become clutter.
+
+## Regras Permanentes da Fabrica Dark (V5.2)
+
+1. **Regra de Evolucao Continua (Nunca Retrabalhar Video Pronto)**:
+   - Nunca reescreva nem retrabalhe um video ja finalizado e aprovado no repositorio.
+   - Todo upgrade de motor visual, vocal, sonoro ou de automacao deve estrear diretamente na criacao do proximo video inedito (`id + 1` em `historico_videos.json`), preservando integralmente o `roteiro_NN.txt` anterior e salvando copia integral do `player.html` anterior em `arquivo/video_NN/player.html`.
+2. **Regra de Ritmo 2x (Zero Voz Lenta)**:
+   - A narracao de Shorts de suspense deve ser agil, urgente e sem silabas arrastadas: nunca entregue voz lenta de audiolivro.
+   - Aplique corte automatico de silencios mortos nas pontas e no interior das falas (`silenceremove` com limite maximo de `0.09s`), velocidade calibrada (`atempo=1.14`, configuravel via `VELOCIDADE_VOZ`) preservando o timbre grave, pausas dramaticas curtas (`0.10s` a `0.18s`) e cortes visuais rapidos (`0.9s` a `1.6s`).
+

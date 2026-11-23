@@ -64,6 +64,7 @@ PERFIS_VOZ: tuple[str, ...] = (
     "narrador_tenso",
     "panico",
     "interfone_porteiro",
+    "voz_telefone",
     "cta_comercial",
     "sussurro_twist",
 )
@@ -186,6 +187,9 @@ def carregar_catalogo_sfx(caminho: Path = ARQUIVO_CATALOGO_SFX) -> dict[str, flo
         "alarme_interfone": 1.1,
         "glitch_cta": 0.38,
         "cta_pop": 0.22,
+        "motor_acelerando": 1.1,
+        "trava_porta_carro": 1.1,
+        "celular_tocando": 1.2,
     }
     if not caminho.is_file():
         return padrao
@@ -541,7 +545,11 @@ def diretor_mock_deterministico(
             perfil = "sussurro_twist"
             mood = "red" if mod == "big_face" else "dark"
             expr = "shock" if mod == "big_face" else "sinister_smile"
-        elif any(k in norm for k in ("interfone", "porteiro", "ligacao", "chamada", "disse na linha", "voz no telefone")) and (":" in txt or '"' in txt):
+        elif any(k in norm for k in ("ligacao", "chamada", "telefone", "na linha", "celular")) and (":" in txt or '"' in txt):
+            perfil = "voz_telefone"
+            mood = "violet"
+            expr = "fear"
+        elif any(k in norm for k in ("interfone", "porteiro")) and (":" in txt or '"' in txt):
             perfil = "interfone_porteiro"
             mood = "cctv" if mod == "camera_cctv" else "violet"
             expr = "fear"

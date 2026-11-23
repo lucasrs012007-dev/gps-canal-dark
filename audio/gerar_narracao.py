@@ -1,23 +1,24 @@
-"""Estacao 2 (V5.1): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
+"""Estacao 2 (V5.2): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
 
 Uso (na raiz do repositorio):
-    python3 audio/gerar_narracao.py          # Gemini 2.5 TTS -> ElevenLabs -> edge-tts multi-bloco
+    python3 audio/gerar_narracao.py          # Gemini 2.5 TTS -> ElevenLabs -> edge-tts -> gTTS
     python3 audio/gerar_narracao.py --mock   # teste automatizado local sem rede
 
-Regras aplicadas (skill audio-sound-design-suspense V5.1):
-- Consulta historico_videos.json via pipeline/historico.py para usar o roteiro do video ativo
-  e validar a regra permanente 'Sempre Video Novo'.
-- Carrega automaticamente o arquivo .env local (ignorado pelo Git) quando GEMINI_API_KEY ou
-  ELEVENLABS_API_KEY nao estiverem definidas no ambiente. Nunca imprime nem grava chaves em disco.
-- Interpreta tags de atuacao vocal [VOZ:perfil]...[/VOZ] (removidas da fala e das legendas,
-  gravadas em voz_blocos dentro de audio/eventos.json e audio/timestamps.json):
-  narrador_tenso, panico, interfone_porteiro, cta_comercial, sussurro_twist.
-- Cadeia de fallback automatica e blindada:
-  1) Gemini 2.5 TTS REST (gemini-2.5-flash-preview-tts, stdlib urllib + wave/ffmpeg);
-  2) ElevenLabs (eleven_multilingual_v2, voice_settings por perfil);
-  3) edge-tts multi-bloco expressivo (rate, pitch e voz secundaria para o porteiro).
-- Grava carimbo de integridade (video_id, titulo, roteiro_sha256), voz_blocos, janela da CTA
-  e corte_parte_2 em timestamps.json e eventos.json.
+Regras aplicadas (skill audio-sound-design-suspense V5.2):
+- Regra de Ritmo 2x (Zero Voz Lenta): instrucoes ageis/urgentes no Gemini 2.5 TTS,
+  corte de silencios mortos nas pontas e internos (silenceremove max 0.09s),
+  aceleracao atempo=1.14 (VELOCIDADE_VOZ) preservando timbre grave e pausas curtas (0.10s a 0.18s).
+- Novo perfil vocal canonico `voz_telefone` (Fenrir no Gemini TTS + filtro telefonico no sound_design.py).
+- Blindagem Gemini TTS: agrupa falas contiguas do mesmo perfil em uma unica requisicao,
+  cadencia entre chamadas (GEMINI_TTS_MIN_INTERVAL_S, padrao 21.0s), ate 4 retries em HTTP 429/503
+  (22s, 35s, 50s, 65s respeitando Retry-After) e log explicito sem jamais expor a chave.
+- Trava de Consistencia Vocal: proibido misturar provedores no mesmo video; se qualquer bloco
+  falhar definitivamente no provedor atual, descarta tudo e reinicia do bloco 1 no proximo fallback.
+- Blindagem contra edge_tts.exceptions.NoAudioReceived: sanitizacao estrita de texto,
+  taxas rapidas validas (+14% a +22%), retry escalonado em 3 niveis (perfil -> rate sem pitch -> puro)
+  e 4o nivel de emergencia gTTS (lang="pt", tld="com.br") + aceleracao FFmpeg.
+- Grava carimbo de integridade (video_id, titulo, roteiro_sha256), provedor_voz,
+  blocos_api_chamadas, voz_blocos, janela da CTA e corte_parte_2 em timestamps.json e eventos.json.
 """
 
 from __future__ import annotations
@@ -34,11 +35,13 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
 import urllib.error
 import urllib.request
 import wave
 from pathlib import Path
+from typing import Callable
 
 RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
@@ -58,43 +61,56 @@ EVENTOS_JSON = PASTA_AUDIO / "eventos.json"
 TEXTO_TXT = PASTA_AUDIO / "narracao.txt"
 ARQUIVO_ENV = RAIZ / ".env"
 
-# Perfis vocais canonicos V5.1
+# Perfis vocais canonicos V5.2
 PERFIL_VOZ_PADRAO = "narrador_tenso"
 PERFIS_VOZ_CANONICOS = (
     "narrador_tenso",
     "panico",
     "interfone_porteiro",
+    "voz_telefone",
     "cta_comercial",
     "sussurro_twist",
 )
 
-# Configuracoes de voz: Gemini 2.5 TTS (Principal V5.1)
+# Velocidade e blindagem V5.2
+VELOCIDADE_VOZ_PADRAO = 1.14
+SILENCIO_INTERNO_MAX_S = 0.09
+GEMINI_TTS_MIN_INTERVAL_PADRAO = 21.0
+GEMINI_RETRY_ESPERAS: tuple[float, ...] = (22.0, 35.0, 50.0, 65.0)
+
+# Configuracoes de voz: Gemini 2.5 TTS (Principal V5.2)
 GEMINI_TTS_MODELO = "gemini-2.5-flash-preview-tts"
 GEMINI_VOZ_NARRADOR = "Charon"
 GEMINI_VOZ_PORTEIRO = "Fenrir"
+GEMINI_VOZ_TELEFONE = "Fenrir"
 GEMINI_VOZ_CTA = "Charon"
 GEMINI_TAXA_PCM_PADRAO = 24000
 
 INSTRUCOES_ATUACAO_GEMINI: dict[str, str] = {
     "narrador_tenso": (
-        "Direcao vocal (portugues do Brasil): narrador masculino de voz grave, pausada e firme, "
-        "criando clima de suspense psicologico intimo e misterioso. Sem exageros teatrais."
+        "Direcao vocal (portugues do Brasil): narrador masculino de voz grave, firme e ritmo agil "
+        "de suspense urgente. Diccao nitida, ataque rapido em cada frase, zero silabas arrastadas "
+        "e pausas curtissimas entre oracoes."
     ),
     "panico": (
-        "Direcao vocal (portugues do Brasil): narrador em ritmo acelerado e tenso, respiracao curta, "
-        "sensacao real de urgencia e perigo iminente, mantendo diccao nitida."
+        "Direcao vocal (portugues do Brasil): narrador em ritmo bem acelerado, urgente e ofegante, "
+        "respiracao curta, senso imediato de perigo real mantendo diccao nitida e sem pausas longas."
     ),
     "interfone_porteiro": (
-        "Direcao vocal (portugues do Brasil): outro personagem masculino, porteiro de predio falando "
-        "assustado, tremulo e apressado pelo interfone, implorando com urgencia."
+        "Direcao vocal (portugues do Brasil): outro personagem masculino falando rapido, assustado "
+        "e apressado pelo interfone, diccao nitida, urgencia imediata e zero lentidao."
+    ),
+    "voz_telefone": (
+        "Direcao vocal (portugues do Brasil): outro personagem masculino falando rapido, alarmado e "
+        "urgente por ligacao telefonica, voz direta e tensa com diccao nitida, sem arrastar silabas."
     ),
     "cta_comercial": (
-        "Direcao vocal (portugues do Brasil): locutor limpo, firme, direto e energico, "
-        "tom comercial confiante e envolvente com enfase clara no chamado final."
+        "Direcao vocal (portugues do Brasil): locutor comercial limpo, firme, energico e rapido, "
+        "ritmo agil e confiante com enfase nitida no chamado final."
     ),
     "sussurro_twist": (
-        "Direcao vocal (portugues do Brasil): voz muito baixa, seca, proxima do microfone, "
-        "lenta e gelida, quase um sussurro sombrio entregando o golpe final."
+        "Direcao vocal (portugues do Brasil): voz baixa, seca, proxima do microfone, fria e precisa, "
+        "mantendo ritmo firme e tenso sem arrastar palavras ao entregar o golpe final."
     ),
 }
 
@@ -104,59 +120,67 @@ ELEVENLABS_VOZ_PADRAO = "pNInz6obpgDQGcFmaJgB"  # Adam (masculina grave/narrativ
 
 PERFIS_ELEVENLABS: dict[str, dict[str, float | bool]] = {
     "narrador_tenso": {
-        "stability": 0.44,
+        "stability": 0.42,
         "similarity_boost": 0.80,
-        "style": 0.34,
+        "style": 0.38,
         "use_speaker_boost": True,
     },
     "panico": {
-        "stability": 0.30,
+        "stability": 0.28,
         "similarity_boost": 0.78,
-        "style": 0.55,
+        "style": 0.58,
         "use_speaker_boost": True,
     },
     "interfone_porteiro": {
-        "stability": 0.28,
+        "stability": 0.26,
         "similarity_boost": 0.74,
-        "style": 0.62,
+        "style": 0.64,
+        "use_speaker_boost": True,
+    },
+    "voz_telefone": {
+        "stability": 0.26,
+        "similarity_boost": 0.75,
+        "style": 0.65,
         "use_speaker_boost": True,
     },
     "cta_comercial": {
-        "stability": 0.52,
+        "stability": 0.50,
         "similarity_boost": 0.82,
-        "style": 0.42,
+        "style": 0.44,
         "use_speaker_boost": True,
     },
     "sussurro_twist": {
-        "stability": 0.58,
+        "stability": 0.54,
         "similarity_boost": 0.84,
-        "style": 0.22,
+        "style": 0.26,
         "use_speaker_boost": True,
     },
 }
 
-# Configuracoes de voz: edge-tts multi-bloco expressivo (Fallback 2)
+# Configuracoes de voz: edge-tts multi-bloco agil (Fallback 2, taxas rapidas validas +14% a +22%)
 EDGE_VOZ = "pt-BR-AntonioNeural"
-EDGE_VOZ_PORTEIRO = "pt-BR-FabioNeural"
-EDGE_PITCH = "-6Hz"
-EDGE_RATE = "+6%"
+EDGE_VOZ_SECUNDARIA = "pt-BR-FabioNeural"
+EDGE_VOZ_PORTEIRO = EDGE_VOZ_SECUNDARIA
+EDGE_PITCH = "-4Hz"
+EDGE_RATE = "+16%"
 
 PERFIS_EDGE_TTS: dict[str, dict[str, str]] = {
-    "narrador_tenso": {"voice": EDGE_VOZ, "pitch": "-7Hz", "rate": "+2%"},
-    "panico": {"voice": EDGE_VOZ, "pitch": "-2Hz", "rate": "+16%"},
-    "interfone_porteiro": {"voice": EDGE_VOZ_PORTEIRO, "pitch": "+3Hz", "rate": "+14%"},
-    "cta_comercial": {"voice": EDGE_VOZ, "pitch": "-1Hz", "rate": "+10%"},
-    "sussurro_twist": {"voice": EDGE_VOZ, "pitch": "-11Hz", "rate": "-8%"},
+    "narrador_tenso": {"voice": EDGE_VOZ, "pitch": "-5Hz", "rate": "+16%"},
+    "panico": {"voice": EDGE_VOZ, "pitch": "-2Hz", "rate": "+22%"},
+    "interfone_porteiro": {"voice": EDGE_VOZ_SECUNDARIA, "pitch": "+2Hz", "rate": "+20%"},
+    "voz_telefone": {"voice": EDGE_VOZ_SECUNDARIA, "pitch": "+2Hz", "rate": "+20%"},
+    "cta_comercial": {"voice": EDGE_VOZ, "pitch": "-1Hz", "rate": "+18%"},
+    "sussurro_twist": {"voice": EDGE_VOZ, "pitch": "-8Hz", "rate": "+14%"},
 }
 
-# Ritmo cinematografico (segundos)
-PAUSA_PADRAO = 0.16
-PAUSA_PANICO = 0.12
-PAUSA_VIRADA_PERFIL = 0.24
-PAUSA_ANTES_TWIST = 0.28
-PAUSA_DRAMATICA = 0.42
+# Ritmo cinematografico agil V5.2 (pausas curtas de 0.10s a 0.18s)
+PAUSA_PANICO = 0.10
+PAUSA_PADRAO = 0.12
+PAUSA_VIRADA_PERFIL = 0.15
+PAUSA_ANTES_TWIST = 0.18
+PAUSA_DRAMATICA = 0.18
 DURACAO_BATIDAS_PORTA = 2.10
-CAUDA_FINAL = 0.45
+CAUDA_FINAL = 0.35
 
 # Limite de caracteres por bloco de legenda para evitar aperto/colagem em palavras longas
 MAX_CHARS_GRUPO_3 = 20
@@ -184,11 +208,39 @@ PADRAO_QUALQUER_TAG_VOZ = re.compile(
     r"\[\s*/?\s*VOZ(?:\s*:\s*[a-zA-Z0-9_]+)?\s*\]",
     re.IGNORECASE,
 )
+PADRAO_TAGS_RESIDUAIS = re.compile(
+    r"\[\s*/?\s*(?:VOZ|SFX|CTA_PAUSA|CORTE_PARTE_2)[^\]]*\]",
+    re.IGNORECASE,
+)
+RE_EMOJI = re.compile(
+    "[\U0001F300-\U0001F9FF\U0001FA00-\U0001FAFF\U00002600-\U000027BF\U0000FE0F\U0000200D]+",
+    flags=re.UNICODE,
+)
 PADRAO_BATIDAS = re.compile(
     r"(?:^|\s)(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?\s*(?:toque|toc)[\.\!\,]?(?=\s|$)",
     re.IGNORECASE,
 )
 SEPARADOR_FRASES = re.compile(r"(?<!\.\.)(?<=[\.\!\?])\s+")
+
+
+def obter_velocidade_voz() -> float:
+    raw = os.environ.get("VELOCIDADE_VOZ", "").strip()
+    if raw:
+        try:
+            return max(0.5, min(2.0, float(raw)))
+        except ValueError:
+            pass
+    return VELOCIDADE_VOZ_PADRAO
+
+
+def obter_intervalo_min_gemini() -> float:
+    raw = os.environ.get("GEMINI_TTS_MIN_INTERVAL_S", "").strip()
+    if raw:
+        try:
+            return max(0.0, float(raw))
+        except ValueError:
+            pass
+    return GEMINI_TTS_MIN_INTERVAL_PADRAO
 
 
 def carregar_env(caminho_env: Path = ARQUIVO_ENV) -> bool:
@@ -223,7 +275,7 @@ def normalizar_chave(texto: str) -> str:
 
 
 def normalizar_perfil_voz(nome: str | None, padrao: str = PERFIL_VOZ_PADRAO) -> str:
-    """Normaliza e valida o perfil vocal contra os 5 perfis canonicos V5.1."""
+    """Normaliza e valida o perfil vocal contra os 6 perfis canonicos V5.2."""
     if not nome:
         return padrao
     chave = re.sub(r"[^a-z0-9_]", "", nome.strip().lower())
@@ -234,8 +286,22 @@ def normalizar_perfil_voz(nome: str | None, padrao: str = PERFIL_VOZ_PADRAO) -> 
 
 def limpar_tags_voz(texto: str) -> str:
     """Remove qualquer marcador residual [VOZ:...] ou [/VOZ] garantindo fala e legendas limpas."""
-    sem_tags = PADRAO_QUALQUER_TAG_VOZ.sub(" ", texto)
+    sem_tags = PADRAO_QUALQUER_TAG_VOZ.sub(" ", str(texto or ""))
     return re.sub(r"\s+", " ", sem_tags).strip()
+
+
+def sanitizar_texto_tts(texto: str) -> str:
+    """Limpa tags residuais, emojis, travessoes e espacos extras antes de enviar ao TTS."""
+    limpo = PADRAO_TAGS_RESIDUAIS.sub(" ", str(texto or ""))
+    limpo = RE_EMOJI.sub("", limpo)
+    limpo = limpo.replace("\u2014", ", ").replace("\u2013", ", ")
+    limpo = re.sub(r"\s+", " ", limpo).strip()
+    return limpo
+
+
+def tem_conteudo_falavel(texto: str) -> bool:
+    """Garante que o trecho nao seja vazio nem composto apenas de pontuacao."""
+    return bool(re.search(r"[A-Za-zÀ-ÿ0-9]", sanitizar_texto_tts(texto)))
 
 
 def extrair_segmentos_voz(texto: str, perfil_padrao: str = PERFIL_VOZ_PADRAO) -> list[tuple[str, str]]:
@@ -246,17 +312,17 @@ def extrair_segmentos_voz(texto: str, perfil_padrao: str = PERFIL_VOZ_PADRAO) ->
     for m in PADRAO_TAG_VOZ.finditer(texto):
         if m.start() > pos:
             antes = limpar_tags_voz(texto[pos : m.start()])
-            if antes:
+            if antes and tem_conteudo_falavel(antes):
                 segmentos.append((padrao, antes))
         perfil = normalizar_perfil_voz(m.group(1), padrao=padrao)
         conteudo = limpar_tags_voz(m.group(2))
-        if conteudo:
+        if conteudo and tem_conteudo_falavel(conteudo):
             segmentos.append((perfil, conteudo))
         pos = m.end()
 
     if pos < len(texto):
         resto = limpar_tags_voz(texto[pos:])
-        if resto:
+        if resto and tem_conteudo_falavel(resto):
             segmentos.append((padrao, resto))
 
     return segmentos
@@ -311,7 +377,7 @@ def _interpretar_coluna_eventos(espec: str) -> tuple[list[str], list[tuple[str, 
 
 
 def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
-    """Extrai falas com perfis [VOZ:perfil], blocos SFX e marcadores V5 ([CTA_PAUSA], [CORTE_PARTE_2])."""
+    """Extrai falas com perfis [VOZ:perfil], blocos SFX e marcadores V5/V5.2 ([CTA_PAUSA], [CORTE_PARTE_2])."""
     linhas_bloco: list[list[str]] = []
     for linha in caminho.read_text(encoding="utf-8").splitlines():
         if LINHA_BLOCO.match(linha):
@@ -352,6 +418,7 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
                     "tipo": "silencio",
                     "bloco": bloco_idx,
                     "evento": "cta_pausa_in",
+                    "sfx_nome": "cta_pausa_in",
                     "duracao": 0.22,
                     "pausa_antes": 0.06,
                     "interno_cta": True,
@@ -359,7 +426,7 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
             )
             primeira_cta = True
             for perfil_seg, texto_seg in segs_cta:
-                frases_cta = [f.strip() for f in SEPARADOR_FRASES.split(texto_seg) if f.strip()]
+                frases_cta = [f.strip() for f in SEPARADOR_FRASES.split(texto_seg) if tem_conteudo_falavel(f)]
                 for frase in frases_cta:
                     itens.append(
                         {
@@ -369,7 +436,7 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
                             "perfil_voz": perfil_seg,
                             "eventos_inicio": ev_inicio if primeira_cta else [],
                             "eventos_palavra": ev_palavra,
-                            "pausa_antes": 0.0 if primeira_cta else 0.14,
+                            "pausa_antes": 0.0 if primeira_cta else 0.10,
                             "eh_cta_pausa": True,
                         }
                     )
@@ -379,6 +446,7 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
                     "tipo": "silencio",
                     "bloco": bloco_idx,
                     "evento": "cta_pausa_out",
+                    "sfx_nome": "cta_pausa_out",
                     "duracao": 0.22,
                     "pausa_antes": 0.0,
                     "interno_cta": True,
@@ -388,13 +456,15 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
 
         m_sfx = PADRAO_SFX.match(narracao)
         if m_sfx:
-            nome_ev = ev_inicio[0] if ev_inicio else m_sfx.group(1)
+            sfx_nome = m_sfx.group(1).strip().lower()
+            nome_ev = ev_inicio[0] if ev_inicio else sfx_nome
             dur_sfx = float(m_sfx.group(2))
             itens.append(
                 {
                     "tipo": "silencio",
                     "bloco": bloco_idx,
                     "evento": nome_ev,
+                    "sfx_nome": sfx_nome,
                     "duracao": dur_sfx,
                     "pausa_antes": pausa_explicita,
                 }
@@ -411,8 +481,8 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
             partes = substituido.split("__BATIDAS_PORTA__")
             for p_idx, parte in enumerate(partes):
                 trecho = parte.strip()
-                if trecho:
-                    frases = [f.strip() for f in SEPARADOR_FRASES.split(trecho) if f.strip()]
+                if trecho and tem_conteudo_falavel(trecho):
+                    frases = [f.strip() for f in SEPARADOR_FRASES.split(trecho) if tem_conteudo_falavel(f)]
                     for frase in frases:
                         itens.append(
                             {
@@ -432,6 +502,7 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
                             "tipo": "silencio",
                             "bloco": bloco_idx,
                             "evento": "batidas_porta",
+                            "sfx_nome": "batidas_porta",
                             "duracao": DURACAO_BATIDAS_PORTA,
                             "pausa_antes": None,
                         }
@@ -439,20 +510,69 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
     return itens, usa_eventos_explicitos
 
 
+def agrupar_blocos_fala(itens: list[dict]) -> list[dict]:
+    """Agrupa falas consecutivas do mesmo perfil (sem [SFX], [CTA_PAUSA] ou [CORTE_PARTE_2] no meio).
+
+    Reduz drasticamente chamadas de API ao Gemini TTS e evita quebras artificiais entre frases do mesmo bloco.
+    """
+    unidades: list[dict] = []
+    grupo_atual: dict | None = None
+
+    for idx, item in enumerate(itens):
+        if item["tipo"] != "fala":
+            if grupo_atual is not None:
+                unidades.append(grupo_atual)
+                grupo_atual = None
+            unidades.append({"tipo": item["tipo"], "indice_primeiro": idx, "item": item})
+            continue
+
+        if not tem_conteudo_falavel(item.get("texto", "")):
+            continue
+
+        perfil = normalizar_perfil_voz(item.get("perfil_voz"))
+        eh_cta = bool(item.get("eh_cta_pausa"))
+        if (
+            grupo_atual is not None
+            and grupo_atual["perfil_voz"] == perfil
+            and grupo_atual["eh_cta_pausa"] == eh_cta
+        ):
+            grupo_atual["itens"].append((idx, item))
+        else:
+            if grupo_atual is not None:
+                unidades.append(grupo_atual)
+            grupo_atual = {
+                "tipo": "grupo_fala",
+                "indice_primeiro": idx,
+                "perfil_voz": perfil,
+                "eh_cta_pausa": eh_cta,
+                "itens": [(idx, item)],
+            }
+
+    if grupo_atual is not None:
+        unidades.append(grupo_atual)
+
+    for u in unidades:
+        if u["tipo"] == "grupo_fala":
+            u["texto_combinado"] = " ".join(
+                sanitizar_texto_tts(it["texto"]) for _, it in u["itens"]
+            ).strip()
+    return unidades
+
+
 def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
-    """Define a pausa exata antes de cada item (0.12s a 0.28s nas viradas de tensao V5.1)."""
+    """Define a pausa exata antes de cada item (ritmo agil V5.2: 0.10s a 0.18s)."""
     if idx == 0:
         return 0.0
     anterior = itens[idx - 1]
     atual = itens[idx]
     if atual.get("pausa_antes") is not None:
-        return float(atual["pausa_antes"])
+        return min(0.24, max(0.0, float(atual["pausa_antes"])))
     if anterior["tipo"] in ("silencio", "corte_parte_2"):
         return 0.0
     if atual["tipo"] == "corte_parte_2":
         return 0.0
     if atual["tipo"] == "silencio":
-        return 0.08
+        return 0.06
     if atual["tipo"] == "fala":
         chave = normalizar_chave(atual["texto"])
         if chave.startswith("silencio") or chave.startswith("e o rosto dele"):
@@ -463,7 +583,7 @@ def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
             return PAUSA_ANTES_TWIST
         if perfil_atual != perfil_ant:
             return PAUSA_VIRADA_PERFIL
-        if perfil_atual in ("panico", "interfone_porteiro"):
+        if perfil_atual in ("panico", "interfone_porteiro", "voz_telefone"):
             return PAUSA_PANICO
     return PAUSA_PADRAO
 
@@ -527,17 +647,18 @@ def sintetizar_mock(
     indice: int,
     perfil_voz: str = PERFIL_VOZ_PADRAO,
 ) -> list[dict]:
-    """Gera sinal vocal simulado com silencios nas pontas e assinatura tonal por perfil."""
-    palavras = texto.split()
+    """Gera sinal vocal simulado com silencios nas pontas e assinatura tonal por perfil V5.2."""
+    palavras = sanitizar_texto_tts(texto).split()
     peso_chars = sum(max(2, len(p)) for p in palavras)
     fator_ritmo = {
-        "narrador_tenso": 1.00,
-        "panico": 0.90,
-        "interfone_porteiro": 0.92,
-        "cta_comercial": 0.95,
-        "sussurro_twist": 1.12,
-    }.get(perfil_voz, 1.0)
-    dur_ativa = max(0.55, min(3.4, (0.24 + peso_chars * 0.046) * fator_ritmo))
+        "narrador_tenso": 0.96,
+        "panico": 0.86,
+        "interfone_porteiro": 0.88,
+        "voz_telefone": 0.88,
+        "cta_comercial": 1.04,
+        "sussurro_twist": 1.02,
+    }.get(perfil_voz, 0.95)
+    dur_ativa = max(0.60, min(14.0, (0.28 + peso_chars * 0.045) * fator_ritmo))
     pad_ini = 0.14
     pad_fim = 0.18
     dur_total = pad_ini + dur_ativa + pad_fim
@@ -546,6 +667,7 @@ def sintetizar_mock(
         "narrador_tenso": 118.0,
         "panico": 146.0,
         "interfone_porteiro": 178.0,
+        "voz_telefone": 184.0,
         "cta_comercial": 136.0,
         "sussurro_twist": 98.0,
     }.get(perfil_voz, 124.0)
@@ -577,14 +699,16 @@ def sintetizar_mock(
 
 
 # ============================================================
-# MOTOR PRINCIPAL V5.1: GEMINI 2.5 TTS REST (STDLIB URLLIB)
+# MOTOR PRINCIPAL V5.2: GEMINI 2.5 TTS REST (BLOCOS + ANTI-429)
 # ============================================================
 
 def selecionar_voz_gemini(perfil_voz: str) -> str:
-    """Retorna a voz predefinida do Gemini 2.5 TTS para cada perfil (contraste porteiro vs narrador)."""
+    """Retorna a voz predefinida do Gemini 2.5 TTS para cada perfil (Charon vs Fenrir)."""
     perfil = normalizar_perfil_voz(perfil_voz)
     if perfil == "interfone_porteiro":
         return os.environ.get("GEMINI_TTS_VOICE_PORTEIRO", "").strip() or GEMINI_VOZ_PORTEIRO
+    if perfil == "voz_telefone":
+        return os.environ.get("GEMINI_TTS_VOICE_TELEFONE", "").strip() or GEMINI_VOZ_TELEFONE
     if perfil == "cta_comercial":
         return os.environ.get("GEMINI_TTS_VOICE_CTA", "").strip() or (
             os.environ.get("GEMINI_TTS_VOICE", "").strip() or GEMINI_VOZ_CTA
@@ -597,14 +721,15 @@ def montar_payload_gemini_tts(
     perfil_voz: str = PERFIL_VOZ_PADRAO,
     voice_override: str | None = None,
 ) -> dict:
-    """Monta payload REST oficial do gemini-2.5-flash-preview-tts com atuacao inline em pt-BR."""
+    """Monta payload REST oficial do gemini-2.5-flash-preview-tts com atuacao agil inline em pt-BR."""
     perfil = normalizar_perfil_voz(perfil_voz)
     direcao = INSTRUCOES_ATUACAO_GEMINI.get(perfil, INSTRUCOES_ATUACAO_GEMINI[PERFIL_VOZ_PADRAO])
     voz = (voice_override or "").strip() or selecionar_voz_gemini(perfil)
+    texto_limpo = sanitizar_texto_tts(texto)
     prompt_atuacao = (
         f"{direcao}\n"
-        "Leia apenas o texto exato abaixo em portugues do Brasil, sem adicionar nem omitir palavras:\n"
-        f"{texto.strip()}"
+        "Leia apenas o texto exato abaixo em portugues do Brasil, com ritmo agil, sem adicionar nem omitir palavras:\n"
+        f"{texto_limpo}"
     )
     return {
         "contents": [
@@ -690,7 +815,6 @@ def decodificar_resposta_gemini_tts(dados: dict, destino_wav: Path) -> Path:
         tmp_src.unlink(missing_ok=True)
         return destino_wav
 
-    # Formato padrao Gemini TTS: PCM linear signed 16-bit little-endian mono 24000 Hz
     taxa_hz = _extrair_rate_mime(mime, GEMINI_TAXA_PCM_PADRAO)
     if len(bruto) % 2 == 1:
         bruto = bruto[:-1]
@@ -702,19 +826,42 @@ def decodificar_resposta_gemini_tts(dados: dict, destino_wav: Path) -> Path:
     return destino_wav
 
 
+def _extrair_retry_after(exc: urllib.error.HTTPError) -> float | None:
+    try:
+        hdrs = getattr(exc, "headers", None)
+        if not hdrs:
+            return None
+        val = hdrs.get("Retry-After") or hdrs.get("retry-after")
+        if val is None:
+            return None
+        return max(0.0, float(str(val).strip()))
+    except (TypeError, ValueError):
+        return None
+
+
 def sintetizar_gemini_tts(
     texto: str,
     destino_wav: Path,
     api_key: str,
     perfil_voz: str = PERFIL_VOZ_PADRAO,
     modelo: str | None = None,
-    urlopen_fn=None,
+    urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+    monotonic_fn: Callable[[], float] = time.monotonic,
+    cadencia_estado: dict | None = None,
+    min_interval_s: float | None = None,
+    retry_esperas: tuple[float, ...] = GEMINI_RETRY_ESPERAS,
 ) -> list[dict]:
-    """Chama a API REST oficial do Gemini 2.5 TTS usando stdlib urllib e grava WAV decodificado."""
+    """Chama a API REST oficial do Gemini 2.5 TTS com cadencia anti-429 e ate 4 retries."""
+    texto_limpo = sanitizar_texto_tts(texto)
+    if not tem_conteudo_falavel(texto_limpo):
+        raise ValueError("Texto vazio ou sem conteudo falavel para Gemini TTS.")
+
     modelo_uso = (modelo or os.environ.get("GEMINI_TTS_MODEL", "").strip() or GEMINI_TTS_MODELO)
+    intervalo = obter_intervalo_min_gemini() if min_interval_s is None else max(0.0, float(min_interval_s))
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_uso}:generateContent"
     payload_bytes = json.dumps(
-        montar_payload_gemini_tts(texto, perfil_voz=perfil_voz),
+        montar_payload_gemini_tts(texto_limpo, perfil_voz=perfil_voz),
         ensure_ascii=False,
     ).encode("utf-8")
     headers = {
@@ -725,21 +872,46 @@ def sintetizar_gemini_tts(
     opener = urlopen_fn or urllib.request.urlopen
 
     ultimo_erro: Exception | None = None
-    for tentativa in range(2):
+    max_tentativas = 1 + len(retry_esperas)
+
+    for tentativa in range(max_tentativas):
+        if tentativa == 0 and cadencia_estado is not None and intervalo > 0.0:
+            ultima = cadencia_estado.get("ultima_chamada")
+            if ultima is not None:
+                decorrido = monotonic_fn() - float(ultima)
+                falta = intervalo - decorrido
+                if falta > 0.0:
+                    sleep_fn(falta)
+        if cadencia_estado is not None:
+            cadencia_estado["ultima_chamada"] = monotonic_fn()
+
         req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
         try:
-            with opener(req, timeout=75) as resp:
+            with opener(req, timeout=90) as resp:
                 dados = json.loads(resp.read().decode("utf-8"))
             decodificar_resposta_gemini_tts(dados, destino_wav)
             return []
         except urllib.error.HTTPError as exc:
-            if exc.code in (500, 502, 503, 504) and tentativa == 0:
-                ultimo_erro = exc
+            ultimo_erro = exc
+            motivo = _extrair_motivo_http_error(exc)
+            if exc.code in (429, 500, 502, 503, 504) and tentativa < len(retry_esperas):
+                espera = float(retry_esperas[tentativa])
+                retry_after = _extrair_retry_after(exc)
+                if retry_after is not None and retry_after > espera:
+                    espera = retry_after
+                print(
+                    f"AVISO Gemini TTS HTTP {exc.code} ({motivo}) na tentativa {tentativa + 1}/{max_tentativas}. "
+                    f"Aguardando {espera:.1f}s antes de repetir...",
+                    flush=True,
+                )
+                sleep_fn(espera)
                 continue
+            print(f"ERRO Gemini TTS definitivo: HTTP {exc.code} ({motivo}).", flush=True)
             raise
         except RuntimeError as exc:
             ultimo_erro = exc
-            if tentativa == 0:
+            if tentativa < min(1, len(retry_esperas)):
+                sleep_fn(min(5.0, float(retry_esperas[tentativa])))
                 continue
             raise
 
@@ -748,7 +920,7 @@ def sintetizar_gemini_tts(
 
 
 # ============================================================
-# FALLBACK 1: ELEVENLABS (VOICE_SETTINGS POR PERFIL V5.1)
+# FALLBACK 1: ELEVENLABS (VOICE_SETTINGS POR PERFIL V5.2)
 # ============================================================
 
 def alinhamento_elevenlabs_para_palavras(texto: str, alignment: dict | None) -> list[dict]:
@@ -816,11 +988,12 @@ def sintetizar_elevenlabs(
     voice_id: str,
     perfil_voz: str = PERFIL_VOZ_PADRAO,
 ) -> list[dict]:
+    texto_limpo = sanitizar_texto_tts(texto)
     perfil = normalizar_perfil_voz(perfil_voz)
     settings = PERFIS_ELEVENLABS.get(perfil, PERFIS_ELEVENLABS[PERFIL_VOZ_PADRAO])
     payload = json.dumps(
         {
-            "text": texto,
+            "text": texto_limpo,
             "model_id": ELEVENLABS_MODELO,
             "voice_settings": settings,
         }
@@ -837,7 +1010,7 @@ def sintetizar_elevenlabs(
         with urllib.request.urlopen(req_ts, timeout=60) as resp:
             dados = json.loads(resp.read().decode("utf-8"))
         destino_mp3.write_bytes(base64.b64decode(dados["audio_base64"]))
-        return alinhamento_elevenlabs_para_palavras(texto, dados.get("alignment"))
+        return alinhamento_elevenlabs_para_palavras(texto_limpo, dados.get("alignment"))
     except urllib.error.HTTPError as exc:
         if exc.code not in (400, 404, 422):
             raise
@@ -855,11 +1028,11 @@ def sintetizar_elevenlabs(
 
 
 # ============================================================
-# FALLBACK 2: EDGE-TTS MULTI-BLOCO EXPRESSIVO (POR PERFIL V5.1)
+# FALLBACK 2: EDGE-TTS BLINDADO CONTRA NoAudioReceived (V5.2)
 # ============================================================
 
 def config_edge_por_perfil(perfil_voz: str) -> dict[str, str]:
-    """Retorna voz, rate e pitch do edge-tts adaptados ao perfil vocal V5.1."""
+    """Retorna voz, rate (+14% a +22%) e pitch do edge-tts adaptados ao perfil vocal V5.2."""
     perfil = normalizar_perfil_voz(perfil_voz)
     return dict(PERFIS_EDGE_TTS.get(perfil, PERFIS_EDGE_TTS[PERFIL_VOZ_PADRAO]))
 
@@ -868,23 +1041,26 @@ async def _sintetizar_edge_async(
     texto: str,
     destino_mp3: Path,
     voice: str,
-    rate: str,
-    pitch: str,
+    rate: str | None = None,
+    pitch: str | None = None,
 ) -> list[dict]:
     import edge_tts
 
-    comunicar = edge_tts.Communicate(
-        texto,
-        voice,
-        rate=rate,
-        pitch=pitch,
-        boundary="WordBoundary",
-    )
-    palavras = []
+    kwargs: dict[str, str] = {"boundary": "WordBoundary"}
+    if rate:
+        kwargs["rate"] = rate
+    if pitch:
+        kwargs["pitch"] = pitch
+
+    comunicar = edge_tts.Communicate(texto, voice, **kwargs)
+    palavras: list[dict] = []
+    bytes_audio = 0
     with destino_mp3.open("wb") as arq:
         async for pedaco in comunicar.stream():
             if pedaco["type"] == "audio":
-                arq.write(pedaco["data"])
+                chunk = pedaco["data"]
+                arq.write(chunk)
+                bytes_audio += len(chunk)
             elif pedaco["type"] == "WordBoundary":
                 palavras.append(
                     {
@@ -893,48 +1069,114 @@ async def _sintetizar_edge_async(
                         "duracao": pedaco["duration"] / TICKS_POR_SEGUNDO,
                     }
                 )
+    if bytes_audio == 0:
+        raise RuntimeError("NoAudioReceived: edge-tts retornou 0 bytes de audio.")
     return palavras
+
+
+def _executar_tentativa_edge(
+    texto: str,
+    destino_mp3: Path,
+    voice: str,
+    rate: str | None,
+    pitch: str | None,
+) -> list[dict]:
+    return asyncio.run(_sintetizar_edge_async(texto, destino_mp3, voice=voice, rate=rate, pitch=pitch))
 
 
 def sintetizar_edge(
     texto: str,
     destino_mp3: Path,
     perfil_voz: str = PERFIL_VOZ_PADRAO,
+    runner_fn: Callable[[str, Path, str, str | None, str | None], list[dict]] | None = None,
 ) -> list[dict]:
+    """Sintetiza com edge-tts usando sanitizacao estrita e retry escalonado em 3 niveis."""
+    texto_limpo = sanitizar_texto_tts(texto)
+    if not tem_conteudo_falavel(texto_limpo):
+        raise ValueError("Texto vazio ou apenas pontuacao bloqueado antes do edge-tts.")
+
     cfg = config_edge_por_perfil(perfil_voz)
-    try:
-        return asyncio.run(
-            _sintetizar_edge_async(
-                texto,
-                destino_mp3,
-                voice=cfg["voice"],
-                rate=cfg["rate"],
-                pitch=cfg["pitch"],
+    exec_fn = runner_fn or _executar_tentativa_edge
+
+    # Tentativa 1: voz/rate/pitch do perfil; Tentativa 2: AntonioNeural + rate (sem pitch); Tentativa 3: AntonioNeural puro
+    planos: list[tuple[str, str | None, str | None, str]] = [
+        (cfg["voice"], cfg["rate"], cfg["pitch"], "perfil completo"),
+        (EDGE_VOZ, cfg["rate"], None, "AntonioNeural com rate (sem pitch)"),
+        (EDGE_VOZ, None, None, "AntonioNeural puro (sem rate nem pitch)"),
+    ]
+
+    ultimo_erro: Exception | None = None
+    for idx_t, (voz, rate, pitch, desc) in enumerate(planos, start=1):
+        destino_mp3.unlink(missing_ok=True)
+        try:
+            palavras = exec_fn(texto_limpo, destino_mp3, voz, rate, pitch)
+            if not destino_mp3.is_file() or destino_mp3.stat().st_size < 64:
+                raise RuntimeError("NoAudioReceived: arquivo de audio vazio apos edge-tts.")
+            return palavras
+        except Exception as exc:
+            ultimo_erro = exc
+            print(
+                f"AVISO edge-tts falhou na tentativa {idx_t}/3 [{desc}] ({type(exc).__name__}: {exc}).",
+                flush=True,
             )
-        )
-    except Exception:
-        if cfg["voice"] != EDGE_VOZ:
-            return asyncio.run(
-                _sintetizar_edge_async(
-                    texto,
-                    destino_mp3,
-                    voice=EDGE_VOZ,
-                    rate=cfg["rate"],
-                    pitch=cfg["pitch"],
-                )
-            )
-        raise
+
+    assert ultimo_erro is not None
+    raise ultimo_erro
 
 
-def limpar_silencio_frase(origem: Path, destino_wav: Path) -> float:
-    """Corta silencios mortos nas pontas via silenceremove e normaliza em PCM 44.1kHz estereo."""
-    filtro = (
-        "silenceremove=start_periods=1:start_duration=0:start_threshold=-42dB:detection=peak,"
+# ============================================================
+# FALLBACK 3 (4o NIVEL DE EMERGENCIA): gTTS + ATEMPO FFMPEG
+# ============================================================
+
+def sintetizar_gtts(
+    texto: str,
+    destino_mp3: Path,
+    gtts_cls=None,
+) -> list[dict]:
+    """4o nivel de emergencia gratuito usando gTTS (lang='pt', tld='com.br')."""
+    texto_limpo = sanitizar_texto_tts(texto)
+    if not tem_conteudo_falavel(texto_limpo):
+        raise ValueError("Texto vazio ou apenas pontuacao bloqueado antes do gTTS.")
+
+    cls = gtts_cls
+    if cls is None:
+        from gtts import gTTS as cls  # type: ignore[import-not-found]
+
+    destino_mp3.unlink(missing_ok=True)
+    tts = cls(text=texto_limpo, lang="pt", tld="com.br")
+    tts.save(str(destino_mp3))
+    if not destino_mp3.is_file() or destino_mp3.stat().st_size < 64:
+        raise RuntimeError("gTTS gerou arquivo de audio vazio.")
+    return []
+
+
+# ============================================================
+# LIMPEZA DE SILENCIOS INTERNOS + ACELERACAO ATEMPO (RITMO 2X)
+# ============================================================
+
+def montar_filtro_limpeza_voz(velocidade: float = VELOCIDADE_VOZ_PADRAO) -> str:
+    """Monta filtro FFmpeg V5.2: corta pontas + silencios internos (>0.09s) + atempo preservando timbre."""
+    v = max(0.5, min(2.0, float(velocidade)))
+    return (
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-42dB:detection=peak:"
+        f"stop_periods=-1:stop_duration={SILENCIO_INTERNO_MAX_S:.2f}:stop_silence=0.04:"
+        "stop_threshold=-40dB:detection=peak,"
         "areverse,"
         "silenceremove=start_periods=1:start_duration=0:start_threshold=-42dB:detection=peak,"
         "areverse,"
+        f"atempo={v:.3f},"
         "afade=t=in:st=0:d=0.008"
     )
+
+
+def limpar_silencio_frase(
+    origem: Path,
+    destino_wav: Path,
+    velocidade: float | None = None,
+) -> float:
+    """Corta silencios mortos nas pontas/internos (max 0.09s), aplica atempo e normaliza PCM 44.1kHz estereo."""
+    vel = obter_velocidade_voz() if velocidade is None else max(0.5, min(2.0, float(velocidade)))
+    filtro = montar_filtro_limpeza_voz(vel)
     cmd = [
         "ffmpeg",
         "-y",
@@ -962,6 +1204,8 @@ def limpar_silencio_frase(origem: Path, destino_wav: Path) -> float:
             "error",
             "-i",
             str(origem),
+            "-af",
+            f"atempo={vel:.3f}",
             "-ar",
             str(TAXA_AMOSTRAGEM),
             "-ac",
@@ -973,6 +1217,119 @@ def limpar_silencio_frase(origem: Path, destino_wav: Path) -> float:
         subprocess.run(cmd_raw, check=True)
         dur = medir_duracao_ffprobe(destino_wav)
     return dur
+
+
+# ============================================================
+# TRAVA DE CONSISTENCIA VOCAL (ROLLBACK COMPLETO SEM MISTURA)
+# ============================================================
+
+def sintetizar_todos_blocos_com_consistencia(
+    unidades: list[dict],
+    cadeia_provedores: list[str],
+    tmp_dir: Path,
+    velocidade: float,
+    gemini_key: str = "",
+    gemini_model: str = GEMINI_TTS_MODELO,
+    eleven_key: str = "",
+    voice_id: str = ELEVENLABS_VOZ_PADRAO,
+    sintetizadores_override: dict[str, Callable[[str, Path, str, int], list[dict]]] | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+    monotonic_fn: Callable[[], float] = time.monotonic,
+    min_interval_gemini_s: float | None = None,
+) -> tuple[str, str, dict[int, tuple[Path, float, list[dict]]], int]:
+    """Sintetiza TODOS os blocos agrupados em um unico provedor (rollback total se qualquer bloco falhar)."""
+    grupos_fala = [
+        (u_idx, u) for u_idx, u in enumerate(unidades) if u["tipo"] == "grupo_fala"
+    ]
+    overrides = sintetizadores_override or {}
+    ultimo_erro: Exception | None = None
+
+    for p_idx, provedor in enumerate(cadeia_provedores):
+        sub_dir = tmp_dir / f"tentativa_{p_idx}_{provedor}"
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        resultados: dict[int, tuple[Path, float, list[dict]]] = {}
+        cadencia_gemini: dict[str, float | None] = {"ultima_chamada": None}
+        chamadas_api = 0
+        falhou = False
+
+        for b_num, (u_idx, unidade) in enumerate(grupos_fala, start=1):
+            texto_bloco = unidade["texto_combinado"]
+            perfil = unidade["perfil_voz"]
+            ext = ".wav" if provedor in ("mock", "gemini-tts") else ".mp3"
+            raw_arq = sub_dir / f"bloco_{u_idx:02d}_raw{ext}"
+            limpo_wav = sub_dir / f"bloco_{u_idx:02d}_limpo.wav"
+
+            try:
+                chamadas_api += 1
+                if provedor in overrides:
+                    raw_words = overrides[provedor](texto_bloco, raw_arq, perfil, b_num - 1)
+                elif provedor == "mock":
+                    raw_words = sintetizar_mock(texto_bloco, raw_arq, b_num - 1, perfil_voz=perfil)
+                elif provedor == "gemini-tts":
+                    raw_words = sintetizar_gemini_tts(
+                        texto_bloco,
+                        raw_arq,
+                        gemini_key,
+                        perfil_voz=perfil,
+                        modelo=gemini_model,
+                        sleep_fn=sleep_fn,
+                        monotonic_fn=monotonic_fn,
+                        cadencia_estado=cadencia_gemini,
+                        min_interval_s=min_interval_gemini_s,
+                    )
+                elif provedor == "elevenlabs":
+                    raw_words = sintetizar_elevenlabs(
+                        texto_bloco,
+                        raw_arq,
+                        eleven_key,
+                        voice_id,
+                        perfil_voz=perfil,
+                    )
+                elif provedor == "edge-tts":
+                    raw_words = sintetizar_edge(texto_bloco, raw_arq, perfil_voz=perfil)
+                elif provedor == "gtts":
+                    raw_words = sintetizar_gtts(texto_bloco, raw_arq)
+                else:
+                    raise RuntimeError(f"Provedor desconhecido: {provedor}")
+
+                # gTTS fala ligeiramente mais devagar nativamente; acelera no minimo em max(vel, 1.18)
+                vel_bloco = max(velocidade, 1.18) if provedor == "gtts" else velocidade
+                dur_limpo = limpar_silencio_frase(raw_arq, limpo_wav, velocidade=vel_bloco)
+                resultados[u_idx] = (limpo_wav, dur_limpo, raw_words or [])
+            except Exception as exc:
+                ultimo_erro = exc
+                motivo = (
+                    f"HTTP {exc.code} ({_extrair_motivo_http_error(exc)})"
+                    if isinstance(exc, urllib.error.HTTPError)
+                    else f"{type(exc).__name__}: {exc}"
+                )
+                prox = cadeia_provedores[p_idx + 1] if p_idx + 1 < len(cadeia_provedores) else "NENHUM"
+                print(
+                    f"ROLLBACK VOCAL: provedor '{provedor}' falhou no bloco {b_num}/{len(grupos_fala)} "
+                    f"({motivo}). Descartando {len(resultados)} bloco(s) parcial(is) e reiniciando "
+                    f"TODOS os blocos em '{prox}' (zero mistura de vozes).",
+                    flush=True,
+                )
+                shutil.rmtree(sub_dir, ignore_errors=True)
+                falhou = True
+                break
+
+        if not falhou:
+            desc_voz = {
+                "mock": "mock-tone-pt-BR (perfis V5.2)",
+                "gemini-tts": (
+                    f"{gemini_model} (narrador={selecionar_voz_gemini('narrador_tenso')}, "
+                    f"telefone={selecionar_voz_gemini('voz_telefone')})"
+                ),
+                "elevenlabs": f"{ELEVENLABS_MODELO}:{voice_id}",
+                "edge-tts": f"edge-tts agil V5.2 ({EDGE_VOZ} + {EDGE_VOZ_SECUNDARIA})",
+                "gtts": "gTTS emergencia (pt-BR + atempo FFmpeg)",
+            }.get(provedor, provedor)
+            return provedor, desc_voz, resultados, chamadas_api
+
+    raise RuntimeError(
+        f"Todos os provedores de voz falharam ({cadeia_provedores}). Ultimo erro: {ultimo_erro}"
+    )
 
 
 def alinhar_palavras_na_frase(
@@ -1036,12 +1393,58 @@ def alinhar_palavras_na_frase(
     return saida
 
 
+def _distribuir_duracao_no_grupo(
+    itens_grupo: list[tuple[int, dict]],
+    t_inicio_bloco: float,
+    dur_bloco: float,
+    raw_words_bloco: list[dict],
+) -> list[tuple[dict, float, float, list[dict]]]:
+    """Distribui duracao e word-boundaries de um bloco agrupado nas suas frases constituintes."""
+    tokens_por_frase = [it["texto"].split() for _, it in itens_grupo]
+    total_tokens = sum(len(tks) for tks in tokens_por_frase)
+
+    # Caso ideal: raw_words casam 1:1 com todas as palavras do bloco
+    if raw_words_bloco and len(raw_words_bloco) == total_tokens and total_tokens > 0:
+        base = raw_words_bloco[0]["inicio"]
+        fim_raw = max(w["inicio"] + w["duracao"] for w in raw_words_bloco)
+        span = max(0.05, fim_raw - base)
+        escala = dur_bloco / span
+        saida = []
+        pos = 0
+        for (_, it), tks in zip(itens_grupo, tokens_por_frase):
+            fatia = raw_words_bloco[pos : pos + len(tks)]
+            pos += len(tks)
+            f_ini = t_inicio_bloco + max(0.0, (fatia[0]["inicio"] - base) * escala)
+            f_fim = t_inicio_bloco + min(
+                dur_bloco, max(w["inicio"] + w["duracao"] for w in fatia) - base
+            ) * escala
+            f_dur = max(0.05, f_fim - f_ini)
+            saida.append((it, f_ini, f_dur, fatia))
+        return saida
+
+    # Distribuicao proporcional por peso fonetico de cada frase
+    pesos = []
+    for _, it in itens_grupo:
+        tks = it["texto"].split()
+        peso = sum(max(2.0, float(len(re.sub(r"[^\wÀ-ÿ]", "", tok)))) + 1.2 for tok in tks)
+        pesos.append(max(2.0, peso))
+    soma = sum(pesos) or 1.0
+    cursor = t_inicio_bloco
+    saida = []
+    for i, ((_, it), peso) in enumerate(zip(itens_grupo, pesos)):
+        dur_f = (t_inicio_bloco + dur_bloco - cursor) if i == len(itens_grupo) - 1 else dur_bloco * (peso / soma)
+        dur_f = max(0.05, dur_f)
+        saida.append((it, cursor, dur_f, []))
+        cursor += dur_f
+    return saida
+
+
 def _tamanho_texto_grupo(lista_palavras: list[dict]) -> int:
     return sum(len(str(p["palavra"])) for p in lista_palavras) + max(0, len(lista_palavras) - 1)
 
 
 def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
-    """Agrupa palavras de UMA unica frase em blocos legiveis (max 3 palavras e teto de caracteres V5.1)."""
+    """Agrupa palavras de UMA unica frase em blocos legiveis (max 3 palavras e teto de caracteres V5.1/V5.2)."""
     if not palavras_frase:
         return []
 
@@ -1069,7 +1472,6 @@ def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
             else:
                 tam = 3
 
-            # Protecao V5.1 contra palavras longas coladas (ex.: "corredor completamente escuro.")
             while tam == 3 and _tamanho_texto_grupo(clausula[i : i + 3]) > MAX_CHARS_GRUPO_3:
                 tam = 2
             if tam == 2 and _tamanho_texto_grupo(clausula[i : i + 2]) > MAX_CHARS_GRUPO_2:
@@ -1159,7 +1561,7 @@ def concatenar_wavs_para_mp3(lista_wavs: list[Path], wav_mestre: Path, destino_m
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Gera voz_limpa.mp3, timestamps.json e eventos.json sincronizados com o roteiro ativo (V5.1)."
+        description="Gera voz_limpa.mp3, timestamps.json e eventos.json sincronizados com o roteiro ativo (V5.2)."
     )
     parser.add_argument(
         "--mock",
@@ -1177,6 +1579,7 @@ def main() -> None:
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise SystemExit("ffmpeg e ffprobe precisam estar instalados e no PATH.")
 
+    tinha_gemini_env = bool(os.environ.get("GEMINI_API_KEY", "").strip())
     env_carregado = carregar_env()
     video_ativo = obter_video_atual(validar=True)
     roteiro_path = args.roteiro if args.roteiro else caminho_roteiro_atual()
@@ -1188,33 +1591,41 @@ def main() -> None:
     roteiro_sha256 = calcular_sha256_arquivo(roteiro_path)
     PASTA_AUDIO.mkdir(exist_ok=True)
     itens, usa_eventos_explicitos = extrair_itens_roteiro(roteiro_path)
+    unidades = agrupar_blocos_fala(itens)
 
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
     gemini_model = os.environ.get("GEMINI_TTS_MODEL", "").strip() or GEMINI_TTS_MODELO
     eleven_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
     voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or ELEVENLABS_VOZ_PADRAO
+    velocidade = obter_velocidade_voz()
 
     if args.mock:
-        motor = "mock"
-        voz_usada = "mock-tone-pt-BR (perfis V5.1)"
-    elif gemini_key:
-        motor = "gemini-tts"
-        voz_usada = f"{gemini_model} (narrador={selecionar_voz_gemini('narrador_tenso')}, porteiro={selecionar_voz_gemini('interfone_porteiro')})"
-    elif eleven_key:
-        motor = "elevenlabs"
-        voz_usada = f"{ELEVENLABS_MODELO}:{voice_id}"
+        cadeia_provedores = ["mock"]
+        status_gemini = "modo --mock"
     else:
-        motor = "edge-tts"
-        voz_usada = f"edge-tts multi-bloco ({EDGE_VOZ} + {EDGE_VOZ_PORTEIRO})"
+        cadeia_provedores = []
+        if gemini_key:
+            cadeia_provedores.append("gemini-tts")
+            origem_gem = "ambiente" if tinha_gemini_env else ".env local"
+            status_gemini = f"GEMINI_API_KEY detectada ({origem_gem})"
+        else:
+            status_gemini = "GEMINI_API_KEY AUSENTE no ambiente e .env"
+        if eleven_key:
+            cadeia_provedores.append("elevenlabs")
+        cadeia_provedores.extend(["edge-tts", "gtts"])
 
-    origem_chave = " (.env local)" if (motor in ("gemini-tts", "elevenlabs") and env_carregado) else ""
+    qtd_grupos_fala = sum(1 for u in unidades if u["tipo"] == "grupo_fala")
     print(
         f"Video {int(video_ativo['id']):02d}: {video_ativo['titulo']} | "
         f"Roteiro: {roteiro_path.name} (sha256={roteiro_sha256[:12]})"
     )
-    print(f"Motor de voz inicial: {motor} ({voz_usada}){origem_chave}")
+    print(
+        f"V5.2 Ritmo 2x (atempo={velocidade:.2f}, silencio_interno<={SILENCIO_INTERNO_MAX_S:.2f}s) | "
+        f"{status_gemini} | blocos agrupados={qtd_grupos_fala} | cadeia={' -> '.join(cadeia_provedores)}",
+        flush=True,
+    )
 
-    texto_falado = " ".join(it["texto"] for it in itens if it["tipo"] == "fala")
+    texto_falado = " ".join(sanitizar_texto_tts(it["texto"]) for it in itens if it["tipo"] == "fala")
     TEXTO_TXT.write_text(texto_falado + "\n", encoding="utf-8")
 
     palavras_todas: list[dict] = []
@@ -1241,26 +1652,38 @@ def main() -> None:
     cta_fala_inicio: float | None = None
     cta_fala_fim: float | None = None
 
-    with tempfile.TemporaryDirectory(prefix="voz-v51-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="voz-v52-") as tmp:
         tmp_dir = Path(tmp)
+
+        provedor_final, voz_usada, blocos_prontos, blocos_api_chamadas = sintetizar_todos_blocos_com_consistencia(
+            unidades=unidades,
+            cadeia_provedores=cadeia_provedores,
+            tmp_dir=tmp_dir,
+            velocidade=velocidade,
+            gemini_key=gemini_key,
+            gemini_model=gemini_model,
+            eleven_key=eleven_key,
+            voice_id=voice_id,
+        )
+
         wavs_concat: list[Path] = []
         cursor = 0.0
         frase_idx = 0
 
-        for idx, item in enumerate(itens):
-            pausa = pausa_antes_do_item(itens, idx)
+        for u_idx, unidade in enumerate(unidades):
+            pausa = pausa_antes_do_item(itens, unidade["indice_primeiro"])
             if pausa > 0:
-                p_wav = tmp_dir / f"pausa_{idx:02d}.wav"
+                p_wav = tmp_dir / f"pausa_{u_idx:02d}.wav"
                 dur_p = gerar_wav_silencio(p_wav, pausa)
                 wavs_concat.append(p_wav)
                 cursor += dur_p
 
-            if item["tipo"] == "corte_parte_2":
-                c_wav = tmp_dir / f"corte_p2_{idx:02d}.wav"
+            if unidade["tipo"] == "corte_parte_2":
+                item = unidade["item"]
+                c_wav = tmp_dir / f"corte_p2_{u_idx:02d}.wav"
                 t_ini = round(cursor, 3)
                 dur_s = gerar_wav_silencio(c_wav, item["duracao"])
                 wavs_concat.append(c_wav)
-                # Deixa ~0.03s antes da 1a palavra da Parte 2 para legenda abrir imediata em 0:00
                 offset_corte = float(item.get("offset_corte", dur_s * 0.5))
                 t_corte = round(cursor + min(dur_s - 0.02, offset_corte), 3)
                 eventos["corte_parte_2"] = t_corte
@@ -1278,18 +1701,21 @@ def main() -> None:
                 cursor += dur_s
                 continue
 
-            if item["tipo"] == "silencio":
-                s_wav = tmp_dir / f"silencio_{idx:02d}.wav"
+            if unidade["tipo"] == "silencio":
+                item = unidade["item"]
+                s_wav = tmp_dir / f"silencio_{u_idx:02d}.wav"
                 t_ini = round(cursor, 3)
                 dur_s = gerar_wav_silencio(s_wav, item["duracao"])
                 wavs_concat.append(s_wav)
                 ev_nome = item["evento"]
+                sfx_nome = str(item.get("sfx_nome") or ev_nome).strip().lower()
                 eventos[ev_nome] = t_ini
                 eventos[f"{ev_nome}_duracao"] = round(dur_s, 3)
                 if ev_nome not in ("cta_pausa_in", "cta_pausa_out"):
                     sfx_eventos.append(
                         {
-                            "nome": ev_nome,
+                            "nome": sfx_nome,
+                            "evento": ev_nome,
                             "inicio": t_ini,
                             "duracao": round(dur_s, 3),
                         }
@@ -1316,182 +1742,116 @@ def main() -> None:
                 cursor += dur_s
                 continue
 
-            texto = item["texto"]
-            perfil_voz = normalizar_perfil_voz(item.get("perfil_voz"))
-            limpa_wav = tmp_dir / f"frase_{idx:02d}_limpa.wav"
-            raw_words: list[dict] = []
+            limpo_wav, dur_bloco, raw_words_bloco = blocos_prontos[u_idx]
+            wavs_concat.append(limpo_wav)
+            t_bloco_ini = cursor
 
-            if motor == "mock":
-                raw_arq = tmp_dir / f"frase_{idx:02d}_raw.wav"
-                raw_words = sintetizar_mock(texto, raw_arq, idx, perfil_voz=perfil_voz)
-            else:
-                sintetizado = False
-                if motor == "gemini-tts":
-                    raw_arq = tmp_dir / f"frase_{idx:02d}_raw.wav"
-                    try:
-                        raw_words = sintetizar_gemini_tts(
-                            texto,
-                            raw_arq,
-                            gemini_key,
-                            perfil_voz=perfil_voz,
-                            modelo=gemini_model,
-                        )
-                        sintetizado = True
-                    except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError, TimeoutError) as exc:
-                        motivo = (
-                            f"HTTP {exc.code} ({_extrair_motivo_http_error(exc)})"
-                            if isinstance(exc, urllib.error.HTTPError)
-                            else str(exc)
-                        )
-                        if eleven_key:
-                            print(
-                                f"AVISO Gemini TTS falhou ({motivo}). "
-                                "Alternando automaticamente para fallback ElevenLabs...",
-                                flush=True,
-                            )
-                            motor = "elevenlabs"
-                            voz_usada = f"{ELEVENLABS_MODELO}:{voice_id} [fallback Gemini]"
-                        else:
-                            print(
-                                f"AVISO Gemini TTS falhou ({motivo}). "
-                                "Alternando automaticamente para fallback edge-tts multi-bloco...",
-                                flush=True,
-                            )
-                            motor = "edge-tts"
-                            voz_usada = f"edge-tts multi-bloco ({EDGE_VOZ} + {EDGE_VOZ_PORTEIRO}) [fallback Gemini]"
-
-                if not sintetizado and motor == "elevenlabs":
-                    raw_arq = tmp_dir / f"frase_{idx:02d}_raw.mp3"
-                    try:
-                        raw_words = sintetizar_elevenlabs(
-                            texto,
-                            raw_arq,
-                            eleven_key,
-                            voice_id,
-                            perfil_voz=perfil_voz,
-                        )
-                        sintetizado = True
-                    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
-                        motivo = (
-                            f"HTTP {exc.code} ({_extrair_motivo_http_error(exc)})"
-                            if isinstance(exc, urllib.error.HTTPError)
-                            else str(exc)
-                        )
-                        print(
-                            f"AVISO ElevenLabs falhou ({motivo}). "
-                            "Alternando automaticamente para fallback edge-tts multi-bloco...",
-                            flush=True,
-                        )
-                        motor = "edge-tts"
-                        voz_usada = f"edge-tts multi-bloco ({EDGE_VOZ} + {EDGE_VOZ_PORTEIRO}) [fallback ElevenLabs]"
-
-                if not sintetizado:
-                    raw_arq = tmp_dir / f"frase_{idx:02d}_raw.mp3"
-                    raw_words = sintetizar_edge(texto, raw_arq, perfil_voz=perfil_voz)
-
-            dur_frase = limpar_silencio_frase(raw_arq, limpa_wav)
-            wavs_concat.append(limpa_wav)
-
-            t_ini = cursor
-            if item.get("eh_cta_pausa"):
+            if unidade["eh_cta_pausa"]:
                 if cta_fala_inicio is None:
-                    cta_fala_inicio = round(t_ini, 3)
-                cta_fala_fim = round(t_ini + dur_frase, 3)
+                    cta_fala_inicio = round(t_bloco_ini, 3)
+                cta_fala_fim = round(t_bloco_ini + dur_bloco, 3)
 
-            palavras_frase = alinhar_palavras_na_frase(texto, t_ini, dur_frase, raw_words)
+            frases_dist = _distribuir_duracao_no_grupo(
+                unidade["itens"], t_bloco_ini, dur_bloco, raw_words_bloco
+            )
 
-            evento_principal = None
-            if usa_eventos_explicitos:
-                for ev_nome in item.get("eventos_inicio", []):
-                    if ev_nome not in eventos:
-                        eventos[ev_nome] = round(t_ini, 3)
-                    if evento_principal is None:
-                        evento_principal = ev_nome
-                for ev_nome, alvo in item.get("eventos_palavra", []):
-                    if ev_nome in eventos:
-                        continue
-                    encontrou = False
-                    for p in palavras_frase:
-                        limpa_p = re.sub(r"[^a-z0-9]", "", normalizar_chave(p["palavra"]))
-                        if limpa_p.startswith(alvo):
-                            eventos[ev_nome] = p["inicio"]
-                            if evento_principal is None:
-                                evento_principal = ev_nome
-                            encontrou = True
-                            break
-                    if not encontrou and ev_nome.startswith("hit_") and palavras_frase:
-                        eventos[ev_nome] = palavras_frase[len(palavras_frase) // 2]["inicio"]
-            else:
-                evento_principal = mapear_evento_legado(texto)
-                if evento_principal and evento_principal not in eventos:
-                    eventos[evento_principal] = round(t_ini, 3)
-                chave_f = normalizar_chave(texto)
-                if "apita" in chave_f and "mapa_apito" not in eventos:
-                    for p in palavras_frase:
-                        if normalizar_chave(p["palavra"]).startswith("apita"):
-                            eventos["mapa_apito"] = p["inicio"]
-                            break
-                if "a luz cai" in chave_f and "apagao_00" not in eventos:
-                    for idx_p, p in enumerate(palavras_frase):
-                        if normalizar_chave(p["palavra"]).startswith("luz"):
-                            t_ap = palavras_frase[idx_p - 1]["inicio"] if idx_p > 0 else p["inicio"]
-                            eventos["apagao_00"] = t_ap
-                            break
+            for item, t_ini, dur_frase, raw_words_f in frases_dist:
+                texto = sanitizar_texto_tts(item["texto"])
+                perfil_voz = normalizar_perfil_voz(item.get("perfil_voz"))
+                palavras_frase = alinhar_palavras_na_frase(texto, t_ini, dur_frase, raw_words_f)
 
-            grupos_frase = quebrar_em_grupos_legenda(palavras_frase)
+                evento_principal = None
+                if usa_eventos_explicitos:
+                    for ev_nome in item.get("eventos_inicio", []):
+                        if ev_nome not in eventos:
+                            eventos[ev_nome] = round(t_ini, 3)
+                        if evento_principal is None:
+                            evento_principal = ev_nome
+                    for ev_nome, alvo in item.get("eventos_palavra", []):
+                        if ev_nome in eventos:
+                            continue
+                        encontrou = False
+                        for p in palavras_frase:
+                            limpa_p = re.sub(r"[^a-z0-9]", "", normalizar_chave(p["palavra"]))
+                            if limpa_p.startswith(alvo):
+                                eventos[ev_nome] = p["inicio"]
+                                if evento_principal is None:
+                                    evento_principal = ev_nome
+                                encontrou = True
+                                break
+                        if not encontrou and ev_nome.startswith("hit_") and palavras_frase:
+                            eventos[ev_nome] = palavras_frase[len(palavras_frase) // 2]["inicio"]
+                else:
+                    evento_principal = mapear_evento_legado(texto)
+                    if evento_principal and evento_principal not in eventos:
+                        eventos[evento_principal] = round(t_ini, 3)
+                    chave_f = normalizar_chave(texto)
+                    if "apita" in chave_f and "mapa_apito" not in eventos:
+                        for p in palavras_frase:
+                            if normalizar_chave(p["palavra"]).startswith("apita"):
+                                eventos["mapa_apito"] = p["inicio"]
+                                break
+                    if "a luz cai" in chave_f and "apagao_00" not in eventos:
+                        for idx_p, p in enumerate(palavras_frase):
+                            if normalizar_chave(p["palavra"]).startswith("luz"):
+                                t_ap = palavras_frase[idx_p - 1]["inicio"] if idx_p > 0 else p["inicio"]
+                                eventos["apagao_00"] = t_ap
+                                break
 
-            for grp in grupos_frase:
-                g_idx = len(grupos_todos)
-                palavras_grp = []
-                for p in grp:
-                    p_idx = len(palavras_todas)
-                    registro = {
-                        "indice": p_idx,
-                        "frase_indice": frase_idx,
-                        "grupo_indice": g_idx,
-                        "palavra": p["palavra"],
-                        "inicio": p["inicio"],
-                        "duracao": p["duracao"],
-                        "fim": p["fim"],
-                    }
-                    palavras_todas.append(registro)
-                    palavras_grp.append(
-                        {
+                grupos_frase = quebrar_em_grupos_legenda(palavras_frase)
+                for grp in grupos_frase:
+                    g_idx = len(grupos_todos)
+                    palavras_grp = []
+                    for p in grp:
+                        p_idx = len(palavras_todas)
+                        registro = {
                             "indice": p_idx,
+                            "frase_indice": frase_idx,
+                            "grupo_indice": g_idx,
                             "palavra": p["palavra"],
                             "inicio": p["inicio"],
                             "duracao": p["duracao"],
                             "fim": p["fim"],
                         }
+                        palavras_todas.append(registro)
+                        palavras_grp.append(
+                            {
+                                "indice": p_idx,
+                                "palavra": p["palavra"],
+                                "inicio": p["inicio"],
+                                "duracao": p["duracao"],
+                                "fim": p["fim"],
+                            }
+                        )
+                    g_ini = palavras_grp[0]["inicio"]
+                    g_fim = palavras_grp[-1]["fim"]
+                    grupos_todos.append(
+                        {
+                            "indice": g_idx,
+                            "frase_indice": frase_idx,
+                            "texto": " ".join(p["palavra"] for p in palavras_grp),
+                            "inicio": g_ini,
+                            "fim": g_fim,
+                            "duracao": round(max(0.02, g_fim - g_ini), 3),
+                            "palavras": palavras_grp,
+                        }
                     )
-                g_ini = palavras_grp[0]["inicio"]
-                g_fim = palavras_grp[-1]["fim"]
-                grupos_todos.append(
+
+                frases_log.append(
                     {
-                        "indice": g_idx,
+                        "tipo": "fala",
                         "frase_indice": frase_idx,
-                        "texto": " ".join(p["palavra"] for p in palavras_grp),
-                        "inicio": g_ini,
-                        "fim": g_fim,
-                        "duracao": round(max(0.02, g_fim - g_ini), 3),
-                        "palavras": palavras_grp,
+                        "perfil_voz": perfil_voz,
+                        "texto": texto,
+                        "evento": evento_principal,
+                        "inicio": round(t_ini, 3),
+                        "fim": round(t_ini + dur_frase, 3),
+                        "duracao": round(dur_frase, 3),
                     }
                 )
+                frase_idx += 1
 
-            frases_log.append(
-                {
-                    "tipo": "fala",
-                    "frase_indice": frase_idx,
-                    "perfil_voz": perfil_voz,
-                    "texto": texto,
-                    "evento": evento_principal,
-                    "inicio": round(t_ini, 3),
-                    "fim": round(t_ini + dur_frase, 3),
-                    "duracao": round(dur_frase, 3),
-                }
-            )
-            cursor += dur_frase
-            frase_idx += 1
+            cursor += dur_bloco
 
         cauda = 0.22 if cta_modo in ("meio", "pausa_meio") else CAUDA_FINAL
         if cauda > 0:
@@ -1505,6 +1865,9 @@ def main() -> None:
     duracao_total = round(dur_mp3, 3)
     voz_blocos = consolidar_voz_blocos(frases_log)
     eventos["duracao_total"] = duracao_total
+    eventos["provedor_voz"] = provedor_final
+    eventos["blocos_api_chamadas"] = blocos_api_chamadas
+    eventos["velocidade_voz"] = round(velocidade, 3)
     eventos["frases"] = frases_log
     eventos["voz_blocos"] = voz_blocos
     eventos["cta_modo"] = cta_modo
@@ -1525,7 +1888,7 @@ def main() -> None:
     if cta_modo == "pausa_meio":
         if cta_pausa_inicio is None or cta_pausa_fim is None:
             raise RuntimeError(
-                "cta_modo='pausa_meio' (V5/V6) exige bloco [CTA_PAUSA]...[/CTA_PAUSA] no roteiro."
+                "cta_modo='pausa_meio' (V5/V5.2/V6) exige bloco [CTA_PAUSA]...[/CTA_PAUSA] no roteiro."
             )
         if exige_parte_2 and "corte_parte_2" not in eventos:
             raise RuntimeError(
@@ -1599,6 +1962,20 @@ def main() -> None:
             "impacto_twist", "final_espelho", "reflexo_sorri", "plot_twist",
             "duracao_total",
         ],
+        "roteiro_07.txt": [
+            "gancho", "pede_carro", "tela_app", "nota_49", "carro_encosta",
+            "entra_carro", "coloca_fone", "porta_impacto", "sem_boa_noite",
+            "acelera_avenida", "motor_acelerando", "celular_vibra", "ligacao_app",
+            "atende_erro", "voz_motorista_1", "nao_e_ele", "cta_pausa",
+            "cta_meio_inicio", "cta_meio_fim", "diego_congela", "olha_retrovisor",
+            "sem_piscar", "puxa_macaneta", "trava_acionada", "trava_porta_carro",
+            "gps_desvio", "estrada_terra", "corte_parte_2", "finge_calma",
+            "esquina_delegacia", "nao_cai", "velocimetro_120", "motor_acelerando_2",
+            "motorista_grita", "fez_ontem", "olha_carona", "inclina_corpo",
+            "quatro_celulares", "ligacoes_perdidas", "celular_tocando",
+            "rua_sem_saida", "impacto_twist", "final_retrovisor", "olhos_sorriem",
+            "plot_twist", "duracao_total",
+        ],
     }
     if roteiro_path.name in obrigatorios_por_roteiro:
         faltando = [k for k in obrigatorios_por_roteiro[roteiro_path.name] if k not in eventos]
@@ -1614,7 +1991,10 @@ def main() -> None:
         "roteiro": roteiro_path.name,
         "roteiro_sha256": roteiro_sha256,
         "audio": VOZ_LIMPA_MP3.name,
-        "motor": motor,
+        "motor": provedor_final,
+        "provedor_voz": provedor_final,
+        "blocos_api_chamadas": blocos_api_chamadas,
+        "velocidade_voz": round(velocidade, 3),
         "voz": voz_usada,
         "duracao_total": duracao_total,
         "texto": texto_falado,
@@ -1653,7 +2033,8 @@ def main() -> None:
     resumo_perfis = ", ".join(f"{k}={v}" for k, v in sorted(contagem_perfis.items()))
 
     print(
-        f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | motor final={motor} | "
+        f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | provedor_voz={provedor_final} "
+        f"(chamadas={blocos_api_chamadas}, atempo={velocidade:.2f}) | "
         f"{len(palavras_todas)} palavras em {len(grupos_todos)} grupos | "
         f"voz_blocos ({len(voz_blocos)}): {resumo_perfis}"
     )
@@ -1665,7 +2046,7 @@ def main() -> None:
         else:
             corte_txt = "Short unico (sem corte Parte 2)"
         print(
-            f"CTA tela cheia V5/V6 em {cta_meio_inicio:.2f}s..{cta_meio_fim:.2f}s ({cta_meio_fim - cta_meio_inicio:.2f}s) | "
+            f"CTA tela cheia V5.2 em {cta_meio_inicio:.2f}s..{cta_meio_fim:.2f}s ({cta_meio_fim - cta_meio_inicio:.2f}s) | "
             f"{corte_txt} | Plot twist em {eventos.get('plot_twist')}s"
         )
     elif cta_modo == "meio" and cta_meio_inicio is not None and cta_meio_fim is not None:

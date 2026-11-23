@@ -1,0 +1,61 @@
+ROTEIRO 07: "A CORRIDA DAS 03H10"
+Formato: YouTube Shorts / Reels 9:16 (1080x1920) | Serie em 2 Partes (Ritmo 2x V5.2)
+Duracao alvo: 75 a 98 segundos | Motor: V5.2 (Ritmo 2x + Voz Atuada por Blocos Agrupados + Consistencia Vocal + Katana + CTA Tela Cheia + Corte Parte 1 / Parte 2)
+Personagem: Diego (moletom azul-marinho/cinza #1E3A5F flat em capsula, cabelo escuro curto, rig IK 10 pontos)
+Perfis vocais V5.2: narrador_tenso, panico, voz_telefone, cta_comercial, sussurro_twist.
+Selo dinamico: "PARTE 1" antes de [CORTE_PARTE_2], oculto durante [CTA_PAUSA], e "PARTE 2" a partir de [CORTE_PARTE_2].
+CTA dedicada: bloco [CTA_PAUSA] em tela cheia (~3s) no meio da Parte 1; zero CTA no final da Parte 1 e da Parte 2 para loop seco.
+Regra visual: cortes rapidos a cada 0,9s a 1,6s; 4 hits Katana ("NÃO É ELE", "TRAVADA", "4 CELULARES", "O SEU VAI TOCAR").
+
+Estrutura de cada bloco:
+[Tempo em Segundos] | [Texto Exato da Narracao com Tags VOZ] | [Direcao visual e relogio] | [Eventos e pausas]
+
+============================================================
+
+PARTE 1: A CORRIDA ERRADA (03:10)
+
+[00 - 04] | [VOZ:narrador_tenso] Três e dez da manhã. Diego pede um carro por aplicativo na saída do trabalho. [/VOZ] | Calcada de madrugada com chuva; Diego (moletom azul-marinho/cinza #1E3A5F) pedindo carro no celular; selo PARTE 1 em (64, 165) e relogio 03:10. | gancho, pede_carro@pede
+[04 - 09] | [VOZ:narrador_tenso] O app mostra: motorista Carlos, carro prata, nota quatro ponto nove, chegando em dois minutos. [/VOZ] | Tela do aplicativo com DOF 1/8 atras: horario unico 03:10, motorista Carlos, carro prata, nota 4.9, chegando em 2 min. | tela_app, nota_49@nota
+[09 - 13] | [VOZ:narrador_tenso] O carro encosta. Diego entra sem olhar a placa e já coloca o fone. [/VOZ] | Seda prata encosta na calcada sob chuva; Diego entra no banco traseiro sem conferir a placa e coloca o fone. | carro_encosta, entra_carro@entra, coloca_fone@fone
+[13 - 14] | [SFX:porta_impacto:1.0] | Bloco SFX puro: batida seca da porta do carro fechando. | porta_impacto
+[14 - 18] | [VOZ:narrador_tenso] O motorista não dá boa noite. Só acelera forte na avenida deserta. [/VOZ] | Interior do carro a noite: silhueta silenciosa no volante e postes de luz passando rapido pelo vidro. | sem_boa_noite, acelera_avenida@acelera
+[18 - 19] | [SFX:motor_acelerando:1.1] | Bloco SFX puro: motor acelerando forte na avenida deserta. | motor_acelerando
+[19 - 25] | [VOZ:narrador_tenso] Dois minutos depois, o celular do Diego vibra com uma ligação do próprio aplicativo. Ele atende achando que é erro do sistema. [/VOZ] | Tela de ligacao recebida do app de corridas (Carlos) com DOF 1/8 atras + Diego atendendo confuso. | celular_vibra, ligacao_app@ligacao, atende_erro@atende
+[25 - 30] | [VOZ:voz_telefone] Irmão, tô aqui na frente do seu trabalho buzinando. Você vai descer ou posso cancelar? [/VOZ] | Tela da chamada ativa com ondas de audio telefonicas + rosto de Diego paralisando; KATANA HIT 1 "NÃO É ELE". | voz_motorista_1, nao_e_ele@descer
+
+------------------------------------------------------------
+
+BLOCO DEDICADO DE CTA EM TELA CHEIA (~3s NO MEIO DA PARTE 1)
+[30 - 34] | [CTA_PAUSA] [VOZ:cta_comercial] Quer aprender a fazer vídeos assim no automático? Comente EU QUERO. [/VOZ] [/CTA_PAUSA] | Interrupcao seca com glitch_cta: cartao 100% tela cheia ("QUER FAZER VIDEOS ASSIM NO AUTOMATICO?" + pilula amarela gigante "COMENTE EU QUERO", selo PARTE 1 oculto). | cta_pausa
+
+------------------------------------------------------------
+
+ESCALADA FINAL DA PARTE 1: TRAVA INFANTIL E ROTA DE TERRA
+[34 - 40] | [VOZ:panico] Diego congela. Ele olha pro motorista no retrovisor. O cara tá encarando ele fixo, sem piscar. [/VOZ] | Close nos olhos do motorista no espelho retrovisor encarando Diego fixo sem piscar sob luz fria/vermelha. | diego_congela, olha_retrovisor@retrovisor, sem_piscar@piscar
+[40 - 44] | [VOZ:panico] Diego puxa a maçaneta da porta. Trava infantil acionada. [/VOZ] | Macro na mao de Diego puxando a macaneta interna travada com trava infantil vermelha; KATANA HIT 2 "TRAVADA". | puxa_macaneta, trava_acionada@trava
+[44 - 45] | [SFX:trava_porta_carro:1.1] | Bloco SFX puro: puxoes desesperados na macaneta travada e estalo metalico da trava infantil. | trava_porta_carro
+[45 - 51] | [VOZ:panico] O GPS no painel não tá indo pra casa dele. A linha vermelha aponta pra uma estrada de terra fora da cidade. [/VOZ] | Macro no GPS do painel com linha vermelha virando para estrada de terra fora da cidade (gancho seco da Parte 1). | gps_desvio, estrada_terra@estrada
+
+============================================================
+[51 - 51] | [CORTE_PARTE_2] | Ponto exato do corte automatico FFmpeg: encerra short_07_parte1.mp4 seco e inicia short_07_parte2.mp4 com selo "PARTE 2". | corte_parte_2
+============================================================
+
+PARTE 2: QUATRO CELULARES NO CARONA
+
+[51 - 58] | [VOZ:panico] Diego finge calma e fala alto pro telefone: Pai, já tô dobrando a esquina da delegacia, pode abrir o portão. [/VOZ] | Selo muda para PARTE 2: Diego segurando o telefone junto ao rosto fingindo falar com o pai enquanto olha o motorista. | finge_calma, esquina_delegacia@delegacia
+[58 - 64] | [VOZ:panico] O cara no volante não cai. Ele ri seco e joga o carro a cento e vinte por hora. [/VOZ] | Close no motorista rindo seco + macro no velocimetro cravando 120 km/h com painel pulsando em vermelho. | nao_cai, velocimetro_120@cento
+[64 - 65] | [SFX:motor_acelerando:1.2] | Bloco SFX puro: aceleracao violenta do motor a 120 km/h com screen shake. | motor_acelerando_2
+[65 - 76] | [VOZ:voz_telefone] Na linha, o motorista real começa a gritar: Irmão, eu vi o carro prata arrancando com você! Eu conheço essa placa, esse cara já fez isso ontem! Olha pro banco do carona agora! [/VOZ] | Tela do celular com onda de audio de alerta vermelho + Diego apavorado inclinando para frente. | motorista_grita, fez_ontem@ontem, olha_carona@carona
+[76 - 86] | [VOZ:narrador_tenso] Diego inclina o corpo e olha pro banco da frente. No escuro, a luz ilumina quatro celulares jogados ali, todos com a tela do aplicativo em corrida ativa... e dezenas de ligações perdidas. [/VOZ] | POV no banco do carona escuro: 4 celulares acesos vibrando com telas de corrida ativa e dezenas de ligacoes perdidas; KATANA HIT 3 "4 CELULARES". | inclina_corpo, quatro_celulares@quatro, ligacoes_perdidas@perdidas
+[86 - 87] | [SFX:celular_tocando:1.2] | Bloco SFX puro: quatro celulares vibrando e tocando juntos no banco do carona. | celular_tocando
+[87 - 90] | [VOZ:sussurro_twist] O carro entra numa rua sem saída. [/VOZ] | Para-brisa escuro iluminando muro e placa de rua sem saida sob farois altos; silencio tenso. | rua_sem_saida
+[90 - 91] | [SFX:impacto_twist:1.4] | Bloco SFX puro: drone corta seco; modulo bigFace de Diego em terror extremo com suor frio e pulso vermelho (#3B0A0A). | impacto_twist
+[91 - 97] | [VOZ:sussurro_twist] No retrovisor, os olhos do homem sorriem: Relaxa... o seu já vai fazer companhia pra eles. [/VOZ] | Quadro final seco nos olhos do motorista sorrindo no espelho retrovisor -> KATANA HIT 4 "O SEU VAI TOCAR" -> corte seco nos olhos para loop imediato. | final_retrovisor, olhos_sorriem@sorriem, plot_twist@companhia, pausa=0.14
+
+============================================================
+
+NOTAS TECNICAS V5.2
+- Regra de Ritmo 2x: silencios mortos internos cortados (max 0.09s), atempo=1.14 (VELOCIDADE_VOZ), pausas curtas 0.10s a 0.18s.
+- Consistencia vocal: agrupamento de falas contiguas do mesmo perfil no Gemini TTS + rollback completo em caso de falha de provedor (zero mistura).
+- Selo dinamico: "PARTE 1" (0 ate corte_parte_2, oculto na CTA), "PARTE 2" (corte_parte_2 ate o final).
+- Corte automatico: [CORTE_PARTE_2] gera short_07.mp4, short_07_parte1.mp4 e short_07_parte2.mp4.

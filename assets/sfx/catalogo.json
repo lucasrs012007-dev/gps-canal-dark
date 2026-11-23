@@ -248,6 +248,51 @@
       "presente": false,
       "duracao_s": null,
       "pico_dbfs": null
+    },
+    {
+      "nome": "motor_acelerando",
+      "arquivo": "motor_acelerando.wav",
+      "categoria": "veiculo",
+      "duracao_alvo_s": 1.15,
+      "ganho_db": 0.0,
+      "origem": "fallback_procedural_hd",
+      "licenca": "CC0 / ElevenLabs SFX",
+      "prompt_elevenlabs": "Sedan car engine accelerating aggressively from inside dark cabin at night on wet city avenue, deep low exhaust roar and cabin rumble rising fast, realistic foley, no music",
+      "fonte_cc0": "https://freesound.org/search/?q=car+engine+accelerating+interior&f=license:%22Creative+Commons+0%22",
+      "url_download_cc0": "",
+      "presente": false,
+      "duracao_s": null,
+      "pico_dbfs": null
+    },
+    {
+      "nome": "trava_porta_carro",
+      "arquivo": "trava_porta_carro.wav",
+      "categoria": "foley",
+      "duracao_alvo_s": 1.1,
+      "ganho_db": 0.5,
+      "origem": "fallback_procedural_hd",
+      "licenca": "CC0 / ElevenLabs SFX",
+      "prompt_elevenlabs": "Desperate repeated pulls on locked interior car door handle with crisp metallic child lock clack and hollow plastic rattle inside sedan cabin, realistic foley, no music",
+      "fonte_cc0": "https://freesound.org/search/?q=car+door+handle+locked&f=license:%22Creative+Commons+0%22",
+      "url_download_cc0": "",
+      "presente": false,
+      "duracao_s": null,
+      "pico_dbfs": null
+    },
+    {
+      "nome": "celular_tocando",
+      "arquivo": "celular_tocando.wav",
+      "categoria": "eletronico",
+      "duracao_alvo_s": 1.2,
+      "ganho_db": 0.0,
+      "origem": "fallback_procedural_hd",
+      "licenca": "CC0 / ElevenLabs SFX",
+      "prompt_elevenlabs": "Multiple smartphones vibrating simultaneously on car passenger seat leather with overlapping urgent incoming call chimes inside dark quiet car cabin, realistic foley, no music",
+      "fonte_cc0": "https://freesound.org/search/?q=smartphones+vibrating+ringing+car&f=license:%22Creative+Commons+0%22",
+      "url_download_cc0": "",
+      "presente": false,
+      "duracao_s": null,
+      "pico_dbfs": null
     }
   ]
 }
