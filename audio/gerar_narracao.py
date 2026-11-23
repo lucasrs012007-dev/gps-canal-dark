@@ -1,18 +1,23 @@
-"""Estacao 2 (v3): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
+"""Estacao 2 (V5.1): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
 
 Uso (na raiz do repositorio):
-    python3 audio/gerar_narracao.py          # ElevenLabs (via ambiente/.env) com fallback automatico edge-tts
+    python3 audio/gerar_narracao.py          # Gemini 2.5 TTS -> ElevenLabs -> edge-tts multi-bloco
     python3 audio/gerar_narracao.py --mock   # teste automatizado local sem rede
 
-Regras aplicadas (skill audio-sound-design-suspense):
+Regras aplicadas (skill audio-sound-design-suspense V5.1):
 - Consulta historico_videos.json via pipeline/historico.py para usar o roteiro do video ativo
   e validar a regra permanente 'Sempre Video Novo'.
-- Carrega automaticamente o arquivo .env local (ignorado pelo Git) quando ELEVENLABS_API_KEY
-  nao estiver definida no ambiente. Nunca imprime nem grava chaves em disco.
-- Se ElevenLabs retornar HTTP 401/403 (ex.: detected_unusual_activity em IP de nuvem do Colab),
-  captura o erro, imprime o motivo exato e cai automaticamente para edge-tts sem derrubar o fluxo.
-- Grava carimbo de integridade (video_id, titulo, roteiro_sha256) em timestamps.json e eventos.json
-  e valida a presenca da CTA obrigatoria ("COMENTE EU QUERO").
+- Carrega automaticamente o arquivo .env local (ignorado pelo Git) quando GEMINI_API_KEY ou
+  ELEVENLABS_API_KEY nao estiverem definidas no ambiente. Nunca imprime nem grava chaves em disco.
+- Interpreta tags de atuacao vocal [VOZ:perfil]...[/VOZ] (removidas da fala e das legendas,
+  gravadas em voz_blocos dentro de audio/eventos.json e audio/timestamps.json):
+  narrador_tenso, panico, interfone_porteiro, cta_comercial, sussurro_twist.
+- Cadeia de fallback automatica e blindada:
+  1) Gemini 2.5 TTS REST (gemini-2.5-flash-preview-tts, stdlib urllib + wave/ffmpeg);
+  2) ElevenLabs (eleven_multilingual_v2, voice_settings por perfil);
+  3) edge-tts multi-bloco expressivo (rate, pitch e voz secundaria para o porteiro).
+- Grava carimbo de integridade (video_id, titulo, roteiro_sha256), voz_blocos, janela da CTA
+  e corte_parte_2 em timestamps.json e eventos.json.
 """
 
 from __future__ import annotations
@@ -53,19 +58,109 @@ EVENTOS_JSON = PASTA_AUDIO / "eventos.json"
 TEXTO_TXT = PASTA_AUDIO / "narracao.txt"
 ARQUIVO_ENV = RAIZ / ".env"
 
-# Configuracoes de voz
-EDGE_VOZ = "pt-BR-AntonioNeural"
-EDGE_PITCH = "-6Hz"
-EDGE_RATE = "+6%"
+# Perfis vocais canonicos V5.1
+PERFIL_VOZ_PADRAO = "narrador_tenso"
+PERFIS_VOZ_CANONICOS = (
+    "narrador_tenso",
+    "panico",
+    "interfone_porteiro",
+    "cta_comercial",
+    "sussurro_twist",
+)
 
+# Configuracoes de voz: Gemini 2.5 TTS (Principal V5.1)
+GEMINI_TTS_MODELO = "gemini-2.5-flash-preview-tts"
+GEMINI_VOZ_NARRADOR = "Charon"
+GEMINI_VOZ_PORTEIRO = "Fenrir"
+GEMINI_VOZ_CTA = "Charon"
+GEMINI_TAXA_PCM_PADRAO = 24000
+
+INSTRUCOES_ATUACAO_GEMINI: dict[str, str] = {
+    "narrador_tenso": (
+        "Direcao vocal (portugues do Brasil): narrador masculino de voz grave, pausada e firme, "
+        "criando clima de suspense psicologico intimo e misterioso. Sem exageros teatrais."
+    ),
+    "panico": (
+        "Direcao vocal (portugues do Brasil): narrador em ritmo acelerado e tenso, respiracao curta, "
+        "sensacao real de urgencia e perigo iminente, mantendo diccao nitida."
+    ),
+    "interfone_porteiro": (
+        "Direcao vocal (portugues do Brasil): outro personagem masculino, porteiro de predio falando "
+        "assustado, tremulo e apressado pelo interfone, implorando com urgencia."
+    ),
+    "cta_comercial": (
+        "Direcao vocal (portugues do Brasil): locutor limpo, firme, direto e energico, "
+        "tom comercial confiante e envolvente com enfase clara no chamado final."
+    ),
+    "sussurro_twist": (
+        "Direcao vocal (portugues do Brasil): voz muito baixa, seca, proxima do microfone, "
+        "lenta e gelida, quase um sussurro sombrio entregando o golpe final."
+    ),
+}
+
+# Configuracoes de voz: ElevenLabs (Fallback 1)
 ELEVENLABS_MODELO = "eleven_multilingual_v2"
 ELEVENLABS_VOZ_PADRAO = "pNInz6obpgDQGcFmaJgB"  # Adam (masculina grave/narrativa)
 
+PERFIS_ELEVENLABS: dict[str, dict[str, float | bool]] = {
+    "narrador_tenso": {
+        "stability": 0.44,
+        "similarity_boost": 0.80,
+        "style": 0.34,
+        "use_speaker_boost": True,
+    },
+    "panico": {
+        "stability": 0.30,
+        "similarity_boost": 0.78,
+        "style": 0.55,
+        "use_speaker_boost": True,
+    },
+    "interfone_porteiro": {
+        "stability": 0.28,
+        "similarity_boost": 0.74,
+        "style": 0.62,
+        "use_speaker_boost": True,
+    },
+    "cta_comercial": {
+        "stability": 0.52,
+        "similarity_boost": 0.82,
+        "style": 0.42,
+        "use_speaker_boost": True,
+    },
+    "sussurro_twist": {
+        "stability": 0.58,
+        "similarity_boost": 0.84,
+        "style": 0.22,
+        "use_speaker_boost": True,
+    },
+}
+
+# Configuracoes de voz: edge-tts multi-bloco expressivo (Fallback 2)
+EDGE_VOZ = "pt-BR-AntonioNeural"
+EDGE_VOZ_PORTEIRO = "pt-BR-FabioNeural"
+EDGE_PITCH = "-6Hz"
+EDGE_RATE = "+6%"
+
+PERFIS_EDGE_TTS: dict[str, dict[str, str]] = {
+    "narrador_tenso": {"voice": EDGE_VOZ, "pitch": "-7Hz", "rate": "+2%"},
+    "panico": {"voice": EDGE_VOZ, "pitch": "-2Hz", "rate": "+16%"},
+    "interfone_porteiro": {"voice": EDGE_VOZ_PORTEIRO, "pitch": "+3Hz", "rate": "+14%"},
+    "cta_comercial": {"voice": EDGE_VOZ, "pitch": "-1Hz", "rate": "+10%"},
+    "sussurro_twist": {"voice": EDGE_VOZ, "pitch": "-11Hz", "rate": "-8%"},
+}
+
 # Ritmo cinematografico (segundos)
 PAUSA_PADRAO = 0.16
+PAUSA_PANICO = 0.12
+PAUSA_VIRADA_PERFIL = 0.24
+PAUSA_ANTES_TWIST = 0.28
 PAUSA_DRAMATICA = 0.42
 DURACAO_BATIDAS_PORTA = 2.10
 CAUDA_FINAL = 0.45
+
+# Limite de caracteres por bloco de legenda para evitar aperto/colagem em palavras longas
+MAX_CHARS_GRUPO_3 = 20
+MAX_CHARS_GRUPO_2 = 22
 
 TAXA_AMOSTRAGEM = 44100
 CANAIS = 2
@@ -79,6 +174,14 @@ PADRAO_SFX = re.compile(
 PADRAO_CORTE_P2 = re.compile(r"^\[\s*CORTE_PARTE_2\s*\]$", re.IGNORECASE)
 PADRAO_CTA_PAUSA = re.compile(
     r"^\[\s*CTA_PAUSA\s*\]([\s\S]*?)\[\s*/\s*CTA_PAUSA\s*\]$",
+    re.IGNORECASE,
+)
+PADRAO_TAG_VOZ = re.compile(
+    r"\[\s*VOZ\s*:\s*([a-zA-Z0-9_]+)\s*\]([\s\S]*?)\[\s*/\s*VOZ\s*\]",
+    re.IGNORECASE,
+)
+PADRAO_QUALQUER_TAG_VOZ = re.compile(
+    r"\[\s*/?\s*VOZ(?:\s*:\s*[a-zA-Z0-9_]+)?\s*\]",
     re.IGNORECASE,
 )
 PADRAO_BATIDAS = re.compile(
@@ -117,6 +220,46 @@ def normalizar_chave(texto: str) -> str:
         c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn"
     )
     return re.sub(r"\s+", " ", sem_acento).strip().lower()
+
+
+def normalizar_perfil_voz(nome: str | None, padrao: str = PERFIL_VOZ_PADRAO) -> str:
+    """Normaliza e valida o perfil vocal contra os 5 perfis canonicos V5.1."""
+    if not nome:
+        return padrao
+    chave = re.sub(r"[^a-z0-9_]", "", nome.strip().lower())
+    if chave in PERFIS_VOZ_CANONICOS:
+        return chave
+    return padrao
+
+
+def limpar_tags_voz(texto: str) -> str:
+    """Remove qualquer marcador residual [VOZ:...] ou [/VOZ] garantindo fala e legendas limpas."""
+    sem_tags = PADRAO_QUALQUER_TAG_VOZ.sub(" ", texto)
+    return re.sub(r"\s+", " ", sem_tags).strip()
+
+
+def extrair_segmentos_voz(texto: str, perfil_padrao: str = PERFIL_VOZ_PADRAO) -> list[tuple[str, str]]:
+    """Extrai segmentos (perfil_voz, texto_limpo) suportando multiplos blocos [VOZ:perfil]...[/VOZ]."""
+    padrao = normalizar_perfil_voz(perfil_padrao)
+    segmentos: list[tuple[str, str]] = []
+    pos = 0
+    for m in PADRAO_TAG_VOZ.finditer(texto):
+        if m.start() > pos:
+            antes = limpar_tags_voz(texto[pos : m.start()])
+            if antes:
+                segmentos.append((padrao, antes))
+        perfil = normalizar_perfil_voz(m.group(1), padrao=padrao)
+        conteudo = limpar_tags_voz(m.group(2))
+        if conteudo:
+            segmentos.append((perfil, conteudo))
+        pos = m.end()
+
+    if pos < len(texto):
+        resto = limpar_tags_voz(texto[pos:])
+        if resto:
+            segmentos.append((padrao, resto))
+
+    return segmentos
 
 
 def suavizar_prosodia_legado(trecho: str) -> str:
@@ -168,7 +311,7 @@ def _interpretar_coluna_eventos(espec: str) -> tuple[list[str], list[tuple[str, 
 
 
 def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
-    """Extrai falas, blocos silenciosos de SFX e marcadores V5 ([CTA_PAUSA], [CORTE_PARTE_2])."""
+    """Extrai falas com perfis [VOZ:perfil], blocos SFX e marcadores V5 ([CTA_PAUSA], [CORTE_PARTE_2])."""
     linhas_bloco: list[list[str]] = []
     for linha in caminho.read_text(encoding="utf-8").splitlines():
         if LINHA_BLOCO.match(linha):
@@ -193,7 +336,8 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
                     "tipo": "corte_parte_2",
                     "bloco": bloco_idx,
                     "evento": "corte_parte_2",
-                    "duracao": 0.16,
+                    "duracao": 0.14,
+                    "offset_corte": 0.11,
                     "pausa_antes": 0.0,
                 }
             )
@@ -201,8 +345,8 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
 
         m_cta = PADRAO_CTA_PAUSA.match(narracao)
         if m_cta:
-            texto_cta = m_cta.group(1).strip()
-            frases_cta = [f.strip() for f in SEPARADOR_FRASES.split(texto_cta) if f.strip()]
+            miolo_cta = m_cta.group(1).strip()
+            segs_cta = extrair_segmentos_voz(miolo_cta, perfil_padrao="cta_comercial")
             itens.append(
                 {
                     "tipo": "silencio",
@@ -213,18 +357,23 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
                     "interno_cta": True,
                 }
             )
-            for f_idx, frase in enumerate(frases_cta):
-                itens.append(
-                    {
-                        "tipo": "fala",
-                        "bloco": bloco_idx,
-                        "texto": frase,
-                        "eventos_inicio": ev_inicio if f_idx == 0 else [],
-                        "eventos_palavra": ev_palavra,
-                        "pausa_antes": 0.0 if f_idx == 0 else 0.14,
-                        "eh_cta_pausa": True,
-                    }
-                )
+            primeira_cta = True
+            for perfil_seg, texto_seg in segs_cta:
+                frases_cta = [f.strip() for f in SEPARADOR_FRASES.split(texto_seg) if f.strip()]
+                for frase in frases_cta:
+                    itens.append(
+                        {
+                            "tipo": "fala",
+                            "bloco": bloco_idx,
+                            "texto": frase,
+                            "perfil_voz": perfil_seg,
+                            "eventos_inicio": ev_inicio if primeira_cta else [],
+                            "eventos_palavra": ev_palavra,
+                            "pausa_antes": 0.0 if primeira_cta else 0.14,
+                            "eh_cta_pausa": True,
+                        }
+                    )
+                    primeira_cta = False
             itens.append(
                 {
                     "tipo": "silencio",
@@ -255,40 +404,43 @@ def extrair_itens_roteiro(caminho: Path) -> tuple[list[dict], bool]:
         if not usa_eventos_explicitos:
             narracao = suavizar_prosodia_legado(narracao)
 
-        substituido = PADRAO_BATIDAS.sub(marcador, narracao)
-        partes = substituido.split("__BATIDAS_PORTA__")
+        segmentos = extrair_segmentos_voz(narracao, perfil_padrao=PERFIL_VOZ_PADRAO)
         primeira_fala_do_bloco = True
-        for p_idx, parte in enumerate(partes):
-            trecho = parte.strip()
-            if trecho:
-                frases = [f.strip() for f in SEPARADOR_FRASES.split(trecho) if f.strip()]
-                for frase in frases:
+        for perfil_seg, texto_seg in segmentos:
+            substituido = PADRAO_BATIDAS.sub(marcador, texto_seg)
+            partes = substituido.split("__BATIDAS_PORTA__")
+            for p_idx, parte in enumerate(partes):
+                trecho = parte.strip()
+                if trecho:
+                    frases = [f.strip() for f in SEPARADOR_FRASES.split(trecho) if f.strip()]
+                    for frase in frases:
+                        itens.append(
+                            {
+                                "tipo": "fala",
+                                "bloco": bloco_idx,
+                                "texto": frase,
+                                "perfil_voz": perfil_seg,
+                                "eventos_inicio": ev_inicio if primeira_fala_do_bloco else [],
+                                "eventos_palavra": ev_palavra,
+                                "pausa_antes": pausa_explicita if primeira_fala_do_bloco else None,
+                            }
+                        )
+                        primeira_fala_do_bloco = False
+                if p_idx < len(partes) - 1:
                     itens.append(
                         {
-                            "tipo": "fala",
+                            "tipo": "silencio",
                             "bloco": bloco_idx,
-                            "texto": frase,
-                            "eventos_inicio": ev_inicio if primeira_fala_do_bloco else [],
-                            "eventos_palavra": ev_palavra,
-                            "pausa_antes": pausa_explicita if primeira_fala_do_bloco else None,
+                            "evento": "batidas_porta",
+                            "duracao": DURACAO_BATIDAS_PORTA,
+                            "pausa_antes": None,
                         }
                     )
-                    primeira_fala_do_bloco = False
-            if p_idx < len(partes) - 1:
-                itens.append(
-                    {
-                        "tipo": "silencio",
-                        "bloco": bloco_idx,
-                        "evento": "batidas_porta",
-                        "duracao": DURACAO_BATIDAS_PORTA,
-                        "pausa_antes": None,
-                    }
-                )
     return itens, usa_eventos_explicitos
 
 
 def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
-    """Define a pausa exata antes de cada item."""
+    """Define a pausa exata antes de cada item (0.12s a 0.28s nas viradas de tensao V5.1)."""
     if idx == 0:
         return 0.0
     anterior = itens[idx - 1]
@@ -305,6 +457,14 @@ def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
         chave = normalizar_chave(atual["texto"])
         if chave.startswith("silencio") or chave.startswith("e o rosto dele"):
             return PAUSA_DRAMATICA
+        perfil_atual = atual.get("perfil_voz", PERFIL_VOZ_PADRAO)
+        perfil_ant = anterior.get("perfil_voz", PERFIL_VOZ_PADRAO)
+        if perfil_atual == "sussurro_twist":
+            return PAUSA_ANTES_TWIST
+        if perfil_atual != perfil_ant:
+            return PAUSA_VIRADA_PERFIL
+        if perfil_atual in ("panico", "interfone_porteiro"):
+            return PAUSA_PANICO
     return PAUSA_PADRAO
 
 
@@ -361,16 +521,35 @@ def gerar_wav_silencio(caminho: Path, duracao: float) -> float:
     return n_frames / TAXA_AMOSTRAGEM
 
 
-def sintetizar_mock(texto: str, destino_wav: Path, indice: int) -> list[dict]:
-    """Gera sinal vocal simulado com silencios nas pontas para validar o pipeline sem rede."""
+def sintetizar_mock(
+    texto: str,
+    destino_wav: Path,
+    indice: int,
+    perfil_voz: str = PERFIL_VOZ_PADRAO,
+) -> list[dict]:
+    """Gera sinal vocal simulado com silencios nas pontas e assinatura tonal por perfil."""
     palavras = texto.split()
     peso_chars = sum(max(2, len(p)) for p in palavras)
-    dur_ativa = max(0.55, min(3.4, 0.24 + peso_chars * 0.046))
+    fator_ritmo = {
+        "narrador_tenso": 1.00,
+        "panico": 0.90,
+        "interfone_porteiro": 0.92,
+        "cta_comercial": 0.95,
+        "sussurro_twist": 1.12,
+    }.get(perfil_voz, 1.0)
+    dur_ativa = max(0.55, min(3.4, (0.24 + peso_chars * 0.046) * fator_ritmo))
     pad_ini = 0.14
     pad_fim = 0.18
     dur_total = pad_ini + dur_ativa + pad_fim
     n_total = int(round(dur_total * TAXA_AMOSTRAGEM))
-    freq_base = 124.0 + (indice % 5) * 9.0
+    base_perfil = {
+        "narrador_tenso": 118.0,
+        "panico": 146.0,
+        "interfone_porteiro": 178.0,
+        "cta_comercial": 136.0,
+        "sussurro_twist": 98.0,
+    }.get(perfil_voz, 124.0)
+    freq_base = base_perfil + (indice % 5) * 6.0
 
     amostras = bytearray()
     for i in range(n_total):
@@ -396,6 +575,181 @@ def sintetizar_mock(texto: str, destino_wav: Path, indice: int) -> list[dict]:
         wf.writeframes(bytes(amostras))
     return []
 
+
+# ============================================================
+# MOTOR PRINCIPAL V5.1: GEMINI 2.5 TTS REST (STDLIB URLLIB)
+# ============================================================
+
+def selecionar_voz_gemini(perfil_voz: str) -> str:
+    """Retorna a voz predefinida do Gemini 2.5 TTS para cada perfil (contraste porteiro vs narrador)."""
+    perfil = normalizar_perfil_voz(perfil_voz)
+    if perfil == "interfone_porteiro":
+        return os.environ.get("GEMINI_TTS_VOICE_PORTEIRO", "").strip() or GEMINI_VOZ_PORTEIRO
+    if perfil == "cta_comercial":
+        return os.environ.get("GEMINI_TTS_VOICE_CTA", "").strip() or (
+            os.environ.get("GEMINI_TTS_VOICE", "").strip() or GEMINI_VOZ_CTA
+        )
+    return os.environ.get("GEMINI_TTS_VOICE", "").strip() or GEMINI_VOZ_NARRADOR
+
+
+def montar_payload_gemini_tts(
+    texto: str,
+    perfil_voz: str = PERFIL_VOZ_PADRAO,
+    voice_override: str | None = None,
+) -> dict:
+    """Monta payload REST oficial do gemini-2.5-flash-preview-tts com atuacao inline em pt-BR."""
+    perfil = normalizar_perfil_voz(perfil_voz)
+    direcao = INSTRUCOES_ATUACAO_GEMINI.get(perfil, INSTRUCOES_ATUACAO_GEMINI[PERFIL_VOZ_PADRAO])
+    voz = (voice_override or "").strip() or selecionar_voz_gemini(perfil)
+    prompt_atuacao = (
+        f"{direcao}\n"
+        "Leia apenas o texto exato abaixo em portugues do Brasil, sem adicionar nem omitir palavras:\n"
+        f"{texto.strip()}"
+    )
+    return {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt_atuacao,
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {
+                        "voiceName": voz,
+                    }
+                }
+            },
+        },
+    }
+
+
+def _extrair_rate_mime(mime_type: str, padrao: int = GEMINI_TAXA_PCM_PADRAO) -> int:
+    m = re.search(r"rate\s*=\s*(\d+)", mime_type or "", flags=re.IGNORECASE)
+    if m:
+        taxa = int(m.group(1))
+        if 8000 <= taxa <= 96000:
+            return taxa
+    return padrao
+
+
+def decodificar_resposta_gemini_tts(dados: dict, destino_wav: Path) -> Path:
+    """Decodifica o audio PCM 24kHz (base64) retornado pela API REST do Gemini TTS para WAV valido."""
+    candidatos = dados.get("candidates") or []
+    inline = None
+    for cand in candidatos:
+        content = cand.get("content") or {}
+        for parte in content.get("parts") or []:
+            bloco = parte.get("inlineData") or parte.get("inline_data")
+            if isinstance(bloco, dict) and bloco.get("data"):
+                inline = bloco
+                break
+        if inline:
+            break
+
+    if not inline:
+        raise RuntimeError("Resposta Gemini TTS nao retornou bloco inlineData de audio.")
+
+    bruto = base64.b64decode(inline["data"])
+    if not bruto:
+        raise RuntimeError("Audio base64 vazio retornado pelo Gemini TTS.")
+
+    mime = str(inline.get("mimeType") or inline.get("mime_type") or "audio/L16;codec=pcm;rate=24000")
+    mime_low = mime.lower()
+
+    if "wav" in mime_low or bruto[:4] == b"RIFF":
+        destino_wav.write_bytes(bruto)
+        return destino_wav
+
+    if "mpeg" in mime_low or "mp3" in mime_low or "ogg" in mime_low:
+        tmp_src = destino_wav.with_suffix(".bin")
+        tmp_src.write_bytes(bruto)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                str(tmp_src),
+                "-ar",
+                str(TAXA_AMOSTRAGEM),
+                "-ac",
+                str(CANAIS),
+                "-c:a",
+                "pcm_s16le",
+                str(destino_wav),
+            ],
+            check=True,
+        )
+        tmp_src.unlink(missing_ok=True)
+        return destino_wav
+
+    # Formato padrao Gemini TTS: PCM linear signed 16-bit little-endian mono 24000 Hz
+    taxa_hz = _extrair_rate_mime(mime, GEMINI_TAXA_PCM_PADRAO)
+    if len(bruto) % 2 == 1:
+        bruto = bruto[:-1]
+    with wave.open(str(destino_wav), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(taxa_hz)
+        wf.writeframes(bruto)
+    return destino_wav
+
+
+def sintetizar_gemini_tts(
+    texto: str,
+    destino_wav: Path,
+    api_key: str,
+    perfil_voz: str = PERFIL_VOZ_PADRAO,
+    modelo: str | None = None,
+    urlopen_fn=None,
+) -> list[dict]:
+    """Chama a API REST oficial do Gemini 2.5 TTS usando stdlib urllib e grava WAV decodificado."""
+    modelo_uso = (modelo or os.environ.get("GEMINI_TTS_MODEL", "").strip() or GEMINI_TTS_MODELO)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_uso}:generateContent"
+    payload_bytes = json.dumps(
+        montar_payload_gemini_tts(texto, perfil_voz=perfil_voz),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    headers = {
+        "x-goog-api-key": api_key,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    opener = urlopen_fn or urllib.request.urlopen
+
+    ultimo_erro: Exception | None = None
+    for tentativa in range(2):
+        req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
+        try:
+            with opener(req, timeout=75) as resp:
+                dados = json.loads(resp.read().decode("utf-8"))
+            decodificar_resposta_gemini_tts(dados, destino_wav)
+            return []
+        except urllib.error.HTTPError as exc:
+            if exc.code in (500, 502, 503, 504) and tentativa == 0:
+                ultimo_erro = exc
+                continue
+            raise
+        except RuntimeError as exc:
+            ultimo_erro = exc
+            if tentativa == 0:
+                continue
+            raise
+
+    assert ultimo_erro is not None
+    raise ultimo_erro
+
+
+# ============================================================
+# FALLBACK 1: ELEVENLABS (VOICE_SETTINGS POR PERFIL V5.1)
+# ============================================================
 
 def alinhamento_elevenlabs_para_palavras(texto: str, alignment: dict | None) -> list[dict]:
     if not alignment:
@@ -432,7 +786,7 @@ def alinhamento_elevenlabs_para_palavras(texto: str, alignment: dict | None) -> 
 
 
 def _extrair_motivo_http_error(exc: urllib.error.HTTPError) -> str:
-    """Extrai o motivo detalhado devolvido pela API ElevenLabs sem expor segredos."""
+    """Extrai o motivo detalhado devolvido pela API sem expor segredos."""
     try:
         corpo = exc.read().decode("utf-8", errors="replace").strip()
     except Exception:
@@ -441,7 +795,7 @@ def _extrair_motivo_http_error(exc: urllib.error.HTTPError) -> str:
         return str(exc.reason or f"HTTP {exc.code}")
     try:
         dados = json.loads(corpo)
-        detail = dados.get("detail")
+        detail = dados.get("detail") or (dados.get("error") or {}).get("message")
         if isinstance(detail, dict):
             status = detail.get("status", "")
             msg = detail.get("message", "")
@@ -455,17 +809,20 @@ def _extrair_motivo_http_error(exc: urllib.error.HTTPError) -> str:
     return corpo[:260]
 
 
-def sintetizar_elevenlabs(texto: str, destino_mp3: Path, api_key: str, voice_id: str) -> list[dict]:
+def sintetizar_elevenlabs(
+    texto: str,
+    destino_mp3: Path,
+    api_key: str,
+    voice_id: str,
+    perfil_voz: str = PERFIL_VOZ_PADRAO,
+) -> list[dict]:
+    perfil = normalizar_perfil_voz(perfil_voz)
+    settings = PERFIS_ELEVENLABS.get(perfil, PERFIS_ELEVENLABS[PERFIL_VOZ_PADRAO])
     payload = json.dumps(
         {
             "text": texto,
             "model_id": ELEVENLABS_MODELO,
-            "voice_settings": {
-                "stability": 0.42,
-                "similarity_boost": 0.80,
-                "style": 0.35,
-                "use_speaker_boost": True,
-            },
+            "voice_settings": settings,
         }
     ).encode("utf-8")
 
@@ -497,14 +854,30 @@ def sintetizar_elevenlabs(texto: str, destino_mp3: Path, api_key: str, voice_id:
     return []
 
 
-async def _sintetizar_edge_async(texto: str, destino_mp3: Path) -> list[dict]:
+# ============================================================
+# FALLBACK 2: EDGE-TTS MULTI-BLOCO EXPRESSIVO (POR PERFIL V5.1)
+# ============================================================
+
+def config_edge_por_perfil(perfil_voz: str) -> dict[str, str]:
+    """Retorna voz, rate e pitch do edge-tts adaptados ao perfil vocal V5.1."""
+    perfil = normalizar_perfil_voz(perfil_voz)
+    return dict(PERFIS_EDGE_TTS.get(perfil, PERFIS_EDGE_TTS[PERFIL_VOZ_PADRAO]))
+
+
+async def _sintetizar_edge_async(
+    texto: str,
+    destino_mp3: Path,
+    voice: str,
+    rate: str,
+    pitch: str,
+) -> list[dict]:
     import edge_tts
 
     comunicar = edge_tts.Communicate(
         texto,
-        EDGE_VOZ,
-        rate=EDGE_RATE,
-        pitch=EDGE_PITCH,
+        voice,
+        rate=rate,
+        pitch=pitch,
         boundary="WordBoundary",
     )
     palavras = []
@@ -523,8 +896,34 @@ async def _sintetizar_edge_async(texto: str, destino_mp3: Path) -> list[dict]:
     return palavras
 
 
-def sintetizar_edge(texto: str, destino_mp3: Path) -> list[dict]:
-    return asyncio.run(_sintetizar_edge_async(texto, destino_mp3))
+def sintetizar_edge(
+    texto: str,
+    destino_mp3: Path,
+    perfil_voz: str = PERFIL_VOZ_PADRAO,
+) -> list[dict]:
+    cfg = config_edge_por_perfil(perfil_voz)
+    try:
+        return asyncio.run(
+            _sintetizar_edge_async(
+                texto,
+                destino_mp3,
+                voice=cfg["voice"],
+                rate=cfg["rate"],
+                pitch=cfg["pitch"],
+            )
+        )
+    except Exception:
+        if cfg["voice"] != EDGE_VOZ:
+            return asyncio.run(
+                _sintetizar_edge_async(
+                    texto,
+                    destino_mp3,
+                    voice=EDGE_VOZ,
+                    rate=cfg["rate"],
+                    pitch=cfg["pitch"],
+                )
+            )
+        raise
 
 
 def limpar_silencio_frase(origem: Path, destino_wav: Path) -> float:
@@ -637,8 +1036,12 @@ def alinhar_palavras_na_frase(
     return saida
 
 
+def _tamanho_texto_grupo(lista_palavras: list[dict]) -> int:
+    return sum(len(str(p["palavra"])) for p in lista_palavras) + max(0, len(lista_palavras) - 1)
+
+
 def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
-    """Agrupa palavras de UMA unica frase em blocos de no maximo 3 palavras."""
+    """Agrupa palavras de UMA unica frase em blocos legiveis (max 3 palavras e teto de caracteres V5.1)."""
     if not palavras_frase:
         return []
 
@@ -665,9 +1068,57 @@ def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
                 tam = 2
             else:
                 tam = 3
+
+            # Protecao V5.1 contra palavras longas coladas (ex.: "corredor completamente escuro.")
+            while tam == 3 and _tamanho_texto_grupo(clausula[i : i + 3]) > MAX_CHARS_GRUPO_3:
+                tam = 2
+            if tam == 2 and _tamanho_texto_grupo(clausula[i : i + 2]) > MAX_CHARS_GRUPO_2:
+                tam = 1
+
             grupos.append(clausula[i : i + tam])
             i += tam
     return grupos
+
+
+def consolidar_voz_blocos(frases_log: list[dict]) -> list[dict]:
+    """Agrupa trechos falados continuos do mesmo perfil vocal sem cruzar blocos de SFX/corte."""
+    blocos: list[dict] = []
+    atual: dict | None = None
+
+    for reg in frases_log:
+        if reg.get("tipo") != "fala":
+            if atual is not None:
+                blocos.append(atual)
+                atual = None
+            continue
+
+        perfil = normalizar_perfil_voz(reg.get("perfil_voz"))
+        t0 = float(reg["inicio"])
+        t1 = float(reg["fim"])
+        txt = str(reg.get("texto", "")).strip()
+
+        if atual is not None and atual["perfil"] == perfil and (t0 - atual["fim"]) <= 0.45:
+            atual["fim"] = round(t1, 3)
+            atual["duracao"] = round(max(0.02, atual["fim"] - atual["inicio"]), 3)
+            atual["texto"] = f"{atual['texto']} {txt}".strip()
+        else:
+            if atual is not None:
+                blocos.append(atual)
+            atual = {
+                "indice": len(blocos),
+                "perfil": perfil,
+                "inicio": round(t0, 3),
+                "fim": round(t1, 3),
+                "duracao": round(max(0.02, t1 - t0), 3),
+                "texto": txt,
+            }
+
+    if atual is not None:
+        blocos.append(atual)
+
+    for idx, b in enumerate(blocos):
+        b["indice"] = idx
+    return blocos
 
 
 def concatenar_wavs_para_mp3(lista_wavs: list[Path], wav_mestre: Path, destino_mp3: Path) -> float:
@@ -708,7 +1159,7 @@ def concatenar_wavs_para_mp3(lista_wavs: list[Path], wav_mestre: Path, destino_m
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Gera voz_limpa.mp3, timestamps.json e eventos.json sincronizados com o roteiro ativo."
+        description="Gera voz_limpa.mp3, timestamps.json e eventos.json sincronizados com o roteiro ativo (V5.1)."
     )
     parser.add_argument(
         "--mock",
@@ -738,20 +1189,25 @@ def main() -> None:
     PASTA_AUDIO.mkdir(exist_ok=True)
     itens, usa_eventos_explicitos = extrair_itens_roteiro(roteiro_path)
 
-    api_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    gemini_model = os.environ.get("GEMINI_TTS_MODEL", "").strip() or GEMINI_TTS_MODELO
+    eleven_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
     voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or ELEVENLABS_VOZ_PADRAO
 
     if args.mock:
         motor = "mock"
-        voz_usada = "mock-tone-pt-BR"
-    elif api_key:
+        voz_usada = "mock-tone-pt-BR (perfis V5.1)"
+    elif gemini_key:
+        motor = "gemini-tts"
+        voz_usada = f"{gemini_model} (narrador={selecionar_voz_gemini('narrador_tenso')}, porteiro={selecionar_voz_gemini('interfone_porteiro')})"
+    elif eleven_key:
         motor = "elevenlabs"
         voz_usada = f"{ELEVENLABS_MODELO}:{voice_id}"
     else:
         motor = "edge-tts"
-        voz_usada = f"{EDGE_VOZ} (pitch={EDGE_PITCH}, rate={EDGE_RATE})"
+        voz_usada = f"edge-tts multi-bloco ({EDGE_VOZ} + {EDGE_VOZ_PORTEIRO})"
 
-    origem_chave = " (.env local)" if (motor == "elevenlabs" and env_carregado) else ""
+    origem_chave = " (.env local)" if (motor in ("gemini-tts", "elevenlabs") and env_carregado) else ""
     print(
         f"Video {int(video_ativo['id']):02d}: {video_ativo['titulo']} | "
         f"Roteiro: {roteiro_path.name} (sha256={roteiro_sha256[:12]})"
@@ -764,7 +1220,7 @@ def main() -> None:
     palavras_todas: list[dict] = []
     grupos_todos: list[dict] = []
     frases_log: list[dict] = []
-    eventos: dict[str, float | int | str | list[float]] = {
+    eventos: dict[str, float | int | str | list] = {
         "video_id": int(video_ativo["id"]),
         "slug": str(video_ativo["slug"]),
         "titulo": str(video_ativo["titulo"]),
@@ -779,7 +1235,7 @@ def main() -> None:
     cta_fala_inicio: float | None = None
     cta_fala_fim: float | None = None
 
-    with tempfile.TemporaryDirectory(prefix="voz-v5-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="voz-v51-") as tmp:
         tmp_dir = Path(tmp)
         wavs_concat: list[Path] = []
         cursor = 0.0
@@ -798,7 +1254,9 @@ def main() -> None:
                 t_ini = round(cursor, 3)
                 dur_s = gerar_wav_silencio(c_wav, item["duracao"])
                 wavs_concat.append(c_wav)
-                t_corte = round(cursor + dur_s * 0.5, 3)
+                # Deixa ~0.03s antes da 1a palavra da Parte 2 para legenda abrir imediata em 0:00
+                offset_corte = float(item.get("offset_corte", dur_s * 0.5))
+                t_corte = round(cursor + min(dur_s - 0.02, offset_corte), 3)
                 eventos["corte_parte_2"] = t_corte
                 eventos["corte_parte_2_duracao"] = round(dur_s, 3)
                 frases_log.append(
@@ -845,29 +1303,77 @@ def main() -> None:
                 continue
 
             texto = item["texto"]
-            raw_arq = tmp_dir / f"frase_{idx:02d}_raw.{'wav' if motor == 'mock' else 'mp3'}"
+            perfil_voz = normalizar_perfil_voz(item.get("perfil_voz"))
             limpa_wav = tmp_dir / f"frase_{idx:02d}_limpa.wav"
+            raw_words: list[dict] = []
 
             if motor == "mock":
-                raw_words = sintetizar_mock(texto, raw_arq, idx)
-            elif motor == "elevenlabs":
-                try:
-                    raw_words = sintetizar_elevenlabs(texto, raw_arq, api_key, voice_id)
-                except urllib.error.HTTPError as exc:
-                    if exc.code in (401, 403, 429):
-                        motivo = _extrair_motivo_http_error(exc)
+                raw_arq = tmp_dir / f"frase_{idx:02d}_raw.wav"
+                raw_words = sintetizar_mock(texto, raw_arq, idx, perfil_voz=perfil_voz)
+            else:
+                sintetizado = False
+                if motor == "gemini-tts":
+                    raw_arq = tmp_dir / f"frase_{idx:02d}_raw.wav"
+                    try:
+                        raw_words = sintetizar_gemini_tts(
+                            texto,
+                            raw_arq,
+                            gemini_key,
+                            perfil_voz=perfil_voz,
+                            modelo=gemini_model,
+                        )
+                        sintetizado = True
+                    except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError, TimeoutError) as exc:
+                        motivo = (
+                            f"HTTP {exc.code} ({_extrair_motivo_http_error(exc)})"
+                            if isinstance(exc, urllib.error.HTTPError)
+                            else str(exc)
+                        )
+                        if eleven_key:
+                            print(
+                                f"AVISO Gemini TTS falhou ({motivo}). "
+                                "Alternando automaticamente para fallback ElevenLabs...",
+                                flush=True,
+                            )
+                            motor = "elevenlabs"
+                            voz_usada = f"{ELEVENLABS_MODELO}:{voice_id} [fallback Gemini]"
+                        else:
+                            print(
+                                f"AVISO Gemini TTS falhou ({motivo}). "
+                                "Alternando automaticamente para fallback edge-tts multi-bloco...",
+                                flush=True,
+                            )
+                            motor = "edge-tts"
+                            voz_usada = f"edge-tts multi-bloco ({EDGE_VOZ} + {EDGE_VOZ_PORTEIRO}) [fallback Gemini]"
+
+                if not sintetizado and motor == "elevenlabs":
+                    raw_arq = tmp_dir / f"frase_{idx:02d}_raw.mp3"
+                    try:
+                        raw_words = sintetizar_elevenlabs(
+                            texto,
+                            raw_arq,
+                            eleven_key,
+                            voice_id,
+                            perfil_voz=perfil_voz,
+                        )
+                        sintetizado = True
+                    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+                        motivo = (
+                            f"HTTP {exc.code} ({_extrair_motivo_http_error(exc)})"
+                            if isinstance(exc, urllib.error.HTTPError)
+                            else str(exc)
+                        )
                         print(
-                            f"AVISO ElevenLabs HTTP {exc.code} ({motivo}). "
-                            f"Alternando automaticamente para fallback edge-tts ({EDGE_VOZ})...",
+                            f"AVISO ElevenLabs falhou ({motivo}). "
+                            "Alternando automaticamente para fallback edge-tts multi-bloco...",
                             flush=True,
                         )
                         motor = "edge-tts"
-                        voz_usada = f"{EDGE_VOZ} (pitch={EDGE_PITCH}, rate={EDGE_RATE}) [fallback HTTP {exc.code}]"
-                        raw_words = sintetizar_edge(texto, raw_arq)
-                    else:
-                        raise
-            else:
-                raw_words = sintetizar_edge(texto, raw_arq)
+                        voz_usada = f"edge-tts multi-bloco ({EDGE_VOZ} + {EDGE_VOZ_PORTEIRO}) [fallback ElevenLabs]"
+
+                if not sintetizado:
+                    raw_arq = tmp_dir / f"frase_{idx:02d}_raw.mp3"
+                    raw_words = sintetizar_edge(texto, raw_arq, perfil_voz=perfil_voz)
 
             dur_frase = limpar_silencio_frase(raw_arq, limpa_wav)
             wavs_concat.append(limpa_wav)
@@ -958,6 +1464,7 @@ def main() -> None:
                 {
                     "tipo": "fala",
                     "frase_indice": frase_idx,
+                    "perfil_voz": perfil_voz,
                     "texto": texto,
                     "evento": evento_principal,
                     "inicio": round(t_ini, 3),
@@ -978,8 +1485,10 @@ def main() -> None:
         dur_mp3 = concatenar_wavs_para_mp3(wavs_concat, wav_mestre, VOZ_LIMPA_MP3)
 
     duracao_total = round(dur_mp3, 3)
+    voz_blocos = consolidar_voz_blocos(frases_log)
     eventos["duracao_total"] = duracao_total
     eventos["frases"] = frases_log
+    eventos["voz_blocos"] = voz_blocos
     eventos["cta_modo"] = cta_modo
 
     cta_meio_inicio: float | None = None
@@ -1007,7 +1516,6 @@ def main() -> None:
     elif cta_modo == "meio":
         if "cta_meio" in eventos:
             alvo_ini = float(eventos["cta_meio"])
-            # Garante posicionamento na janela do meio (~44% a 58% da duracao) sem atropelar o hit anterior
             cta_meio_inicio = round(max(duracao_total * 0.44, min(duracao_total * 0.58, alvo_ini)), 3)
         else:
             cta_meio_inicio = round(duracao_total * 0.48, 3)
@@ -1086,6 +1594,7 @@ def main() -> None:
         "max_palavras_por_grupo": 3,
         "total_palavras": len(palavras_todas),
         "total_grupos": len(grupos_todos),
+        "voz_blocos": voz_blocos,
         "grupos": grupos_todos,
         "palavras": palavras_todas,
     }
@@ -1108,13 +1617,18 @@ def main() -> None:
         json.dumps(eventos, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
-    # Valida imediatamente os artefatos recem-gerados se estiver usando o roteiro ativo
     if args.roteiro is None:
         validar_artefatos_audio(PASTA_AUDIO)
 
+    contagem_perfis: dict[str, int] = {}
+    for vb in voz_blocos:
+        contagem_perfis[vb["perfil"]] = contagem_perfis.get(vb["perfil"], 0) + 1
+    resumo_perfis = ", ".join(f"{k}={v}" for k, v in sorted(contagem_perfis.items()))
+
     print(
         f"Gerado {VOZ_LIMPA_MP3.name}: {duracao_total:.3f}s | motor final={motor} | "
-        f"{len(palavras_todas)} palavras em {len(grupos_todos)} grupos de legenda"
+        f"{len(palavras_todas)} palavras em {len(grupos_todos)} grupos | "
+        f"voz_blocos ({len(voz_blocos)}): {resumo_perfis}"
     )
     if cta_modo == "pausa_meio" and cta_meio_inicio is not None and cta_meio_fim is not None:
         corte_p2 = float(eventos.get("corte_parte_2", 0.0))

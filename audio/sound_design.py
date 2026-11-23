@@ -375,7 +375,14 @@ def _eh_video_02(ev: dict) -> bool:
 
 
 def _envelope_drone_em_t(t: float, ev: dict) -> float:
-    """Curva de tensao do drone com silencio na CTA tela cheia V5, dip limpo no corte P2 e corte no plot_twist."""
+    """Curva de tensao do drone com silencio na CTA tela cheia V5, dip no corte P2 e corte seco em sussurro_twist."""
+    for vb in ev.get("voz_blocos") or ():
+        if str(vb.get("perfil", "")).strip().lower() == "sussurro_twist":
+            t0 = float(vb.get("inicio", -1.0))
+            t1 = float(vb.get("fim", -1.0))
+            if t0 >= 0.0 and t0 - 0.03 <= t <= t1 + 0.08:
+                return 0.0
+
     if _eh_video_06(ev):
         porta_el = float(ev.get("porta_elevador", 10.0))
         porta_el_d = float(ev.get("porta_elevador_duracao", 1.1))
@@ -2144,14 +2151,158 @@ def medir_loudnorm(wav_entrada: Path) -> dict:
     return json.loads(m.group(0))
 
 
+def _decodificar_audio_estereo(caminho: Path):
+    """Decodifica qualquer audio (MP3/WAV) para buffers float64 estereo em 44100 Hz."""
+    cmd = [
+        "ffmpeg",
+        "-v",
+        "error",
+        "-i",
+        str(caminho),
+        "-ar",
+        str(SR),
+        "-ac",
+        "2",
+        "-f",
+        "s16le",
+        "pipe:1",
+    ]
+    res = subprocess.run(cmd, capture_output=True, check=True)
+    bruto = res.stdout
+    if not bruto:
+        raise RuntimeError(f"Nao foi possivel decodificar trilha de voz: {caminho}")
+    if np is not None:
+        inter = np.frombuffer(bruto, dtype=np.int16).astype(np.float64) / 32768.0
+        n_frames = inter.size // 2
+        return inter[0 : n_frames * 2 : 2].copy(), inter[1 : n_frames * 2 : 2].copy()
+    amostras = array("h")
+    amostras.frombytes(bruto)
+    n_frames = len(amostras) // 2
+    esq = array("d", (amostras[2 * i] / 32768.0 for i in range(n_frames)))
+    dir_ = array("d", (amostras[2 * i + 1] / 32768.0 for i in range(n_frames)))
+    return esq, dir_
+
+
+def _processar_trecho_diegetico_np(seg_l, seg_r, perfil: str, seed_idx: int):
+    """Aplica coloracao acustica diegetica V5.1 a um trecho de voz em float64 estereo."""
+    n = len(seg_l)
+    if n < 32:
+        return seg_l.copy(), seg_r.copy()
+
+    mono = 0.5 * (seg_l + seg_r)
+
+    if perfil == "interfone_porteiro":
+        # Filtro passa-banda de interfone predial (320 Hz a 2600 Hz) + leve saturacao analogica + chiado discreto
+        bp = _filtrar_banda_np(mono, 320.0, 2600.0, ordem=2.5)
+        pres = _filtrar_banda_np(bp, 1050.0, 2250.0, ordem=1.5) * 0.25
+        sat = np.tanh((bp + pres) * 2.15) * 0.78
+
+        t = np.arange(n, dtype=np.float64) / SR
+        fade = np.minimum(1.0, t / 0.025) * np.minimum(1.0, (n / SR - t) / 0.025)
+        estatica = _filtrar_banda_np(_ruido_rosa_np(n, 5101 + seed_idx), 880.0, 3400.0, ordem=1.8) * 0.026
+        hum_ac = np.sin(2.0 * np.pi * 120.0 * t) * 0.006 + np.sin(2.0 * np.pi * 240.0 * t) * 0.003
+        interfone_sig = np.clip(sat + (estatica + hum_ac) * fade, -0.96, 0.96)
+        # Ligeiramente focado no centro com reflexao metalica curtissima da grade do interfone
+        el, er = _aplicar_sala_curta(interfone_sig, [(6.5, 0.12, 0.10)])
+        return np.clip(el, -0.96, 0.96), np.clip(er, -0.96, 0.96)
+
+    if perfil in ("narrador_tenso", "panico"):
+        # Reflexoes curtas e sutis de cabine/corredor fechado (passa-alta na cauda wet para nao embolar diccao)
+        wet_src = _filtrar_banda_np(mono, 150.0, 4200.0, ordem=1.5)
+        taps = [(9.5, 0.14, 0.10), (21.5, 0.09, 0.11), (35.0, 0.04, 0.05)]
+        wl, wr = _aplicar_sala_curta(wet_src, taps)
+        cauda_l = wl - wet_src
+        cauda_r = wr - wet_src
+        mix_wet = 1.05 if perfil == "panico" else 0.82
+        out_l = np.clip(seg_l + cauda_l * mix_wet, -0.96, 0.96)
+        out_r = np.clip(seg_r + cauda_r * mix_wet, -0.96, 0.96)
+        return out_l, out_r
+
+    if perfil == "sussurro_twist":
+        # Seco e proximo do microfone (zero reverb): reforco leve de graves de proximidade + presenca intimista
+        graves = _filtrar_banda_np(mono, 85.0, 260.0, ordem=1.8) * 0.30
+        presenca = _filtrar_banda_np(mono, 2400.0, 5400.0, ordem=1.8) * 0.24
+        out_l = np.tanh((seg_l + graves + presenca) * 1.18) * 0.95
+        out_r = np.tanh((seg_r + graves + presenca) * 1.18) * 0.95
+        return np.clip(out_l, -0.96, 0.96), np.clip(out_r, -0.96, 0.96)
+
+    if perfil == "cta_comercial":
+        # Voz 100% seca, clara e com leve compressao de anuncio
+        brilho = _filtrar_banda_np(mono, 1800.0, 4800.0, ordem=1.6) * 0.22
+        out_l = np.tanh((seg_l + brilho) * 1.32) * 0.90
+        out_r = np.tanh((seg_r + brilho) * 1.32) * 0.90
+        return np.clip(out_l, -0.96, 0.96), np.clip(out_r, -0.96, 0.96)
+
+    return seg_l.copy(), seg_r.copy()
+
+
+def processar_voz_diegetica(
+    voz_entrada: Path,
+    voz_blocos: list[dict],
+    destino_wav: Path,
+) -> tuple[Path, dict[str, int]]:
+    """Processa a trilha de voz por trecho conforme voz_blocos (V5.1) antes da mixagem final."""
+    if not voz_blocos:
+        return voz_entrada, {}
+
+    contagem: dict[str, int] = {}
+    base_l, base_r = _decodificar_audio_estereo(voz_entrada)
+    n_tot = len(base_l)
+
+    if np is not None:
+        out_l = base_l.copy()
+        out_r = base_r.copy()
+        pad = int(round(0.06 * SR))
+
+        for idx, bloco in enumerate(voz_blocos):
+            perfil = str(bloco.get("perfil", "narrador_tenso")).strip().lower() or "narrador_tenso"
+            t0 = max(0.0, float(bloco.get("inicio", 0.0)))
+            t1 = max(t0, float(bloco.get("fim", t0)))
+            i0 = max(0, min(n_tot, int(round(t0 * SR))))
+            i1 = max(i0, min(n_tot, int(round(t1 * SR))))
+            comp = i1 - i0
+            if comp < 64:
+                continue
+
+            p0 = max(0, i0 - pad)
+            p1 = min(n_tot, i1 + pad)
+            proc_l_pad, proc_r_pad = _processar_trecho_diegetico_np(
+                base_l[p0:p1], base_r[p0:p1], perfil, idx
+            )
+            rel0 = i0 - p0
+            proc_l = proc_l_pad[rel0 : rel0 + comp]
+            proc_r = proc_r_pad[rel0 : rel0 + comp]
+
+            # Crossfade de 15ms nas bordas para transicoes sem estalos
+            xf = min(comp // 4, int(round(0.015 * SR)))
+            mask = np.ones(comp, dtype=np.float64)
+            if xf > 1:
+                mask[:xf] = np.linspace(0.0, 1.0, xf, dtype=np.float64)
+                mask[-xf:] = np.linspace(1.0, 0.0, xf, dtype=np.float64)
+
+            out_l[i0:i1] = out_l[i0:i1] * (1.0 - mask) + proc_l * mask
+            out_r[i0:i1] = out_r[i0:i1] * (1.0 - mask) + proc_r * mask
+            contagem[perfil] = contagem.get(perfil, 0) + 1
+
+        _gravar_wav_estereo(destino_wav, out_l, out_r)
+        return destino_wav, contagem
+
+    # Fallback stdlib sem numpy: preserva trilha original mas registra os blocos detectados
+    for bloco in voz_blocos:
+        perfil = str(bloco.get("perfil", "narrador_tenso")).strip().lower() or "narrador_tenso"
+        contagem[perfil] = contagem.get(perfil, 0) + 1
+    _gravar_wav_estereo(destino_wav, base_l, base_r)
+    return destino_wav, contagem
+
+
 def mixar_e_masterizar(
-    voz_mp3: Path,
+    voz_entrada: Path,
     drone_wav: Path,
     sfx_wav: Path,
     pre_mix_wav: Path,
     destino_mp3: Path,
 ) -> dict:
-    """Mistura voz + drone (com ducking) + SFX e masteriza em 2 passagens a -14 LUFS."""
+    """Mistura voz (ja processada diegeticamente) + drone (com ducking) + SFX e masteriza em 2 passagens a -14 LUFS."""
     filtro_mix = (
         "[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,"
         "highpass=f=75,"
@@ -2172,7 +2323,7 @@ def mixar_e_masterizar(
             "-loglevel",
             "error",
             "-i",
-            str(voz_mp3),
+            str(voz_entrada),
             "-i",
             str(drone_wav),
             "-i",
@@ -2254,17 +2405,24 @@ def main() -> None:
     )
     print(
         f"Integridade OK (Video {carimbo['video_id']:02d}, sha256={carimbo['roteiro_sha256'][:12]}). "
-        f"Montando cama sonora e SFX [{perfil}] ({duracao:.3f}s, backend={backend})..."
+        f"Montando voz diegetica, cama sonora e SFX [{perfil}] ({duracao:.3f}s, backend={backend})..."
     )
 
     ganhos_cat = _carregar_ganhos_catalogo()
     relatorio_sfx: dict[str, str] = {}
+    voz_blocos = eventos.get("voz_blocos") or []
 
-    with tempfile.TemporaryDirectory(prefix="sfx-v5-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="sfx-v51-") as tmp:
         tmp_dir = Path(tmp)
+        voz_dieg_wav = tmp_dir / "voz_diegetica.wav"
         drone_wav = tmp_dir / "cama_drone.wav"
         sfx_wav = tmp_dir / "sfx_eventos.wav"
         pre_mix_wav = tmp_dir / "mix_pre.wav"
+
+        voz_para_mix, resumo_dieg = processar_voz_diegetica(VOZ_LIMPA_MP3, voz_blocos, voz_dieg_wav)
+        if resumo_dieg:
+            det_dieg = ", ".join(f"{k}={v}" for k, v in sorted(resumo_dieg.items()))
+            print(f"Audio diegetico V5.1 aplicado ({sum(resumo_dieg.values())} blocos): {det_dieg}")
 
         d_l, d_r = sintetizar_cama_drone(duracao, eventos, ganhos_cat=ganhos_cat, relatorio=relatorio_sfx)
         _gravar_wav_estereo(drone_wav, d_l, d_r)
@@ -2272,7 +2430,7 @@ def main() -> None:
         s_l, s_r = sintetizar_sfx(duracao, eventos, ganhos_cat=ganhos_cat, relatorio=relatorio_sfx)
         _gravar_wav_estereo(sfx_wav, s_l, s_r)
 
-        final_stats = mixar_e_masterizar(VOZ_LIMPA_MP3, drone_wav, sfx_wav, pre_mix_wav, MIX_FINAL_MP3)
+        final_stats = mixar_e_masterizar(voz_para_mix, drone_wav, sfx_wav, pre_mix_wav, MIX_FINAL_MP3)
 
     shutil.copy2(MIX_FINAL_MP3, NARRACAO_MP3)
     dur_final = medir_duracao_ffprobe(MIX_FINAL_MP3)

@@ -133,7 +133,7 @@
         "output/short_06_parte2.mp4"
       ],
       "status": "em_producao",
-      "motor": "v5",
+      "motor": "v5.1",
       "parte_label": "PARTE 1",
       "cta_modo": "pausa_meio"
     }

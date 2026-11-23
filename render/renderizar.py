@@ -410,6 +410,10 @@ def fatiar_partes_ffmpeg(
     p2.parent.mkdir(parents=True, exist_ok=True)
 
     args_encode = [
+        "-vf",
+        "setpts=PTS-STARTPTS",
+        "-af",
+        "asetpts=PTS-STARTPTS",
         "-c:v",
         "libx264",
         "-preset",
@@ -444,15 +448,16 @@ def fatiar_partes_ffmpeg(
         *args_encode,
         str(p1),
     ]
+    # Seek preciso apos -i + setpts/asetpts zera start_time de video e audio em 0.000s no inicio da Parte 2
     cmd_p2 = [
         "ffmpeg",
         "-y",
         "-loglevel",
         "error",
-        "-ss",
-        f"{corte_parte_2:.3f}",
         "-i",
         str(saida_completa),
+        "-ss",
+        f"{corte_parte_2:.3f}",
         *args_encode,
         str(p2),
     ]

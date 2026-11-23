@@ -2565,6 +2565,10 @@ function normWord(w){
   return w.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
 }
 
+function groupLen(slice){
+  return slice.reduce((acc, p) => acc + String(p.palavra || '').length, 0) + Math.max(0, slice.length - 1);
+}
+
 function buildPreviewCaptions(){
   const e = EV;
   const lines = [
@@ -2601,7 +2605,9 @@ function buildPreviewCaptions(){
     let i = 0;
     while (i < timed.length) {
       const rem = timed.length - i;
-      const sz = rem <= 3 ? rem : (rem === 4 ? 2 : 3);
+      let sz = rem <= 3 ? rem : (rem === 4 ? 2 : 3);
+      if (sz === 3 && groupLen(timed.slice(i, i + 3)) > 20) sz = 2;
+      if (sz === 2 && groupLen(timed.slice(i, i + 2)) > 22) sz = 1;
       const sl = timed.slice(i, i + sz);
       groups.push({ inicio: sl[0].inicio, fim: sl[sl.length - 1].fim, palavras: sl });
       i += sz;
@@ -2610,77 +2616,145 @@ function buildPreviewCaptions(){
   captionGroups = groups;
 }
 
+function layoutCaptionGroup(grp){
+  const words = grp.palavras
+    .map(p => ({
+      txt: String(p.palavra || '').replace(/\[\/?VOZ(?::[a-zA-Z0-9_]+)?\]/gi, '').trim().toUpperCase(),
+      key: normWord(String(p.palavra || '')),
+      inicio: Number(p.inicio),
+      fim: Number(p.fim ?? (Number(p.inicio) + Number(p.duracao || 0.25)))
+    }))
+    .filter(w => w.txt.length > 0);
+  if (!words.length) return null;
+
+  const POP_MAX = 1.09;
+  const MAX_LINE_W = 876;
+  let fs = 78;
+  let lw = 16, gap = 36, wds = [], boxes = [], tw = 0;
+
+  for (let iter = 0; iter < 16; iter++) {
+    g.font = `900 ${fs}px ${COND}`;
+    lw = Math.max(10, Math.round(fs * 0.20));
+    /* Reserva folga real do contorno (lw) + expansao lateral do pop-in (POP_MAX) */
+    gap = Math.max(26, Math.round(fs * 0.36) + Math.round(lw * 0.50));
+    wds = words.map(w => g.measureText(w.txt).width);
+    boxes = wds.map(w => w * POP_MAX + lw);
+    tw = boxes.reduce((a, b) => a + b, 0) + gap * (words.length - 1);
+    if (tw <= MAX_LINE_W || fs <= 30) break;
+    const nextFs = Math.max(30, Math.floor(fs * (MAX_LINE_W / tw)) - (iter > 2 ? 1 : 0));
+    if (nextFs >= fs) fs -= 2; else fs = nextFs;
+  }
+
+  let x = 540 - tw / 2;
+  const items = words.map((w, i) => {
+    const cx = x + boxes[i] / 2;
+    const item = { ...w, cx, w: wds[i], boxW: boxes[i] };
+    x += boxes[i] + gap;
+    return item;
+  });
+  return { fs, lw, gap, tw, items };
+}
+
+function pickCaptionGroup(t){
+  const cP2 = Number(EV.corte_parte_2);
+  const temCorte = isFinite(cP2) && cP2 > 0;
+  const naParte2 = temCorte && t >= cP2 - 0.001;
+
+  let candidato = null;
+  for (let i = 0; i < captionGroups.length; i++) {
+    const c = captionGroups[i];
+    const ini = Number(c.inicio);
+    const fim = Number(c.fim);
+    /* Barreira dura entre Parte 1 e Parte 2: legenda da Parte 1 nunca vaza para 0:00 da Parte 2 */
+    if (temCorte) {
+      const grpEhP2 = ini >= cP2 - 0.005;
+      if (naParte2 && !grpEhP2) continue;
+      if (!naParte2 && grpEhP2) continue;
+    }
+    if (t >= ini - 0.04 && t <= fim) {
+      return c;
+    }
+    if (t > fim && t <= fim + 0.14) {
+      candidato = c;
+    }
+  }
+  return candidato;
+}
+
 function drawCaptions(t){
   if (katanaStateAt(t) !== null) return;
   if (isFullScreenCtaActive(t)) return;
 
-  let grp = null;
-  for (const c of captionGroups) {
-    if (t >= c.inicio - 0.04 && t <= c.fim + 0.14) { grp = c; break; }
-  }
+  const grp = pickCaptionGroup(t);
   if (!grp || !grp.palavras || !grp.palavras.length) return;
 
-  const words = grp.palavras.map(p => ({
-    txt: String(p.palavra || '').toUpperCase(),
-    key: normWord(String(p.palavra || '')),
-    inicio: Number(p.inicio),
-    fim: Number(p.fim ?? (Number(p.inicio) + Number(p.duracao || 0.25)))
-  }));
+  const lay = layoutCaptionGroup(grp);
+  if (!lay) return;
+
   let active = 0;
-  for (let i = 0; i < words.length; i++) if (t >= words[i].inicio - 0.02) active = i;
+  for (let i = 0; i < lay.items.length; i++) if (t >= lay.items[i].inicio - 0.02) active = i;
 
   const grpPop = popScale(t - grp.inicio + 0.02, 0.11);
 
   g.save();
-  let fs = 78;
-  g.font = `900 ${fs}px ${COND}`;
+  g.font = `900 ${lay.fs}px ${COND}`;
   g.textBaseline = 'middle';
   g.textAlign = 'center';
-  let sp = Math.max(30, Math.round(fs * 0.44));
-  let wds = words.map(w => g.measureText(w.txt).width);
-  let tw = wds.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
-  if (tw > 900) {
-    fs = Math.floor(fs * 900 / tw);
-    g.font = `900 ${fs}px ${COND}`;
-    sp = Math.max(22, Math.round(fs * 0.44));
-    wds = words.map(w => g.measureText(w.txt).width);
-    tw = wds.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
-  }
 
   const y = 1495;
   g.translate(540, y);
   g.scale(grpPop, grpPop);
   g.translate(-540, -y);
 
-  let x = 540 - tw / 2;
   g.lineJoin = 'round';
   g.miterLimit = 2;
 
-  words.forEach((w, i) => {
-    const cx = x + wds[i] / 2;
+  lay.items.forEach((w, i) => {
     const isAct = i === active;
     const isRed = RED_WORDS.has(w.key);
     const fill = isAct ? (isRed ? PAL.alert : PAL.yellow) : '#FFFFFF';
-    const wPop = isAct ? lerp(1.13, 1.06, easeOut(clamp((t - w.inicio) / 0.09))) : 1.0;
+    const wPop = isAct ? lerp(1.09, 1.04, easeOut(clamp((t - w.inicio) / 0.09))) : 1.0;
 
     g.save();
-    g.translate(cx, y);
+    g.translate(w.cx, y);
     g.scale(wPop, wPop);
     g.shadowColor = 'rgba(0,0,0,.88)';
     g.shadowBlur = 16;
     g.shadowOffsetY = 6;
     g.strokeStyle = '#000000';
-    g.lineWidth = Math.max(12, Math.round(fs * 0.21));
+    g.lineWidth = lay.lw;
     g.strokeText(w.txt, 0, 0);
     g.shadowBlur = 0; g.shadowOffsetY = 0;
     g.fillStyle = fill;
     g.fillText(w.txt, 0, 0);
     g.restore();
-
-    x += wds[i] + sp;
   });
   g.restore();
 }
+
+window.measureCaptionAt = t => {
+  const grp = pickCaptionGroup(t);
+  if (!grp) return null;
+  g = main;
+  const lay = layoutCaptionGroup(grp);
+  if (!lay) return null;
+  let minVisualGap = Infinity;
+  for (let i = 0; i < lay.items.length - 1; i++) {
+    const a = lay.items[i], b = lay.items[i + 1];
+    const rightA = a.cx + a.boxW / 2;
+    const leftB = b.cx - b.boxW / 2;
+    minVisualGap = Math.min(minVisualGap, leftB - rightA);
+  }
+  return {
+    texto: lay.items.map(x => x.txt).join(' '),
+    palavras: lay.items.map(x => x.txt),
+    fs: lay.fs,
+    lw: lay.lw,
+    gap: lay.gap,
+    tw: Number(lay.tw.toFixed(1)),
+    minVisualGap: lay.items.length > 1 ? Number(minVisualGap.toFixed(1)) : null
+  };
+};
 
 let ccOn = false;
 function renderAt(t){
