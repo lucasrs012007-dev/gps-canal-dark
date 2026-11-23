@@ -19,7 +19,7 @@ on:
         default: false
         type: boolean
       enviar_telegram:
-        description: "Envia os MP4s prontos automaticamente no Telegram"
+        description: "Envia a Parte 1 (~21 MB) + link do Artifact + legenda pronta no Telegram"
         required: false
         default: true
         type: boolean
@@ -177,6 +177,7 @@ jobs:
           ls -lh output/*.mp4
 
       - name: Publicar MP4s e metadados como Artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v4
         with:
           name: fabrica-dark-short-${{ github.run_number }}
@@ -186,17 +187,29 @@ jobs:
             cenas.json
             audio/eventos.json
 
-      - name: Estacao 4 - Enviar videos prontos no Telegram
+      - name: Estacao 4 - Enviar Parte 1 (~21 MB), link do Artifact e legenda pronta no Telegram
         if: ${{ success() && env.ENVIAR_TELEGRAM != 'false' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ARTIFACT_URL: ${{ steps.upload_artifact.outputs.artifact-url }}
         run: |
           if [ -z "${TELEGRAM_BOT_TOKEN}" ] || [ -z "${TELEGRAM_CHAT_ID}" ]; then
-            echo "Secrets do Telegram ausentes: pulando envio automatico (MP4s disponiveis nos Artifacts)."
+            echo "AVISO: Secrets do Telegram ausentes em Repository Secrets (Actions)."
+            [ -z "${TELEGRAM_BOT_TOKEN}" ] && echo " - Falta configurar TELEGRAM_BOT_TOKEN"
+            [ -z "${TELEGRAM_CHAT_ID}" ] && echo " - Falta configurar TELEGRAM_CHAT_ID"
+            echo "Simulando payload de entrega (--dry-run) para conferir o formato:"
+            python3 automacao/enviar_telegram.py \
+              --estrategia parte1 \
+              --artifact-url "${ARTIFACT_URL}" \
+              --run-url "${RUN_URL}" \
+              --dry-run
             exit 0
           fi
-          python3 automacao/enviar_telegram.py --run-url "${RUN_URL}"
+          python3 automacao/enviar_telegram.py \
+            --estrategia parte1 \
+            --artifact-url "${ARTIFACT_URL}" \
+            --run-url "${RUN_URL}"
 
       - name: Notificar falha no Telegram
         if: ${{ failure() && env.ENVIAR_TELEGRAM != 'false' }}
