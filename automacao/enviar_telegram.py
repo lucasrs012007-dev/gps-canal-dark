@@ -1,15 +1,15 @@
 """Entrega automatica de Shorts renderizados e avisos de status no Telegram (stdlib apenas).
 
 Usa TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID do ambiente (ou .env local).
-Estrategia padrao V5.2/V6 (`--estrategia parte1`):
-- Quando existir `short_NN_parte1.mp4` (~21 MB), envia automaticamente apenas a Parte 1 via
-  `sendVideo` (evitando travar a API do Telegram tentando subir o arquivo inteiro de 40+ MB),
-  acompanhada do link direto dos GitHub Artifacts (onde estao o completo e a Parte 2) e da
-  legenda pronta para postagem.
+Estrategia padrao V5.2/V6 (`--estrategia partes`):
+- Quando existirem `short_NN_parte1.mp4` (~21 MB) e `short_NN_parte2.mp4` (~20 MB), envia
+  primeiro a Parte 1 (com legenda de gancho + link direto dos GitHub Artifacts) e logo em
+  seguida a Parte 2 (com legenda de continuacao/desfecho), sem tentar subir o arquivo
+  pesado inteiro (`short_NN.mp4` de 40+ MB, que permanece disponivel nos GitHub Artifacts).
 - Em modo `--teste` (quando existe apenas `short_NN.mp4` curto de ~1 MB) ou em videos de
   parte unica abaixo de 45 MB, envia o MP4 disponivel com o mesmo formato.
-- Se o arquivo selecionado ultrapassar 45 MB ou falhar no upload, faz fallback automatico para
-  `sendMessage` com o link do Artifact e a legenda pronta para postagem.
+- Cada arquivo respeita o teto seguro de 45 MB, com fallback automatico `sendVideo` ->
+  `sendDocument` -> `sendMessage` (com link dos Artifacts e legenda pronta para postagem).
 
 Uso (na raiz do repositorio):
     python3 automacao/enviar_telegram.py --run-url "https://github.com/.../actions/runs/123" \
@@ -26,6 +26,7 @@ import mimetypes
 import os
 import re
 import sys
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -47,6 +48,7 @@ ARQUIVO_ENV = RAIZ / ".env"
 LIMITE_MB_PADRAO = 45.0
 LIMITE_BYTES_TELEGRAM = int(LIMITE_MB_PADRAO * 1024 * 1024)  # Margem segura abaixo do teto de 50 MB
 LIMITE_CAPTION_TELEGRAM = 1000  # Teto oficial da Bot API e 1024 caracteres
+PAUSA_ENTRE_PARTES_S = 1.5
 
 PADRAO_LINHA_ROTEIRO = re.compile(r"^\[\d+\s*-\s*\d+\]\s*\|")
 PADRAO_TAGS_VOZ = re.compile(r"\[/?VOZ(?::[a-zA-Z0-9_]+)?\]", re.IGNORECASE)
@@ -117,9 +119,13 @@ def extrair_gancho_roteiro(video_info: dict, raiz: Path = RAIZ) -> str:
     return "Uma historia de suspense que muda completamente nos segundos finais."
 
 
-def montar_hashtags(video_info: dict, maximo: int = 6) -> str:
+def montar_hashtags(video_info: dict, parte: str = "parte1", maximo: int = 6) -> str:
     """Gera hashtags limpas e relevantes a partir das palavras-chave do video ativo."""
-    base = ["shorts", "suspense", "terrorpsicologico", "historiasdesuspense"]
+    base = (
+        ["shorts", "suspense", "terrorpsicologico", "parte2"]
+        if parte == "parte2"
+        else ["shorts", "suspense", "terrorpsicologico", "historiasdesuspense"]
+    )
     extras: list[str] = []
     palavras = video_info.get("palavras_chave") or []
     if isinstance(palavras, list):
@@ -133,16 +139,36 @@ def montar_hashtags(video_info: dict, maximo: int = 6) -> str:
     return " ".join(f"#{t}" for t in todas)
 
 
-def montar_legenda_postagem(video_info: dict, eh_parte1: bool = True, raiz: Path = RAIZ) -> str:
+def montar_legenda_postagem(
+    video_info: dict,
+    parte: str | None = None,
+    eh_parte1: bool = True,
+    raiz: Path = RAIZ,
+) -> str:
     """Monta legenda pronta para copiar e colar no Reels / YouTube Shorts / TikTok."""
     titulo = str(video_info.get("titulo", "Short Dark")).strip()
-    sufixo_parte = " (PARTE 1)" if eh_parte1 else ""
+    modo = parte if parte in ("parte1", "parte2", "unico") else ("parte1" if eh_parte1 else "unico")
+
+    if modo == "parte2":
+        cta = (
+            "Você esperava esse final? Comente o que faria no lugar dele. "
+            "Quer aprender a criar vídeos assim no automático? Comente EU QUERO que eu te envio no Direct."
+        )
+        hashtags = montar_hashtags(video_info, parte="parte2")
+        return (
+            f"{titulo} (PARTE 2 - FINAL)\n"
+            f"Continuação da Parte 1: assista ao desfecho completo de {titulo}.\n\n"
+            f"{cta}\n\n"
+            f"{hashtags}"
+        )
+
+    sufixo_parte = " (PARTE 1)" if modo == "parte1" else ""
     gancho = extrair_gancho_roteiro(video_info, raiz=raiz)
     cta = (
         "Quer aprender a criar vídeos assim no automático? "
         "Comente EU QUERO que eu te envio o passo a passo no Direct."
     )
-    hashtags = montar_hashtags(video_info)
+    hashtags = montar_hashtags(video_info, parte="parte1")
     return f"{titulo}{sufixo_parte}\n{gancho}\n\n{cta}\n\n{hashtags}"
 
 
@@ -159,10 +185,21 @@ def montar_caption_telegram(
     vid_num = video_info.get("id")
     prefixo = f"Video {int(vid_num):02d}: {titulo}" if vid_num is not None else titulo
 
-    eh_parte1 = "_parte1" in arquivo.stem
-    etiqueta = "Parte 1" if eh_parte1 else ("Parte 2" if "_parte2" in arquivo.stem else "Preview/Completo")
-    tamanho_mb = (arquivo.stat().st_size / (1024 * 1024)) if arquivo.is_file() else 0.0
+    stem_low = arquivo.stem.lower()
+    if "_parte1" in stem_low:
+        modo = "parte1"
+        etiqueta = "Parte 1"
+        cabecalho_legenda = "LEGENDA PRONTA PARA POSTAGEM (PARTE 1):"
+    elif "_parte2" in stem_low:
+        modo = "parte2"
+        etiqueta = "Parte 2 (Final)"
+        cabecalho_legenda = "LEGENDA PRONTA PARA POSTAGEM (PARTE 2):"
+    else:
+        modo = "unico"
+        etiqueta = "Preview/Completo"
+        cabecalho_legenda = "LEGENDA PRONTA PARA POSTAGEM:"
 
+    tamanho_mb = (arquivo.stat().st_size / (1024 * 1024)) if arquivo.is_file() else 0.0
     link_artifacts = (artifact_url or "").strip()
     if not link_artifacts and run_url:
         link_artifacts = f"{run_url.rstrip('/')}#artifacts"
@@ -171,15 +208,15 @@ def montar_caption_telegram(
         f"{prefixo} | {etiqueta}",
         f"Arquivo enviado: {arquivo.name} ({tamanho_mb:.1f} MB)",
     ]
-    if outros_arquivos:
+    if outros_arquivos and modo != "parte2":
         nomes_outros = ", ".join(p.name for p in outros_arquivos)
-        linhas.append(f"Demais arquivos nos Artifacts: {nomes_outros}")
+        linhas.append(f"Arquivo completo nos Artifacts: {nomes_outros}")
     if link_artifacts:
         linhas.append(f"GitHub Artifacts: {link_artifacts}")
 
-    legenda_post = montar_legenda_postagem(video_info, eh_parte1=eh_parte1, raiz=raiz)
+    legenda_post = montar_legenda_postagem(video_info, parte=modo, raiz=raiz)
     linhas.append("")
-    linhas.append("LEGENDA PRONTA PARA POSTAGEM:")
+    linhas.append(cabecalho_legenda)
     linhas.append(legenda_post)
 
     texto = "\n".join(linhas).strip()
@@ -379,14 +416,15 @@ def descobrir_arquivos_video_atual() -> tuple[dict, list[Path]]:
 
 def selecionar_arquivos_entrega(
     candidatos: list[Path],
-    estrategia: str = "parte1",
+    estrategia: str = "partes",
 ) -> tuple[list[Path], list[Path]]:
-    """Seleciona quais MP4s sobem no Telegram e quais ficam apenas no GitHub Artifacts.
+    """Seleciona quais MP4s sobem no Telegram e quais ficam apenas nos GitHub Artifacts.
 
-    - estrategia='parte1' (padrao): se existir `*_parte1.mp4`, envia APENAS a Parte 1 (~21 MB),
-      evitando travar o bot tentando subir o arquivo inteiro de 40+ MB. Se nao houver `_parte1`
-      (ex.: modo --teste de 2s ou video curto de parte unica), envia o arquivo disponivel.
-    - estrategia='todas': mantem envio sequencial de todos os arquivos.
+    - estrategia='partes' (padrao): envia primeiro `*_parte1.mp4` e logo em seguida `*_parte2.mp4`,
+      deixando o arquivo pesado completo (`short_NN.mp4`) apenas nos Artifacts. Quando nao houver
+      partes fatiadas (ex.: modo --teste de 2s ou video curto de parte unica), envia o arquivo disponivel.
+    - estrategia='parte1': envia apenas `*_parte1.mp4` (quando existir).
+    - estrategia='todas': envia todos os arquivos encontrados em sequencia.
     """
     existentes = [p for p in candidatos if p.is_file()]
     if not existentes:
@@ -396,11 +434,21 @@ def selecionar_arquivos_entrega(
         return existentes, []
 
     parte1 = next((p for p in existentes if "_parte1" in p.stem.lower()), None)
-    if parte1 is not None:
-        outros = [p for p in existentes if p != parte1]
-        return [parte1], outros
+    parte2 = next((p for p in existentes if "_parte2" in p.stem.lower()), None)
 
-    # Sem _parte1 (ex.: --teste ou video curto): envia o menor/primeiro arquivo disponivel
+    if estrategia == "parte1":
+        if parte1 is not None:
+            return [parte1], [p for p in existentes if p != parte1]
+        escolhido = existentes[0]
+        return [escolhido], [p for p in existentes if p != escolhido]
+
+    # Estrategia padrao 'partes': Parte 1 seguida da Parte 2 (sem subir o arquivo completo pesado)
+    partes_ordenadas = [p for p in (parte1, parte2) if p is not None]
+    if partes_ordenadas:
+        outros = [p for p in existentes if p not in partes_ordenadas]
+        return partes_ordenadas, outros
+
+    # Sem _parte1/_parte2 (ex.: --teste ou video curto): envia o primeiro arquivo disponivel
     escolhido = existentes[0]
     outros = [p for p in existentes if p != escolhido]
     return [escolhido], outros
@@ -408,7 +456,7 @@ def selecionar_arquivos_entrega(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Envia Parte 1 (~21 MB), link do GitHub Artifacts e legenda pronta no Telegram."
+        description="Envia Parte 1 e Parte 2 (<= 45 MB cada), link dos Artifacts e legendas prontas no Telegram."
     )
     parser.add_argument("--arquivos", nargs="*", type=Path, default=None, help="Lista manual de arquivos MP4.")
     parser.add_argument("--titulo", type=str, default=None, help="Titulo do video para legenda e status.")
@@ -416,9 +464,9 @@ def main() -> None:
     parser.add_argument("--artifact-url", type=str, default=None, help="URL direta do Artifact no GitHub Actions.")
     parser.add_argument(
         "--estrategia",
-        choices=("parte1", "todas"),
-        default="parte1",
-        help="Padrao 'parte1': envia apenas short_NN_parte1.mp4 (~21 MB) + link do Artifact + legenda pronta.",
+        choices=("partes", "parte1", "todas"),
+        default="partes",
+        help="Padrao 'partes': envia Parte 1 e Parte 2 em sequencia, mantendo o arquivo inteiro nos Artifacts.",
     )
     parser.add_argument(
         "--limite-mb",
@@ -468,7 +516,7 @@ def main() -> None:
 
     limite_bytes = int(max(1.0, float(args.limite_mb)) * 1024 * 1024)
 
-    for arq in para_enviar:
+    for idx, arq in enumerate(para_enviar):
         caption = montar_caption_telegram(
             video_info=video_info,
             arquivo=arq,
@@ -478,11 +526,17 @@ def main() -> None:
         )
         if args.dry_run:
             tam_mb = arq.stat().st_size / (1024 * 1024)
-            print(f"[DRY-RUN] Estrategia={args.estrategia} | Enviaria: {arq.name} ({tam_mb:.2f} MB)")
-            if apenas_artifact:
+            print(
+                f"[DRY-RUN] ({idx + 1}/{len(para_enviar)}) Estrategia={args.estrategia} | "
+                f"Enviaria: {arq.name} ({tam_mb:.2f} MB)"
+            )
+            if idx == 0 and apenas_artifact:
                 print(f"[DRY-RUN] Mantidos apenas nos Artifacts: {[p.name for p in apenas_artifact]}")
-            print(f"[DRY-RUN] Caption ({len(caption)} chars):\n{caption}")
+            print(f"[DRY-RUN] Caption ({len(caption)} chars):\n{caption}\n")
             continue
+
+        if idx > 0 and PAUSA_ENTRE_PARTES_S > 0:
+            time.sleep(PAUSA_ENTRE_PARTES_S)
 
         res = enviar_arquivo_video(
             token=token,
@@ -494,8 +548,8 @@ def main() -> None:
             limite_bytes=limite_bytes,
         )
         print(
-            f"Telegram OK [{res['modo']}]: {res['arquivo']} ({res['tamanho_mb']} MB) | "
-            f"caption={len(caption)} chars",
+            f"Telegram OK ({idx + 1}/{len(para_enviar)}) [{res['modo']}]: "
+            f"{res['arquivo']} ({res['tamanho_mb']} MB) | caption={len(caption)} chars",
             flush=True,
         )
 

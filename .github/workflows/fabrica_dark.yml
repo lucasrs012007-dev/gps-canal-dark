@@ -19,7 +19,7 @@ on:
         default: false
         type: boolean
       enviar_telegram:
-        description: "Envia a Parte 1 (~21 MB) + link do Artifact + legenda pronta no Telegram"
+        description: "Envia Parte 1 e Parte 2 (<= 45 MB cada) + link do Artifact + legendas prontas no Telegram"
         required: false
         default: true
         type: boolean
@@ -187,7 +187,7 @@ jobs:
             cenas.json
             audio/eventos.json
 
-      - name: Estacao 4 - Enviar Parte 1 (~21 MB), link do Artifact e legenda pronta no Telegram
+      - name: Estacao 4 - Enviar Parte 1 e Parte 2 + link do Artifact e legendas prontas no Telegram
         if: ${{ success() && env.ENVIAR_TELEGRAM != 'false' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -200,14 +200,14 @@ jobs:
             [ -z "${TELEGRAM_CHAT_ID}" ] && echo " - Falta configurar TELEGRAM_CHAT_ID"
             echo "Simulando payload de entrega (--dry-run) para conferir o formato:"
             python3 automacao/enviar_telegram.py \
-              --estrategia parte1 \
+              --estrategia partes \
               --artifact-url "${ARTIFACT_URL}" \
               --run-url "${RUN_URL}" \
               --dry-run
             exit 0
           fi
           python3 automacao/enviar_telegram.py \
-            --estrategia parte1 \
+            --estrategia partes \
             --artifact-url "${ARTIFACT_URL}" \
             --run-url "${RUN_URL}"
 

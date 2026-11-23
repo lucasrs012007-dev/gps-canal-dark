@@ -261,38 +261,176 @@ class ClienteCDP:
             pass
 
 
-def abrir_cdp(navegador: str, porta_dbg: int, perfil_tmp: str) -> tuple[subprocess.Popen, str]:
+CDP_TIMEOUT_PADRAO_S = 45.0
+CDP_MAX_TENTATIVAS = 3
+CDP_POLL_INTERVALO_S = 0.2
+
+
+def _encerrar_processo_navegador(proc: subprocess.Popen | None) -> None:
+    """Encerra o processo do Chromium com terminate -> wait -> kill para nao deixar orfaos."""
+    if proc is None:
+        return
+    try:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    pass
+    except Exception:
+        pass
+
+
+def _ler_stderr_log(caminho: Path, max_chars: int = 2000) -> str:
+    try:
+        if not caminho.is_file():
+            return ""
+        texto = caminho.read_text(encoding="utf-8", errors="replace").strip()
+        if len(texto) > max_chars:
+            return "...[truncado]...\n" + texto[-max_chars:]
+        return texto
+    except Exception:
+        return ""
+
+
+def montar_cmd_chromium_cdp(navegador: str, porta_dbg: int, perfil_dir: str) -> list[str]:
+    """Monta linha de comando estavel do Chromium/Chrome headless para Linux/GitHub Actions e local."""
     cmd = [
         navegador,
         "--headless=new",
         "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-extensions",
         "--hide-scrollbars",
         "--mute-audio",
+        "--remote-debugging-address=127.0.0.1",
         f"--window-size={LARGURA},{ALTURA}",
         f"--remote-debugging-port={porta_dbg}",
-        f"--user-data-dir={perfil_tmp}",
+        f"--user-data-dir={perfil_dir}",
         "about:blank",
     ]
     if os.name != "nt":
         cmd.insert(2, "--no-sandbox")
-        cmd.insert(3, "--disable-dev-shm-usage")
+        cmd.insert(3, "--disable-setuid-sandbox")
+        cmd.insert(4, "--disable-dev-shm-usage")
+    return cmd
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    url_lista = f"http://127.0.0.1:{porta_dbg}/json/list"
 
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    for _ in range(80):
-        if proc.poll() is not None:
-            raise RuntimeError(f"Navegador encerrou antes de abrir o CDP (codigo {proc.returncode}).")
+def abrir_cdp(
+    navegador: str,
+    porta_dbg: int,
+    perfil_tmp: str,
+    *,
+    timeout_s: float = CDP_TIMEOUT_PADRAO_S,
+    max_tentativas: int = CDP_MAX_TENTATIVAS,
+    poll_intervalo_s: float = CDP_POLL_INTERVALO_S,
+    popen_fn=None,
+    opener_fn=None,
+    porta_fn=None,
+    sleep_fn=time.sleep,
+    monotonic_fn=time.monotonic,
+) -> tuple[subprocess.Popen, str]:
+    """Abre o Chromium headless com timeout de 45s, ate 3 tentativas e log de stderr em caso de falha."""
+    max_t = max(1, int(max_tentativas))
+    timeout_real = max(1.0, float(timeout_s))
+    iniciar_proc = popen_fn or subprocess.Popen
+    obter_porta = porta_fn or porta_livre
+    opener = opener_fn or urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    ultimo_erro = "Tempo esgotado aguardando a porta CDP do navegador."
+    ultimo_stderr = ""
+
+    for tentativa in range(1, max_t + 1):
+        porta_atual = porta_dbg if tentativa == 1 else obter_porta()
+        perfil_tentativa = Path(perfil_tmp) / f"tentativa_{tentativa}_{porta_atual}"
+        shutil.rmtree(perfil_tentativa, ignore_errors=True)
+        perfil_tentativa.mkdir(parents=True, exist_ok=True)
+        stderr_log = perfil_tentativa / "chrome_stderr.log"
+
+        cmd = montar_cmd_chromium_cdp(navegador, porta_atual, str(perfil_tentativa))
+        proc: subprocess.Popen | None = None
+        stderr_fp = stderr_log.open("wb")
         try:
-            with opener.open(url_lista, timeout=1.0) as r:
-                alvos = [a for a in json.loads(r.read()) if a.get("type") == "page"]
-                if alvos and alvos[0].get("webSocketDebuggerUrl"):
-                    return proc, alvos[0]["webSocketDebuggerUrl"]
-        except Exception:
-            time.sleep(0.15)
-    proc.terminate()
-    raise RuntimeError("Tempo esgotado aguardando a porta CDP do navegador.")
+            proc = iniciar_proc(cmd, stdout=subprocess.DEVNULL, stderr=stderr_fp)
+        except Exception as exc:
+            stderr_fp.close()
+            shutil.rmtree(perfil_tentativa, ignore_errors=True)
+            ultimo_erro = f"Falha ao iniciar o navegador ({type(exc).__name__}: {exc})."
+            print(
+                f"AVISO abrir_cdp tentativa {tentativa}/{max_t} falhou: {ultimo_erro}",
+                flush=True,
+            )
+            if tentativa < max_t:
+                sleep_fn(1.0)
+            continue
+        finally:
+            try:
+                stderr_fp.close()
+            except Exception:
+                pass
+
+        url_lista = f"http://127.0.0.1:{porta_atual}/json/list"
+        deadline = monotonic_fn() + timeout_real
+        motivo_falha = f"Tempo esgotado ({timeout_real:.0f}s) aguardando a porta CDP {porta_atual} do navegador."
+        encerrou_cedo = False
+
+        while monotonic_fn() < deadline:
+            ret_code = proc.poll()
+            if ret_code is not None:
+                motivo_falha = f"Navegador encerrou antes de abrir o CDP (codigo {ret_code})."
+                encerrou_cedo = True
+                break
+            try:
+                with opener.open(url_lista, timeout=1.5) as r:
+                    alvos = [a for a in json.loads(r.read()) if a.get("type") == "page"]
+                    if alvos and alvos[0].get("webSocketDebuggerUrl"):
+                        if tentativa > 1:
+                            print(
+                                f"CDP conectado com sucesso na tentativa {tentativa}/{max_t} (porta {porta_atual}).",
+                                flush=True,
+                            )
+                        return proc, alvos[0]["webSocketDebuggerUrl"]
+            except Exception:
+                pass
+            if monotonic_fn() >= deadline:
+                break
+            sleep_fn(poll_intervalo_s)
+
+        _encerrar_processo_navegador(proc)
+        stderr_txt = _ler_stderr_log(stderr_log)
+        ultimo_erro = motivo_falha
+        ultimo_stderr = stderr_txt
+
+        print(
+            f"AVISO abrir_cdp tentativa {tentativa}/{max_t} falhou (porta {porta_atual}): {motivo_falha}",
+            flush=True,
+        )
+        if stderr_txt:
+            print(
+                f"--- stderr do navegador (tentativa {tentativa}/{max_t}) ---\n"
+                f"{stderr_txt}\n"
+                f"--- fim stderr ---",
+                flush=True,
+            )
+        else:
+            print(
+                f"(stderr do navegador vazio na tentativa {tentativa}/{max_t}; "
+                f"encerrou_cedo={encerrou_cedo})",
+                flush=True,
+            )
+
+        shutil.rmtree(perfil_tentativa, ignore_errors=True)
+        if tentativa < max_t:
+            sleep_fn(1.0)
+
+    detalhe_stderr = f"\nstderr do navegador:\n{ultimo_stderr}" if ultimo_stderr else ""
+    raise RuntimeError(f"{ultimo_erro} (apos {max_t} tentativa(s)).{detalhe_stderr}")
 
 
 def avaliar_js(cdp: ClienteCDP, expressao: str):
@@ -659,12 +797,7 @@ def main() -> None:
             ff.wait()
         if cdp:
             cdp.fechar()
-        if browser_proc and browser_proc.poll() is None:
-            browser_proc.terminate()
-            try:
-                browser_proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                browser_proc.kill()
+        _encerrar_processo_navegador(browser_proc)
         srv.shutdown()
         srv.server_close()
         shutil.rmtree(perfil_tmp, ignore_errors=True)
