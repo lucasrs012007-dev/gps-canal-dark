@@ -1,7 +1,7 @@
 {
-  "versao": 7,
+  "versao": 8,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 7,
+  "video_atual": 8,
   "videos": [
     {
       "id": 1,
@@ -160,10 +160,36 @@
         "output/short_07_parte1.mp4",
         "output/short_07_parte2.mp4"
       ],
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v5.2",
       "parte_label": "PARTE 1",
       "cta_modo": "pausa_meio"
+    },
+    {
+      "id": 8,
+      "slug": "espelho-do-banheiro-compartilhado",
+      "titulo": "Espelho do Banheiro Compartilhado",
+      "tema": "O reflexo no espelho comeca a agir por conta propria na lavanderia do predio",
+      "palavras_chave": [
+        "lavanderia",
+        "suspense",
+        "terror",
+        "maquina",
+        "bianca",
+        "roupas"
+      ],
+      "roteiro": "roteiro_08.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_08.mp4",
+      "status": "em_producao",
+      "motor": "v6",
+      "parte_label": "PARTE 1",
+      "cta_modo": "pausa_meio",
+      "saidas_partes": [
+        "output/short_08_parte1.mp4",
+        "output/short_08_parte2.mp4"
+      ]
     }
   ]
 }
