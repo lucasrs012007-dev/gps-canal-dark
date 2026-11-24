@@ -1,6 +1,9 @@
 name: Fabrica Dark V6 (Render na Nuvem + Telegram)
 
 on:
+  schedule:
+    # Execucao diaria automatica as 15h00 de Brasilia (UTC-3 = 18h00 UTC)
+    - cron: "0 18 * * *"
   workflow_dispatch:
     inputs:
       titulo:
@@ -81,7 +84,6 @@ jobs:
           from pathlib import Path
 
           ev = os.environ.get("EVENT_NAME", "")
-          pref = "RD_" if ev == "repository_dispatch" else "WD_"
 
           def to_bool_str(val: str, padrao: bool) -> str:
               v = str(val or "").strip().lower()
@@ -91,9 +93,15 @@ jobs:
                   return "false"
               return "true" if padrao else "false"
 
-          usar_atual = to_bool_str(os.environ.get(pref + "USAR_ATUAL", ""), False)
-          enviar_tg = to_bool_str(os.environ.get(pref + "ENVIAR_TG", ""), True)
-          modo_teste = to_bool_str(os.environ.get(pref + "MODO_TESTE", ""), False)
+          if ev == "schedule":
+              usar_atual = "false"
+              enviar_tg = "true"
+              modo_teste = "false"
+          else:
+              pref = "RD_" if ev == "repository_dispatch" else "WD_"
+              usar_atual = to_bool_str(os.environ.get(pref + "USAR_ATUAL", ""), False)
+              enviar_tg = to_bool_str(os.environ.get(pref + "ENVIAR_TG", ""), True)
+              modo_teste = to_bool_str(os.environ.get(pref + "MODO_TESTE", ""), False)
 
           gh_env = Path(os.environ["GITHUB_ENV"])
           with gh_env.open("a", encoding="utf-8") as arq:
@@ -134,10 +142,14 @@ jobs:
           from pathlib import Path
 
           ev = os.environ.get("EVENT_NAME", "")
-          pref = "RD_" if ev == "repository_dispatch" else "WD_"
           usar_atual = str(os.environ.get("USAR_VIDEO_ATUAL", "false")).strip().lower() == "true"
-          roteiro = os.environ.get(pref + "ROTEIRO", "").strip()
-          titulo = os.environ.get(pref + "TITULO", "").strip()
+          if ev == "schedule":
+              roteiro = ""
+              titulo = ""
+          else:
+              pref = "RD_" if ev == "repository_dispatch" else "WD_"
+              roteiro = os.environ.get(pref + "ROTEIRO", "").strip()
+              titulo = os.environ.get(pref + "TITULO", "").strip()
 
           if usar_atual:
               print("Modo usar_video_atual=true: mantendo video ativo do historico_videos.json.")

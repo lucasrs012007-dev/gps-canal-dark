@@ -60,6 +60,79 @@ ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
 CTA_FALA_PADRAO = "Quer aprender a fazer vídeos assim no automático? Comente EU QUERO."
 LIMITE_PALAVRAS_PARTE_2 = 130
+CANAL_NOME = "E Se Voce?"
+
+PILARES_EDITORIAIS: tuple[dict[str, str], ...] = (
+    {
+        "id": "cenarios_hipoteticos",
+        "nome": "Cenarios hipoteticos ('E se voce...?')",
+        "gancho": "Comece direto em segunda pessoa com uma pergunta ou situacao extrema de sobrevivencia/decisao ('E se voce ficasse preso em...', 'E se voce acordasse...', 'E se o mundo parasse por...').",
+        "instrucoes": (
+            "Conduza o espectador passo a passo em segunda pessoa ('voce') pelos minutos ou horas seguintes, "
+            "mostrando reacoes fisicas reais, dilemas psicologicos e escalada de tensao ate uma consequencia "
+            "final surpreendente e memoravel na ultima frase."
+        ),
+        "exemplos": (
+            "ficar preso dentro de um submarino sem comunicacao, acordar sendo a unica pessoa na cidade, "
+            "aceitar ficar 30 dias numa sala branca sem relogio por 10 milhoes, perder a gravidade por 60 segundos, "
+            "ficar preso num teleferico durante tempestade, acordar 24 horas antes de um apagao global"
+        ),
+        "horario_padrao": "15:00",
+        "titulo_fallback": "E Se Voce Acordasse Sozinho",
+    },
+    {
+        "id": "curiosidades_bizarras",
+        "nome": "Curiosidades bizarras e fatos pouco conhecidos",
+        "gancho": "Abra com um fato real chocante, contraintuitivo ou quase ninguem sabe ('Voce sabia que existe...', 'Existe um fenomeno real...', 'Seu cerebro esconde um mecanismo bizarro...').",
+        "instrucoes": (
+            "Apresente um fato real e documentado de ciencia, psicologia, biologia humana, engenharia, "
+            "natureza extrema ou historia pouco conhecida. Estruture em camadas: o que parece comum, "
+            "a explicacao surpreendente por tras e o detalhe final inquietante que prende a atencao."
+        ),
+        "exemplos": (
+            "o som oceanico The Bloop e o Ponto Nemo, a sindrome da mao alheia, a Zona de Silencio no deserto, "
+            "por que o espaco tem cheiro de metal queimado, protocolos reais ocultos de aviacao ou usinas, "
+            "o fenomeno da paralisia de decisao em ambientes extremos, cidades subterraneas reais"
+        ),
+        "horario_padrao": "14:20",
+        "titulo_fallback": "O Fato Bizarro Que Poucos Sabem",
+    },
+    {
+        "id": "misterios_reais",
+        "nome": "Misterios reais e lugares proibidos",
+        "gancho": "Abra apresentando um lugar proibido real, um sinal sem explicacao ou um caso documentado ('Existe um lugar no planeta onde entrar e crime...', 'Ha um misterio real que ninguem resolveu...').",
+        "instrucoes": (
+            "Narre um misterio real ou local de acesso vetado por governos/ciencia com detalhes concretos "
+            "(localizacao, datas, protocolos de seguranca ou registros oficiais), aumentando o clima "
+            "investigativo ate o enigma sem resposta que fecha o episodio."
+        ),
+        "exemplos": (
+            "Ilha Sentinela do Norte, Cofre Global de Sementes de Svalbard, Caverna de Lascaux fechada ao publico, "
+            "Ilha da Queimada Grande, estacao de radio fantasma UVB-76, Area de exclusao em ilhas remotas, "
+            "arquivos secretos de expedicoes polares ou navios encontrados a deriva"
+        ),
+        "horario_padrao": "21:40",
+        "titulo_fallback": "O Lugar Proibido Que Ninguem Entra",
+    },
+    {
+        "id": "suspense_urbano",
+        "nome": "Relatos curtos de suspense urbano",
+        "gancho": "Abra situando rapidamente um personagem comum em um cenario urbano cotidiano realista (metro, hotel, hospital, estacionamento, entrega, portaria, escritorio vazio) com um detalhe fora do normal.",
+        "instrucoes": (
+            "Desenvolva um micro-suspense psicologico realista e cinematografico sem repetir cenarios "
+            "do historico (evite repetir madrugada no quarto ou espelho se ja apareceram recentemente), "
+            "escalando a tensao ate um plot twist seco e perturbador na ultima frase."
+        ),
+        "exemplos": (
+            "ultimo vagao do metro parado no tunel, camera de seguranca de estacionamento subterraneo, "
+            "quarto de hotel com recado escrito no mesmo dia, plantao noturno em hospital, "
+            "cabine de pedagio isolada, entrega de encomenda sem remetente"
+        ),
+        "horario_padrao": "23:18",
+        "titulo_fallback": "O Aviso no Ultimo Vagao",
+    },
+)
+PILARES_POR_ID: dict[str, dict[str, str]] = {p["id"]: p for p in PILARES_EDITORIAIS}
 
 MODULOS_CENARIO: tuple[str, ...] = (
     "quarto_noturno",
@@ -296,15 +369,15 @@ def inferir_modulo_por_texto(texto: str, idx: int, total: int) -> str:
             return "big_face"
 
     regras: list[tuple[str, tuple[str, ...]]] = [
-        ("celular_notificacao", ("celular", "mensagem", "notificacao", "whatsapp", "tela", "ligacao", "chamada", "audio", "foto", "sms", "vibra", "vibrou", "toca", "tocou")),
-        ("camera_cctv", ("camera", "cctv", "monitor", "gravacao", "gravando", "lente", "baba eletronica", "portaria", "vigilancia", "filmando")),
-        ("elevador_cabine", ("elevador", "subsolo", "andar", "botoeira", "espelho", "cabine", "terreo")),
-        ("carro_noite", ("carro", "estrada", "rodovia", "gps", "farol", "volante", "motorista", "retrovisor", "asfalto", "pista", "freio")),
-        ("corredor_escuro", ("corredor", "escada", "cadeira", "passos", "hall", "porta", "macaneta", "fechadura", "batida", "batendo")),
-        ("quarto_noturno", ("quarto", "cama", "travesseiro", "cobertor", "guarda roupa", "armario", "acorda", "acordou", "dormindo", "janela", "cortina")),
-        ("sala_cozinha", ("sala", "cozinha", "sofa", "mesa", "geladeira", "televisao", "tv", "sacola", "apartamento", "casa")),
-        ("big_face", ("congelou", "gelou", "coracao", "suor", "olhou", "rosto", "respiracao", "panico", "medo")),
-        ("blecaute_olhos", ("blecaute", "breu", "apagao", "escuridao", "olhos", "vulto", "sombra")),
+        ("celular_notificacao", ("celular", "mensagem", "notificacao", "whatsapp", "tela", "ligacao", "chamada", "audio", "foto", "sms", "vibra", "vibrou", "toca", "tocou", "alerta", "sinal", "radio")),
+        ("camera_cctv", ("camera", "cctv", "monitor", "gravacao", "gravando", "lente", "baba eletronica", "portaria", "vigilancia", "filmando", "satelite", "radar", "arquivo", "cientista", "laboratorio", "expedicao", "ilha", "oceano", "deserto")),
+        ("elevador_cabine", ("elevador", "subsolo", "andar", "botoeira", "espelho", "cabine", "terreo", "submarino", "capsula", "bunker", "cofre", "teleferico", "sala branca")),
+        ("carro_noite", ("carro", "estrada", "rodovia", "gps", "farol", "volante", "motorista", "retrovisor", "asfalto", "pista", "freio", "aviao", "navio", "trem", "metro", "vagao")),
+        ("corredor_escuro", ("corredor", "escada", "cadeira", "passos", "hall", "porta", "macaneta", "fechadura", "batida", "batendo", "tunel", "caverna", "subterraneo", "ruina")),
+        ("quarto_noturno", ("quarto", "cama", "travesseiro", "cobertor", "guarda roupa", "armario", "acorda", "acordou", "dormindo", "janela", "cortina", "hotel")),
+        ("sala_cozinha", ("sala", "cozinha", "sofa", "mesa", "geladeira", "televisao", "tv", "sacola", "apartamento", "casa", "escritorio")),
+        ("big_face", ("congelou", "gelou", "coracao", "suor", "olhou", "rosto", "respiracao", "panico", "medo", "cerebro", "mente", "oxigenio", "gravidade", "pressao", "corpo")),
+        ("blecaute_olhos", ("blecaute", "breu", "apagao", "escuridao", "olhos", "vulto", "sombra", "silencio", "vazio")),
     ]
     melhor_mod = "quarto_noturno"
     melhor_score = 0
@@ -646,16 +719,24 @@ def _montar_prompt_gemini(
     roteiro_bruto: str,
     titulo_sugerido: str | None,
     sfx_validos: list[str],
+    pilar: dict[str, str] | None = None,
 ) -> str:
     titulo_hint = f"Titulo sugerido pelo usuario: {titulo_sugerido}\n" if titulo_sugerido else ""
+    pilar_hint = (
+        f"Pilar editorial deste episodio: {pilar['nome']} (id={pilar['id']}).\n"
+        if pilar is not None
+        else ""
+    )
+    horario_ex = pilar["horario_padrao"] if pilar is not None else "15:00"
     return (
-        "Voce e o Diretor IA V6 de uma fabrica de YouTube Shorts de micro-suspense psicologico em pt-BR.\n"
+        f"Voce e o Diretor IA V6 do canal '{CANAL_NOME}' (YouTube Shorts / Reels de alta retencao em pt-BR: "
+        "cenarios hipoteticos, curiosidades bizarras, misterios reais, lugares proibidos e suspense urbano).\n"
         "Transforme o roteiro bruto abaixo em um plano estruturado JSON estrito.\n"
         "REGRAS OBRIGATORIAS:\n"
         "1. ZERO emoji e ZERO travessao (em-dash ou en-dash) em qualquer texto.\n"
-        "2. Preserve fielmente a historia do roteiro bruto em portugues natural, dividida em 6 a 12 blocos narrativos.\n"
+        "2. Preserve fielmente o roteiro bruto em portugues natural, dividido em 6 a 12 blocos narrativos.\n"
         "3. Cada bloco escolhe:\n"
-        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use sussurro_twist no bloco final de revelacao; nunca use cta_comercial nos blocos de historia).\n"
+        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use sussurro_twist no bloco final de impacto/revelacao; nunca use cta_comercial nos blocos de historia).\n"
         f"   - modulo: um de {list(MODULOS_CENARIO)}.\n"
         f"   - mood: um de {list(MOODS_VALIDOS)}.\n"
         f"   - expressao: um de {list(EXPRESSOES_VALIDAS)}.\n"
@@ -663,18 +744,20 @@ def _montar_prompt_gemini(
         f"   - sfx_depois: null ou um de {sfx_validos} (coloque impacto_twist no penultimo bloco antes da revelacao final; no maximo 3 SFX no total).\n"
         "   - props: objeto com textos curtos reais quando aplicavel (celular_app, celular_remetente, celular_mensagem, celular_mensagem_2, cctv_cam, cctv_local, cctv_status, elevador_andar, gps_destino, gps_alerta, corredor_objeto, objeto, vulto, pose).\n"
         "4. katana_hits: lista de 3 a 5 impactos curtos (1 a 2 palavras em MAIUSCULAS), cada um com bloco_idx (indice 0-based do bloco), palavra_gatilho (uma palavra exata sem acento/pontuacao presente no texto daquele bloco), linhas (lista de 1 a 2 strings curtas), duracao (0.36 a 0.48), cor ('red', 'yellow' ou 'white').\n"
-        "5. horario: string HH:MM mencionada no roteiro (ou horario noturno coerente como '02:47').\n"
-        "6. Responda APENAS com JSON valido no formato:\n"
+        f"5. horario: string HH:MM mencionada no roteiro (ou horario coerente com o clima do episodio, como '{horario_ex}').\n"
+        "6. protagonista.nome: nome do personagem do roteiro ou 'Voce' quando narrado em segunda pessoa/documental.\n"
+        "7. Responda APENAS com JSON valido no formato:\n"
         "{\n"
         '  "titulo": "...",\n'
         '  "tema": "resumo curto em 1 frase",\n'
         '  "palavras_chave": ["kw1", "kw2", "kw3", "kw4", "kw5"],\n'
-        '  "horario": "02:47",\n'
-        '  "protagonista": {"nome": "...", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
+        f'  "horario": "{horario_ex}",\n'
+        '  "protagonista": {"nome": "Voce", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
         '  "paleta": {"bg_navy": "#0A0F1D", "bg_violet": "#130926", "bg_red": "#3B0A0A", "accent": "#38D9FF", "alert": "#FF3B30", "yellow": "#FFD400"},\n'
         '  "blocos": [{"perfil_voz": "...", "texto": "...", "modulo": "...", "mood": "...", "expressao": "...", "camera": "...", "sfx_depois": null, "props": {}}],\n'
         '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "travou", "linhas": ["TRAVOU"], "duracao": 0.42, "cor": "red"}]\n'
         "}\n\n"
+        f"{pilar_hint}"
         f"{titulo_hint}"
         "ROTEIRO BRUTO:\n"
         f"{roteiro_bruto}\n"
@@ -988,14 +1071,46 @@ def _chamar_gemini_json(
     raise RuntimeError(f"Todos os modelos Gemini falharam ({sorted(testados)}). Ultimo erro: {ultimo_erro_msg}")
 
 
+def selecionar_proximo_pilar(
+    dados_hist: dict,
+    proximo_id: int,
+    pilar_forcado: str | None = None,
+) -> dict[str, str]:
+    """Alterna automaticamente entre os 4 pilares do canal 'E Se Voce?' sem repetir o anterior."""
+    if pilar_forcado:
+        chave = str(pilar_forcado).strip().lower()
+        if chave not in PILARES_POR_ID:
+            validos = ", ".join(PILARES_POR_ID.keys())
+            raise ValueError(f"Pilar editorial invalido: {pilar_forcado!r}. Opcoes validas: {validos}.")
+        return PILARES_POR_ID[chave]
+
+    videos = dados_hist.get("videos") or []
+    ultimo_pilar: str | None = None
+    for v in reversed(videos):
+        p_id = str(v.get("pilar", "") or "").strip().lower()
+        if p_id in PILARES_POR_ID:
+            ultimo_pilar = p_id
+            break
+
+    if ultimo_pilar is not None:
+        ordem_ids = [p["id"] for p in PILARES_EDITORIAIS]
+        idx_prox = (ordem_ids.index(ultimo_pilar) + 1) % len(PILARES_EDITORIAIS)
+        return PILARES_EDITORIAIS[idx_prox]
+
+    # Apos o Video 08 (suspense/terror), inicia a rotacao no pilar 0 ('cenarios_hipoteticos') para o Video 09
+    idx_padrao = max(0, int(proximo_id) - 9) % len(PILARES_EDITORIAIS)
+    return PILARES_EDITORIAIS[idx_padrao]
+
+
 def _resumir_historico_proibido(dados_hist: dict) -> str:
     linhas: list[str] = []
     for v in dados_hist.get("videos", []):
         vid = int(v.get("id", 0))
         titulo = str(v.get("titulo", "")).strip()
         tema = str(v.get("tema", "")).strip()
+        pilar_tag = f" | Pilar: {v['pilar']}" if v.get("pilar") else ""
         kws = ", ".join(str(k) for k in v.get("palavras_chave", [])[:6])
-        linhas.append(f"- Video {vid:02d}: '{titulo}' | Tema: {tema} | Palavras-chave: {kws}")
+        linhas.append(f"- Video {vid:02d}: '{titulo}'{pilar_tag} | Tema: {tema} | Palavras-chave: {kws}")
     return "\n".join(linhas) if linhas else "- (nenhum video anterior)"
 
 
@@ -1004,43 +1119,47 @@ def _montar_prompt_roteiro_inedito(
     proximo_id: int,
     titulo_sugerido: str | None = None,
     motivo_rejeicao: str | None = None,
+    pilar: dict[str, str] | None = None,
 ) -> str:
+    pilar_ativo = pilar or selecionar_proximo_pilar(dados_hist, proximo_id)
     proibidos = _resumir_historico_proibido(dados_hist)
     dica_titulo = (
         f"Use ou adapte este titulo solicitado pelo usuario: '{titulo_sugerido}'.\n"
         if titulo_sugerido
-        else "Crie um titulo curto, magnetico e inedito em portugues do Brasil (3 a 6 palavras).\n"
+        else "Crie um titulo curto, magnetico e inedito em portugues do Brasil (3 a 7 palavras) alinhado ao pilar.\n"
     )
     aviso_rej = (
         f"\nATENCAO: a tentativa anterior foi rejeitada por similaridade ({motivo_rejeicao}). "
-        "Mude COMPLETAMENTE o cenario, os personagens, o objeto central e o plot twist!\n"
+        "Mude COMPLETAMENTE o assunto, o cenario, os elementos centrais e a revelacao final!\n"
         if motivo_rejeicao
         else ""
     )
     return (
-        f"Voce e o roteirista-chefe de um canal viral de YouTube Shorts / Reels de micro-suspense "
-        f"psicologico em portugues do Brasil (Video {proximo_id:02d}).\n"
-        "Sua missao e criar uma historia 100% INEDITA, realista, cotidiana e arrepiante.\n\n"
-        "TEMAS JA PRODUZIDOS (PROIBIDO REPETIR CENARIO, PREMISSA, OBJETO OU PLOT TWIST):\n"
+        f"Voce e o roteirista-chefe do canal '{CANAL_NOME}' (YouTube Shorts / Reels de altissima retencao "
+        f"em portugues do Brasil, episodio Video {proximo_id:02d}).\n"
+        "O canal alterna entre 4 pilares: cenarios hipoteticos ('E se voce...?'), curiosidades bizarras e "
+        "fatos pouco conhecidos, misterios reais e lugares proibidos, e relatos curtos de suspense urbano.\n\n"
+        f"PILAR OBRIGATORIO DESTE EPISODIO: {pilar_ativo['nome']} (id={pilar_ativo['id']})\n"
+        f"- Gancho inicial obrigatorio: {pilar_ativo['gancho']}\n"
+        f"- Desenvolvimento editorial: {pilar_ativo['instrucoes']}\n"
+        f"- Territorios de inspiracao (escolha algo inedito que NAO esteja no historico): {pilar_ativo['exemplos']}.\n\n"
+        "TEMAS JA PRODUZIDOS (PROIBIDO REPETIR TEMA, CENARIO, OBJETO CENTRAL OU REVELACAO):\n"
         f"{proibidos}\n"
         f"{aviso_rej}\n"
         "REGRAS OBRIGATORIAS DO ROTEIRO:\n"
         f"1. {dica_titulo}"
-        "2. Escreva entre 185 e 245 palavras (ritmo rapido para renderizar Parte 1 e Parte 2 automaticas).\n"
-        "3. Comece com um horario exato da madrugada ou noite (ex.: 'Duas e dezessete da manha.') e um "
-        "protagonista com nome brasileiro comum em uma situacao cotidiana concreta e diferente dos videos "
-        "anteriores (ex.: lavanderia 24 horas, ultimo vagao do metro, quarto de hotel, plantao noturno, "
-        "estacionamento de shopping, onibus interestadual, farmacia de madrugada, caixa eletronico, "
-        "cabine de pedagio, quarto de Airbnb).\n"
-        "4. Use frases curtas, diretas e cinematograficas, com escalada de tensao ate um plot twist seco "
-        "e perturbador na ultima frase.\n"
+        "2. Escreva entre 185 e 245 palavras (ritmo agil e continuo para gerar automaticamente Parte 1 e Parte 2).\n"
+        "3. Siga estritamente o pilar obrigatorio acima (nao transforme cenarios hipoteticos, curiosidades "
+        "ou misterios reais em historia generica de terror de madrugada).\n"
+        "4. Use frases curtas, diretas e visuais, com gancho forte nos primeiros 3 segundos, cliffhanger "
+        "natural no meio (transicao Parte 1 -> Parte 2) e impacto final seco e inesquecivel na ultima frase.\n"
         "5. ZERO emoji, ZERO travessao (em-dash ou en-dash), ZERO tags [VOZ] ou [SFX], ZERO CTA "
         "(a CTA e as tags serao inseridas automaticamente na etapa seguinte).\n"
         "6. Responda APENAS com JSON valido no formato:\n"
         "{\n"
         '  "titulo": "Titulo Inedito Curto",\n'
         '  "tema": "Resumo objetivo em 1 frase da premissa inedita",\n'
-        '  "roteiro_bruto": "Texto corrido completo da historia em pt-BR (185 a 245 palavras)."\n'
+        '  "roteiro_bruto": "Texto corrido completo do roteiro em pt-BR (185 a 245 palavras)."\n'
         "}\n"
     )
 
@@ -1053,9 +1172,15 @@ def gerar_roteiro_inedito_gemini(
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     modelo_ativo_ref: dict[str, str] | None = None,
+    pilar: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     """Gera obrigatoriamente um titulo e roteiro bruto 100% ineditos via Gemini (contra historico)."""
     prox_id = proximo_numero_livre(dados_hist)
+    pilar_ativo = pilar or selecionar_proximo_pilar(dados_hist, prox_id)
+    print(
+        f"Diretor IA ('{CANAL_NOME}'): Video {prox_id:02d} -> pilar '{pilar_ativo['id']}' ({pilar_ativo['nome']}).",
+        flush=True,
+    )
     motivo_rej: str | None = None
     ultimo_erro = "Gemini nao retornou um roteiro inedito valido."
     ref_local = modelo_ativo_ref if modelo_ativo_ref is not None else {}
@@ -1066,6 +1191,7 @@ def gerar_roteiro_inedito_gemini(
             proximo_id=prox_id,
             titulo_sugerido=titulo_sugerido,
             motivo_rejeicao=motivo_rej,
+            pilar=pilar_ativo,
         )
         dados = _chamar_gemini_json(
             prompt=prompt,
@@ -1085,7 +1211,7 @@ def gerar_roteiro_inedito_gemini(
             continue
 
         if not titulo_gerado:
-            titulo_gerado = f"O Turno das 02h{10 + (prox_id % 45):02d}"
+            titulo_gerado = f"{pilar_ativo['titulo_fallback']} {prox_id:02d}"
 
         candidato = {
             "titulo": titulo_gerado,
@@ -1113,26 +1239,88 @@ def gerar_roteiro_inedito_gemini(
     raise RuntimeError(f"Nao foi possivel gerar episodio inedito via Gemini: {ultimo_erro}")
 
 
-def gerar_roteiro_inedito_mock(dados_hist: dict, titulo_sugerido: str | None = None) -> tuple[str, str]:
-    """Gerador deterministico offline apenas para testes locais (--mock)."""
+def gerar_roteiro_inedito_mock(
+    dados_hist: dict,
+    titulo_sugerido: str | None = None,
+    pilar: dict[str, str] | None = None,
+) -> tuple[str, str]:
+    """Gerador deterministico offline cobrindo os 4 pilares do canal apenas para testes locais (--mock)."""
     prox_id = proximo_numero_livre(dados_hist)
-    hora = f"02:{15 + (prox_id * 7) % 40:02d}"
-    titulo = sanitizar_texto(titulo_sugerido) if titulo_sugerido else f"A Lavanderia das {hora.replace(':', 'h')}"
-    roteiro = (
-        f"Eram {hora} da madrugada. Bruno entra numa lavanderia vinte e quatro horas completamente vazia "
-        f"no fim da rua para secar o uniforme do turno da manha. "
-        f"Ele coloca as moedas na maquina numero quatro e se senta perto da vitrine molhada. "
-        f"O tambor gira devagar fazendo um estalo metalico ritmado. "
-        f"Cinco minutos depois, o vidro da lavanderia embaca por dentro mesmo com o ar frio ligado. "
-        f"Bruno olha pro painel digital da maquina: o contador para em treze minutos e nao desce mais. "
-        f"Ele levanta para checar a trava da porta automatica da entrada. A luz verde do sensor apaga. "
-        f"De repente o telefone fixo de emergencia na parede comeca a tocar no escuro. "
-        f"Bruno atende tremendo. Do outro lado, a voz da atendente da central de monitoramento pergunta: "
-        f"Senhor, por que voce ligou todas as seis secadoras se a camera mostra voce parado fora da loja "
-        f"olhando pela vitrine? Bruno vira o pescoco devagar em direcao a rua deserta. "
-        f"Do lado de fora, encostado no vidro embacado, um homem com o mesmo uniforme dele levanta a mao "
-        f"e escreve ao contrario no vidro: ja deu o meu tempo, agora e a sua vez."
-    )
+    pilar_ativo = pilar or selecionar_proximo_pilar(dados_hist, prox_id)
+    pid = pilar_ativo["id"]
+
+    modelos_mock: dict[str, tuple[str, str]] = {
+        "cenarios_hipoteticos": (
+            f"E Se Voce Acordasse Preso no Submarino {prox_id:02d}",
+            (
+                "E se voce acordasse agora trancado dentro de um submarino parado a trezentos metros "
+                "de profundidade no fundo do oceano? No primeiro minuto, voce nota que as luzes principais "
+                "apagaram e apenas o painel de emergencia brilha em vermelho. O medidor mostra quarenta e oito "
+                "horas de oxigenio disponivel e nenhuma resposta no radio de superficie. Seu primeiro instinto "
+                "e correr pelos compartimentos batendo no casco de aco para chamar atencao, mas isso e o pior "
+                "erro possivel: cada movimento acelerado consome o dobro de ar e eleva o dioxido de carbono na "
+                "cabine. Depois de doze horas, a temperatura cai para seis graus e o silencio metalico comeca "
+                "a enganar seu cerebro com ruidos falsos de passos fora da escotilha. Na vigesima quarta hora, "
+                "o ar fica pesado, sua visao perde o foco lateral e voce descobre uma valvula de lastro manual "
+                "perto do corredor central. Ao girar a trava de ferro com as maos tremendo, o submarino inclina "
+                "devagar, mas o visor de pressao acende um alerta que ninguem esperava: a escotilha externa ja "
+                "havia sido destravada pelo lado de fora antes mesmo de voce acordar."
+            ),
+        ),
+        "curiosidades_bizarras": (
+            f"O Fenomeno Real do Ponto Nemo {prox_id:02d}",
+            (
+                "Voce sabia que existe um ponto no oceano tao isolado que, se voce estiver la, os seres "
+                "humanos mais proximos de voce nao estao na Terra, mas passando dentro da Estacao Espacial "
+                "Internacional? Esse lugar real se chama Ponto Nemo, no meio do Oceano Pacifico Sul, a mais "
+                "de dois mil e seiscentos quilometros da ilha habitada mais proxima. Por causa das correntes "
+                "marinhas circulares, quase nenhum nutriente chega ate aquela regiao, transformando as aguas "
+                "em um deserto biologico quase sem peixes. E exatamente por ser tao remoto que agencias "
+                "espaciais usam o Ponto Nemo como o maior cemiterio de naves do planeta: centenas de satelites "
+                "desativados e fragmentos de estacoes espaciais ja foram derrubados de proposito naquela area. "
+                "Mas o detalhe mais bizarro aconteceu em mil novecentos e noventa e sete, quando hidrofones "
+                "militares captaram um som subaquatico gigantesco vindo de perto dali, ouvido a cinco mil "
+                "quilometros de distancia. Os cientistas atribuiram o ruido a um bloco de gelo se partindo, "
+                "porem ninguem nunca conseguiu gravar outro som com a mesma assinatura acustica ate hoje."
+            ),
+        ),
+        "misterios_reais": (
+            f"O Cofre Proibido no Gelo de Svalbard {prox_id:02d}",
+            (
+                "Existe uma porta de concreto cravada dentro de uma montanha congelada no Artico onde quase "
+                "ninguem na Terra tem autorizacao para entrar. Trata-se do Cofre Global de Sementes de "
+                "Svalbard, construido cento e vinte metros montanha adentro em uma ilha gelada da Noruega. "
+                "Ele foi projetado para resistir a terremotos, explosoes, falhas eletricas e ate ao derretimento "
+                "total das geleiras, mantendo mais de um milhao de amostras de sementes guardadas a dezoito "
+                "graus negativos. O acesso e monitorado por sensores de movimento, portas blindadas duplas e "
+                "protocolos que impedem ate pesquisadores sem credencial diplomatica de passar do primeiro "
+                "corredor. Mesmo sem funcionarios permanentes la dentro, as cameras registram cada mudanca de "
+                "temperatura vinte e quatro horas por dia. O detalhe mais intrigante e que apenas um pais "
+                "precisou abrir sua caixa lacrada ate hoje apos um conflito armado, provando que a estrutura "
+                "nao e um exagero de ficcao cientifica: ela existe porque governos inteiros ja calcularam "
+                "exatamente o que fazer se a agricultura global colapsar de uma vez."
+            ),
+        ),
+        "suspense_urbano": (
+            f"O Ultimo Vagao da Linha Sul {prox_id:02d}",
+            (
+                "Eram vinte e tres e dezoito quando Mateus entrou no ultimo vagao vazio do metro voltando do "
+                "trabalho no centro. Ele sentou perto da janela escura e colocou os fones para abafar o chiado "
+                "dos trilhos. Quando o trem mergulhou no tunel longo, as luzes fluorescentes piscaram duas "
+                "vezes e o painel eletronico acima da porta travou mostrando o nome de uma estacao desativada "
+                "ha quase trinta anos. Mateus tirou o fone e percebeu silencio total, sem barulho de motor. "
+                "O vidro da janela refletia todos os bancos vazios, exceto o assento logo atras dele, onde um "
+                "homem de capa escura aparecia sentado de cabeca baixa. Mateus virou rapido por cima do ombro: "
+                "o banco real atras dele estava completamente vazio. O interfone de emergencia perto da porta "
+                "chiou alto e a voz apressada da central perguntou: passageiro do ultimo vagao, como voce "
+                "entrou ai se esse trem esta desligado na garagem ha quarenta minutos? Mateus olhou de novo "
+                "para o reflexo na janela. O homem no vidro agora estava de pe atras da nuca dele, sorrindo."
+            ),
+        ),
+    }
+
+    titulo_padrao, roteiro = modelos_mock[pid]
+    titulo = sanitizar_texto(titulo_sugerido) if titulo_sugerido else titulo_padrao
     return titulo, roteiro
 
 
@@ -1145,9 +1333,10 @@ def chamar_gemini_diretor(
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     modelo_ativo_ref: dict[str, str] | None = None,
+    pilar: dict[str, str] | None = None,
 ) -> dict:
     """Chama Gemini REST API (stdlib urllib) passando a chave no header x-goog-api-key."""
-    prompt = _montar_prompt_gemini(roteiro_bruto, titulo_sugerido, sorted(catalogo_sfx.keys()))
+    prompt = _montar_prompt_gemini(roteiro_bruto, titulo_sugerido, sorted(catalogo_sfx.keys()), pilar=pilar)
     return _chamar_gemini_json(
         prompt=prompt,
         api_key=api_key,
@@ -1678,6 +1867,7 @@ def _preparar_novo_registro_historico(
     roteiro_bruto: str,
     tem_parte_2: bool,
     caminho_historico: Path = ARQUIVO_HISTORICO,
+    pilar: str | None = None,
 ) -> tuple[int, str, dict, dict]:
     """Prepara e valida o proximo registro V6 em memoria antes de gravar qualquer arquivo."""
     dados = carregar_historico(caminho_historico)
@@ -1704,6 +1894,8 @@ def _preparar_novo_registro_historico(
         "parte_label": "PARTE 1",
         "cta_modo": "pausa_meio",
     }
+    if pilar and pilar in PILARES_POR_ID:
+        registro["pilar"] = pilar
     if tem_parte_2:
         registro["saidas_partes"] = [
             f"output/short_{novo_id:02d}_parte1.mp4",
@@ -1747,6 +1939,7 @@ def registrar_novo_video_historico(
     tem_parte_2: bool,
     caminho_historico: Path = ARQUIVO_HISTORICO,
     salvar: bool = True,
+    pilar: str | None = None,
 ) -> tuple[int, str, dict]:
     """Cria o proximo registro V6 em historico_videos.json e valida Sempre Video Novo."""
     novo_id, slug, registro, copia_dados = _preparar_novo_registro_historico(
@@ -1754,6 +1947,7 @@ def registrar_novo_video_historico(
         roteiro_bruto=roteiro_bruto,
         tem_parte_2=tem_parte_2,
         caminho_historico=caminho_historico,
+        pilar=pilar,
     )
     if salvar:
         caminho_historico.write_text(
@@ -1775,6 +1969,7 @@ def produzir_direcao_v6(
     atualizar_historico: bool = True,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
+    pilar_editorial: str | None = None,
 ) -> dict:
     """Executa o fluxo completo do Diretor IA V6 e grava roteiro_XX.txt, cenas.json e historico."""
     carregar_env()
@@ -1793,14 +1988,24 @@ def produzir_direcao_v6(
     texto_entrada = str(roteiro_bruto or "").strip()
     veio_de_inedito = False
     modelo_ativo_ref: dict[str, str] = {}
+    pilar_selecionado: dict[str, str] | None = None
+
+    if pilar_editorial:
+        pilar_selecionado = selecionar_proximo_pilar({}, 1, pilar_forcado=pilar_editorial)
 
     if gerar_inedito or not texto_entrada:
         dados_hist = carregar_historico(caminho_historico)
+        prox_id = proximo_numero_livre(dados_hist)
+        pilar_selecionado = selecionar_proximo_pilar(
+            dados_hist, prox_id, pilar_forcado=pilar_editorial
+        )
         veio_de_inedito = True
         if usar_mock or not api_key:
             if not usar_mock and not api_key:
                 avisos.append("GEMINI_API_KEY ausente: gerando episodio inedito deterministico offline.")
-            titulo_gerado, texto_entrada = gerar_roteiro_inedito_mock(dados_hist, titulo_sugerido=titulo)
+            titulo_gerado, texto_entrada = gerar_roteiro_inedito_mock(
+                dados_hist, titulo_sugerido=titulo, pilar=pilar_selecionado
+            )
         else:
             titulo_gerado, texto_entrada = gerar_roteiro_inedito_gemini(
                 dados_hist,
@@ -1810,6 +2015,7 @@ def produzir_direcao_v6(
                 urlopen_fn=urlopen_fn,
                 sleep_fn=sleep_fn,
                 modelo_ativo_ref=modelo_ativo_ref,
+                pilar=pilar_selecionado,
             )
         titulo_efetivo = titulo or titulo_gerado
 
@@ -1836,6 +2042,7 @@ def produzir_direcao_v6(
                 urlopen_fn=urlopen_fn,
                 sleep_fn=sleep_fn,
                 modelo_ativo_ref=modelo_ativo_ref,
+                pilar=pilar_selecionado,
             )
             modelo_usado = modelo_ativo_ref.get("modelo", modelo)
             origem = f"gemini_inedito:{modelo_usado}" if veio_de_inedito else f"gemini:{modelo_usado}"
@@ -1855,6 +2062,7 @@ def produzir_direcao_v6(
 
     total_palavras = sum(len(b["texto"].split()) for b in plano["blocos"])
     tem_parte_2 = total_palavras > LIMITE_PALAVRAS_PARTE_2
+    pilar_id = pilar_selecionado["id"] if pilar_selecionado is not None else None
 
     # Valida integralmente historico, roteiro e cenas.json em memoria antes de gravar qualquer arquivo
     video_id, slug, registro, copia_historico = _preparar_novo_registro_historico(
@@ -1862,6 +2070,7 @@ def produzir_direcao_v6(
         roteiro_bruto=limpo_in,
         tem_parte_2=tem_parte_2,
         caminho_historico=caminho_historico,
+        pilar=pilar_id,
     )
 
     texto_roteiro, cenas_json, tem_parte_2 = compor_roteiro_e_cenas(
@@ -1890,6 +2099,7 @@ def produzir_direcao_v6(
         "video_id": video_id,
         "slug": slug,
         "titulo": plano["titulo"],
+        "pilar": pilar_id,
         "palavras_historia": total_palavras,
         "tem_parte_2": tem_parte_2,
         "roteiro_path": roteiro_path,
@@ -1902,7 +2112,7 @@ def produzir_direcao_v6(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Diretor IA V6: cria episodio inedito ou converte roteiro bruto em roteiro_XX.txt, cenas.json e historico."
+        description="Diretor IA V6 ('E Se Voce?'): cria episodio inedito nos 4 pilares ou converte roteiro bruto."
     )
     grupo = parser.add_mutually_exclusive_group(required=True)
     grupo.add_argument("--roteiro-texto", type=str, help="Texto bruto do roteiro em linha de comando.")
@@ -1910,9 +2120,16 @@ def main() -> None:
     grupo.add_argument(
         "--gerar-inedito",
         action="store_true",
-        help="Cria automaticamente um roteiro 100%% inedito via Gemini evitando temas do historico_videos.json.",
+        help="Cria automaticamente um roteiro 100%% inedito via Gemini alternando os 4 pilares do canal.",
     )
     parser.add_argument("--titulo", type=str, default=None, help="Titulo opcional do video.")
+    parser.add_argument(
+        "--pilar",
+        type=str,
+        choices=tuple(p["id"] for p in PILARES_EDITORIAIS),
+        default=None,
+        help="Forca um dos 4 pilares editoriais (padrao: alternancia automatica pelo historico).",
+    )
     parser.add_argument(
         "--modelo",
         type=str,
@@ -1949,6 +2166,7 @@ def main() -> None:
         exigir_gemini=args.exigir_gemini,
         modelo=args.modelo,
         atualizar_historico=not args.nao_atualizar_historico,
+        pilar_editorial=args.pilar,
     )
 
     for av in res["avisos"]:
@@ -1957,9 +2175,10 @@ def main() -> None:
     cenas = res["cenas"]
     modulos = ", ".join(c["modulo"] for c in cenas["cenas"])
     hits = ", ".join(" ".join(h["linhas"]) for h in cenas["katana_hits"])
+    pilar_info = f", pilar={res['pilar']}" if res.get("pilar") else ""
     print(
         f"Diretor IA V6 concluido ({res['origem']}): Video {res['video_id']:02d} '{res['titulo']}' "
-        f"[slug={res['slug']}, palavras={res['palavras_historia']}, "
+        f"[slug={res['slug']}{pilar_info}, palavras={res['palavras_historia']}, "
         f"{'Parte 1 + Parte 2' if res['tem_parte_2'] else 'Short unico'}]"
     )
     print(f"  Roteiro: {res['roteiro_path']}")
