@@ -681,19 +681,64 @@ def _montar_prompt_gemini(
     )
 
 
+def validar_gemini_api_key(api_key: str | None) -> str:
+    """Valida formato minimo de GEMINI_API_KEY antes de chamar a API para falhar com mensagem clara."""
+    chave = str(api_key or "").strip()
+    if not chave:
+        raise RuntimeError(
+            "GEMINI_API_KEY ausente. Configure o secret GEMINI_API_KEY em Repository Secrets (Actions) ou no .env."
+        )
+    if any(ch.isspace() for ch in chave):
+        raise RuntimeError("GEMINI_API_KEY invalida: contem espacos ou quebras de linha.")
+    low = chave.lower()
+    placeholders = ("sua_chave", "your_api_key", "changeme", "replace_me", "placeholder", "coloque_aqui")
+    if len(chave) < 10 or any(p in low for p in placeholders):
+        raise RuntimeError(
+            "GEMINI_API_KEY invalida (curta demais ou texto de exemplo). Verifique o valor salvo nos Secrets."
+        )
+    return chave
+
+
 def _extrair_json_resposta(texto: str) -> dict:
-    bruto = str(texto or "").strip()
-    if bruto.startswith("```"):
-        bruto = re.sub(r"^```(?:json)?\s*", "", bruto, flags=re.IGNORECASE)
-        bruto = re.sub(r"\s*```$", "", bruto)
+    """Limpa fences/BOM/virgulas sobrando e valida que o retorno do Gemini e um objeto JSON nao vazio."""
+    bruto = str(texto or "").lstrip("\ufeff").strip()
+    if not bruto:
+        raise ValueError("Resposta vazia do Gemini ao esperar JSON.")
+    if "```" in bruto:
+        m_fence = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", bruto, flags=re.IGNORECASE)
+        if m_fence:
+            bruto = m_fence.group(1).strip()
+        else:
+            bruto = re.sub(r"^```(?:json)?\s*", "", bruto, flags=re.IGNORECASE)
+            bruto = re.sub(r"\s*```$", "", bruto).strip()
     inicio = bruto.find("{")
     fim = bruto.rfind("}")
     if inicio >= 0 and fim > inicio:
         bruto = bruto[inicio : fim + 1]
-    dados = json.loads(bruto)
-    if not isinstance(dados, dict):
-        raise ValueError("JSON retornado pelo Gemini nao e um objeto.")
+    try:
+        dados = json.loads(bruto)
+    except json.JSONDecodeError:
+        # Remove virgulas finais invalidas antes de } ou ] antes de desistir
+        corrigido = re.sub(r",\s*([}\]])", r"\1", bruto)
+        dados = json.loads(corrigido)
+    if not isinstance(dados, dict) or not dados:
+        raise ValueError("JSON retornado pelo Gemini precisa ser um objeto nao vazio.")
     return dados
+
+
+def _extrair_retry_after_s(exc: urllib.error.HTTPError, padrao: float) -> float:
+    """Respeita cabecalho Retry-After (limitado a 30s) quando devolvido em HTTP 429/503."""
+    try:
+        hdrs = getattr(exc, "headers", None)
+        if hdrs is not None:
+            raw = hdrs.get("Retry-After")
+            if raw is not None:
+                val = float(str(raw).strip())
+                if val > 0:
+                    return min(30.0, max(padrao, val))
+    except Exception:
+        pass
+    return padrao
 
 
 def _extrair_erro_http_gemini(exc: urllib.error.HTTPError, api_key: str) -> str:
@@ -808,10 +853,11 @@ def _chamar_gemini_json(
     modelo: str = GEMINI_MODELO_PADRAO,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
-    retry_esperas: tuple[float, ...] = (5.0, 12.0),
+    retry_esperas: tuple[float, ...] = (3.0, 8.0, 18.0),
     modelo_ativo_ref: dict[str, str] | None = None,
 ) -> dict:
-    """Chama Gemini REST API com JSON estruturado, log de erro real e fallback de modelos em HTTP 404/429."""
+    """Chama Gemini REST API com JSON estruturado, 3 retries com backoff e fallback de modelos."""
+    api_key = validar_gemini_api_key(api_key)
     # Sem temperature/top_p/top_k: removidos/depreciados a partir do Gemini 3.5/3.6/3.8/4
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -896,7 +942,7 @@ def _chamar_gemini_json(
 
                 if exc.code in (429, 500, 502, 503, 504):
                     if tentativa < len(retry_esperas):
-                        espera = float(retry_esperas[tentativa])
+                        espera = _extrair_retry_after_s(exc, float(retry_esperas[tentativa]))
                         print(
                             f"AVISO {ultimo_erro_msg} na tentativa {tentativa + 1}/{max_t}. "
                             f"Aguardando {espera:.1f}s...",
@@ -905,7 +951,7 @@ def _chamar_gemini_json(
                         sleep_fn(espera)
                         continue
                     print(
-                        f"AVISO {ultimo_erro_msg} esgotou retries; tentando proximo modelo da cascata...",
+                        f"AVISO {ultimo_erro_msg} esgotou {len(retry_esperas)} retries; tentando proximo modelo da cascata...",
                         flush=True,
                     )
                     avancar_modelo = True
@@ -913,7 +959,7 @@ def _chamar_gemini_json(
 
                 print(f"ERRO definitivo {ultimo_erro_msg}", flush=True)
                 raise RuntimeError(ultimo_erro_msg) from None
-            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
+            except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
                 ultimo_erro_msg = f"Gemini [{modelo_atual}] {type(exc).__name__}: {exc}"
                 if tentativa < len(retry_esperas):
                     espera = float(retry_esperas[tentativa])
@@ -1627,16 +1673,20 @@ def _garantir_unicidade_registro(
     return novo_reg
 
 
-def registrar_novo_video_historico(
+def _preparar_novo_registro_historico(
     plano: dict,
     roteiro_bruto: str,
     tem_parte_2: bool,
     caminho_historico: Path = ARQUIVO_HISTORICO,
-    salvar: bool = True,
-) -> tuple[int, str, dict]:
-    """Cria o proximo registro V6 em historico_videos.json e valida Sempre Video Novo."""
+) -> tuple[int, str, dict, dict]:
+    """Prepara e valida o proximo registro V6 em memoria antes de gravar qualquer arquivo."""
     dados = carregar_historico(caminho_historico)
+    id_anterior = int(dados.get("video_atual") or 0)
     novo_id = proximo_numero_livre(dados)
+    if novo_id <= id_anterior:
+        raise RuntimeError(
+            f"Falha ao incrementar episodio: novo_id={novo_id:02d} nao supera video_atual={id_anterior:02d}."
+        )
     slug = gerar_slug(plano["titulo"], fallback=f"video-{novo_id:02d}")
 
     registro: dict = {
@@ -1672,13 +1722,45 @@ def registrar_novo_video_historico(
 
     # Valida regra permanente "Sempre Video Novo" antes de gravar!
     validar_historico(copia_dados)
+    return novo_id, registro["slug"], registro, copia_dados
 
+
+def _validar_texto_roteiro_gerado(texto_roteiro: str, tem_parte_2: bool) -> list[str]:
+    """Confere marcadores obrigatorios V5.2/V6 e ausencia de emoji/travessao antes de salvar."""
+    erros: list[str] = []
+    if "[VOZ:" not in texto_roteiro:
+        erros.append("roteiro gerado sem tags [VOZ:perfil].")
+    if "[CTA_PAUSA]" not in texto_roteiro or "COMENTE EU QUERO" not in texto_roteiro.upper():
+        erros.append("roteiro gerado sem bloco obrigatorio [CTA_PAUSA] / COMENTE EU QUERO.")
+    if tem_parte_2 and "[CORTE_PARTE_2]" not in texto_roteiro:
+        erros.append("roteiro longo sem marcador obrigatorio [CORTE_PARTE_2].")
+    if RE_EMOJI.search(texto_roteiro):
+        erros.append("roteiro gerado contem emoji proibido.")
+    if "\u2014" in texto_roteiro or "\u2013" in texto_roteiro:
+        erros.append("roteiro gerado contem travessao (em-dash/en-dash) proibido.")
+    return erros
+
+
+def registrar_novo_video_historico(
+    plano: dict,
+    roteiro_bruto: str,
+    tem_parte_2: bool,
+    caminho_historico: Path = ARQUIVO_HISTORICO,
+    salvar: bool = True,
+) -> tuple[int, str, dict]:
+    """Cria o proximo registro V6 em historico_videos.json e valida Sempre Video Novo."""
+    novo_id, slug, registro, copia_dados = _preparar_novo_registro_historico(
+        plano=plano,
+        roteiro_bruto=roteiro_bruto,
+        tem_parte_2=tem_parte_2,
+        caminho_historico=caminho_historico,
+    )
     if salvar:
         caminho_historico.write_text(
             json.dumps(copia_dados, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-    return novo_id, registro["slug"], registro
+    return novo_id, slug, registro
 
 
 def produzir_direcao_v6(
@@ -1699,10 +1781,12 @@ def produzir_direcao_v6(
     catalogo_sfx = carregar_catalogo_sfx()
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
 
-    if exigir_gemini and (usar_mock or not api_key):
-        raise RuntimeError(
-            "GEMINI_API_KEY obrigatoria no modo --exigir-gemini (proibido repetir video antigo ou cair em mock)."
-        )
+    if exigir_gemini:
+        if usar_mock:
+            raise RuntimeError("Modo --mock e incompativel com --exigir-gemini.")
+        api_key = validar_gemini_api_key(api_key)
+    elif api_key and not usar_mock:
+        api_key = validar_gemini_api_key(api_key)
 
     avisos: list[str] = []
     titulo_efetivo = titulo
@@ -1772,12 +1856,12 @@ def produzir_direcao_v6(
     total_palavras = sum(len(b["texto"].split()) for b in plano["blocos"])
     tem_parte_2 = total_palavras > LIMITE_PALAVRAS_PARTE_2
 
-    video_id, slug, registro = registrar_novo_video_historico(
-        plano,
-        limpo_in,
+    # Valida integralmente historico, roteiro e cenas.json em memoria antes de gravar qualquer arquivo
+    video_id, slug, registro, copia_historico = _preparar_novo_registro_historico(
+        plano=plano,
+        roteiro_bruto=limpo_in,
         tem_parte_2=tem_parte_2,
         caminho_historico=caminho_historico,
-        salvar=atualizar_historico,
     )
 
     texto_roteiro, cenas_json, tem_parte_2 = compor_roteiro_e_cenas(
@@ -1786,12 +1870,20 @@ def produzir_direcao_v6(
     erros_schema = validar_cenas_json(cenas_json)
     if erros_schema:
         raise RuntimeError(f"cenas.json gerado falhou na validacao de schema: {erros_schema}")
+    erros_rot = _validar_texto_roteiro_gerado(texto_roteiro, tem_parte_2=tem_parte_2)
+    if erros_rot:
+        raise RuntimeError(f"roteiro_{video_id:02d}.txt falhou na validacao de contrato: {erros_rot}")
 
     dir_saida.mkdir(parents=True, exist_ok=True)
     roteiro_path = dir_saida / f"roteiro_{video_id:02d}.txt"
     cenas_path = dir_saida / "cenas.json"
     roteiro_path.write_text(texto_roteiro, encoding="utf-8")
     cenas_path.write_text(json.dumps(cenas_json, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if atualizar_historico:
+        caminho_historico.write_text(
+            json.dumps(copia_historico, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
     return {
         "origem": origem,
