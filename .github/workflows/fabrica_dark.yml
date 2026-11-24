@@ -2,8 +2,8 @@ name: Fabrica Dark V6 (Render na Nuvem + Telegram)
 
 on:
   schedule:
-    # Execucao diaria automatica as 15h00 de Brasilia (UTC-3 = 18h00 UTC)
-    - cron: "0 18 * * *"
+    # Teste automatico as 17h43 de Brasilia (UTC-3 = 20h43 UTC)
+    - cron: "43 20 * * *"
   workflow_dispatch:
     inputs:
       titulo:
