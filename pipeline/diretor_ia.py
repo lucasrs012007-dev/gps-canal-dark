@@ -45,7 +45,16 @@ from pipeline.historico import (  # noqa: E402
 )
 
 SCHEMA_VERSION = "6.0"
-GEMINI_MODELO_PADRAO = "gemini-2.5-flash"
+GEMINI_MODELO_PADRAO = "gemini-3.5-flash-lite"
+GEMINI_MODELOS_FALLBACK: tuple[str, ...] = (
+    "gemini-3.5-flash-lite",
+    "gemini-flash-latest",
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
+    "gemini-4-hydrogen",
+)
 ARQUIVO_ENV = RAIZ / ".env"
 ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
@@ -687,22 +696,127 @@ def _extrair_json_resposta(texto: str) -> dict:
     return dados
 
 
+def _extrair_erro_http_gemini(exc: urllib.error.HTTPError, api_key: str) -> str:
+    """Extrai status e mensagem reais devolvidos pela API Gemini sem vazar a chave."""
+    bruto = ""
+    try:
+        bruto = exc.read().decode("utf-8", errors="replace").strip()
+    except Exception:
+        bruto = ""
+    msg = bruto
+    if bruto:
+        try:
+            obj = json.loads(bruto)
+            err = obj.get("error") if isinstance(obj, dict) else None
+            if isinstance(err, dict):
+                status = str(err.get("status", "")).strip()
+                detalhe = str(err.get("message", "")).strip()
+                msg = f"{status}: {detalhe}" if status and detalhe else (detalhe or status or bruto)
+        except Exception:
+            pass
+    msg = re.sub(r"\s+", " ", msg).strip()[:400]
+    if api_key:
+        msg = msg.replace(api_key, "***API_KEY***")
+    return msg or str(exc.reason or f"HTTP {exc.code}")
+
+
+def _montar_lista_modelos(modelo_preferido: str | None) -> list[str]:
+    env_mod = os.environ.get("GEMINI_DIRETOR_MODEL", "").strip()
+    ordem: list[str] = []
+    for m in (modelo_preferido, env_mod, *GEMINI_MODELOS_FALLBACK):
+        nome = str(m or "").strip()
+        if nome.startswith("models/"):
+            nome = nome[len("models/") :]
+        if nome and nome not in ordem:
+            ordem.append(nome)
+    return ordem
+
+
+def _descobrir_modelos_gemini_disponiveis(
+    api_key: str,
+    urlopen_fn: Callable | None = None,
+) -> list[str]:
+    """Consulta GET /v1beta/models para autodescobrir modelos ativos com suporte a generateContent."""
+    url = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100"
+    req = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "x-goog-api-key": api_key},
+        method="GET",
+    )
+    opener = urlopen_fn or urllib.request.urlopen
+    try:
+        with opener(req, timeout=30) as resp:
+            dados = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return []
+
+    excluir = (
+        "tts",
+        "image",
+        "imagen",
+        "live",
+        "embedding",
+        "aqa",
+        "omni",
+        "robotics",
+        "veo",
+        "lyria",
+        "audio",
+        "transcribe",
+        "translate",
+        "research",
+        "decision",
+        "computer-use",
+        "gemini-1.",
+        "gemini-2.0",
+    )
+    candidatos: list[str] = []
+    for item in dados.get("models") or []:
+        metodos = item.get("supportedGenerationMethods") or []
+        if "generateContent" not in metodos:
+            continue
+        nome = str(item.get("name", "")).strip()
+        if nome.startswith("models/"):
+            nome = nome[len("models/") :]
+        low = nome.lower()
+        if not low.startswith("gemini-"):
+            continue
+        if any(tok in low for tok in excluir):
+            continue
+        candidatos.append(nome)
+
+    def _prioridade(nome: str) -> tuple[int, int, str]:
+        low = nome.lower()
+        legado_25 = 1 if "gemini-2.5" in low else 0
+        if "flash-lite" in low:
+            return (legado_25, 0, low)
+        if "flash" in low and "preview" not in low:
+            return (legado_25, 1, low)
+        if "hydrogen" in low:
+            return (legado_25, 2, low)
+        if "flash" in low:
+            return (legado_25, 3, low)
+        return (legado_25, 4, low)
+
+    candidatos.sort(key=_prioridade)
+    return candidatos[:8]
+
+
 def _chamar_gemini_json(
     prompt: str,
     api_key: str,
     modelo: str = GEMINI_MODELO_PADRAO,
-    temperature: float = 0.35,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     retry_esperas: tuple[float, ...] = (5.0, 12.0),
+    modelo_ativo_ref: dict[str, str] | None = None,
 ) -> dict:
-    """Chama Gemini REST API (stdlib urllib) com header x-goog-api-key e retry em 429/5xx."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+    """Chama Gemini REST API com JSON estruturado, log de erro real e fallback de modelos em HTTP 404/429."""
+    # Sem temperature/top_p/top_k: removidos/depreciados a partir do Gemini 3.5/3.6/3.8/4
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
-            "temperature": temperature,
         },
     }
     payload_bytes = json.dumps(payload).encode("utf-8")
@@ -712,49 +826,120 @@ def _chamar_gemini_json(
     }
     opener = urlopen_fn or urllib.request.urlopen
     max_t = 1 + len(retry_esperas)
-    ultimo_erro: Exception | None = None
 
-    for tentativa in range(max_t):
-        req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
-        try:
-            with opener(req, timeout=60) as resp:
-                corpo = resp.read().decode("utf-8")
-            envelope = json.loads(corpo)
-            candidatos = envelope.get("candidates") or []
-            if not candidatos:
-                raise RuntimeError("Resposta do Gemini sem 'candidates'.")
-            partes = (candidatos[0].get("content") or {}).get("parts") or []
-            texto_json = "".join(str(p.get("text", "")) for p in partes)
-            if not texto_json.strip():
-                raise RuntimeError("Resposta do Gemini sem conteudo textual.")
-            return _extrair_json_resposta(texto_json)
-        except urllib.error.HTTPError as exc:
-            ultimo_erro = exc
-            if exc.code in (429, 500, 502, 503, 504) and tentativa < len(retry_esperas):
-                espera = float(retry_esperas[tentativa])
+    modelos_fila = _montar_lista_modelos(modelo)
+    testados: set[str] = set()
+    autodescoberta_feita = False
+    ultimo_erro_msg = "Falha desconhecida ao consultar a API Gemini."
+
+    idx_m = 0
+    while idx_m < len(modelos_fila):
+        modelo_atual = modelos_fila[idx_m]
+        idx_m += 1
+        if modelo_atual in testados:
+            continue
+        testados.add(modelo_atual)
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_atual}:generateContent"
+        avancar_modelo = False
+
+        for tentativa in range(max_t):
+            req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
+            try:
+                with opener(req, timeout=60) as resp:
+                    corpo = resp.read().decode("utf-8")
+                envelope = json.loads(corpo)
+                candidatos = envelope.get("candidates") or []
+                if not candidatos:
+                    raise RuntimeError(f"Resposta do Gemini ({modelo_atual}) sem 'candidates'.")
+                partes = (candidatos[0].get("content") or {}).get("parts") or []
+                # Ignora blocos internos de pensamento (thought=True) dos modelos Gemini 3.x / 4
+                partes_resp = [p for p in partes if not p.get("thought")] or partes
+                texto_json = "".join(str(p.get("text", "")) for p in partes_resp)
+                if not texto_json.strip():
+                    raise RuntimeError(f"Resposta do Gemini ({modelo_atual}) sem conteudo textual.")
+                dados_json = _extrair_json_resposta(texto_json)
+                if modelo_ativo_ref is not None:
+                    modelo_ativo_ref["modelo"] = modelo_atual
+                return dados_json
+            except urllib.error.HTTPError as exc:
+                detalhe = _extrair_erro_http_gemini(exc, api_key)
+                detalhe_low = detalhe.lower()
+                ultimo_erro_msg = f"Gemini [{modelo_atual}] HTTP {exc.code}: {detalhe}"
+
+                if exc.code in (401, 403) or (
+                    exc.code == 400 and ("api key" in detalhe_low or "api_key" in detalhe_low)
+                ):
+                    print(f"ERRO autenticacao/permissao {ultimo_erro_msg}", flush=True)
+                    raise RuntimeError(
+                        f"Chave GEMINI_API_KEY invalida, rejeitada ou sem permissao ({ultimo_erro_msg})."
+                    ) from None
+
+                if exc.code == 404:
+                    print(
+                        f"AVISO modelo indisponivel ({ultimo_erro_msg}). Tentando proximo modelo ativo...",
+                        flush=True,
+                    )
+                    avancar_modelo = True
+                    break
+
+                if exc.code == 400 and any(
+                    tok in detalhe_low
+                    for tok in ("response_mime_type", "json mode", "not supported", "not enabled")
+                ):
+                    print(
+                        f"AVISO modelo incompativel ({ultimo_erro_msg}). Tentando proximo modelo ativo...",
+                        flush=True,
+                    )
+                    avancar_modelo = True
+                    break
+
+                if exc.code in (429, 500, 502, 503, 504):
+                    if tentativa < len(retry_esperas):
+                        espera = float(retry_esperas[tentativa])
+                        print(
+                            f"AVISO {ultimo_erro_msg} na tentativa {tentativa + 1}/{max_t}. "
+                            f"Aguardando {espera:.1f}s...",
+                            flush=True,
+                        )
+                        sleep_fn(espera)
+                        continue
+                    print(
+                        f"AVISO {ultimo_erro_msg} esgotou retries; tentando proximo modelo da cascata...",
+                        flush=True,
+                    )
+                    avancar_modelo = True
+                    break
+
+                print(f"ERRO definitivo {ultimo_erro_msg}", flush=True)
+                raise RuntimeError(ultimo_erro_msg) from None
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
+                ultimo_erro_msg = f"Gemini [{modelo_atual}] {type(exc).__name__}: {exc}"
+                if tentativa < len(retry_esperas):
+                    espera = float(retry_esperas[tentativa])
+                    print(
+                        f"AVISO {ultimo_erro_msg} na tentativa {tentativa + 1}/{max_t}. "
+                        f"Aguardando {espera:.1f}s...",
+                        flush=True,
+                    )
+                    sleep_fn(espera)
+                    continue
+                avancar_modelo = True
+                break
+
+        if avancar_modelo and idx_m >= len(modelos_fila) and not autodescoberta_feita:
+            autodescoberta_feita = True
+            descobertos = [
+                m for m in _descobrir_modelos_gemini_disponiveis(api_key, urlopen_fn=opener) if m not in testados
+            ]
+            if descobertos:
                 print(
-                    f"AVISO Gemini HTTP {exc.code} na tentativa {tentativa + 1}/{max_t}. "
-                    f"Aguardando {espera:.1f}s...",
+                    f"AVISO autodescoberta /v1beta/models encontrou modelos ativos: {descobertos}",
                     flush=True,
                 )
-                sleep_fn(espera)
-                continue
-            raise
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
-            ultimo_erro = exc
-            if tentativa < len(retry_esperas):
-                espera = float(retry_esperas[tentativa])
-                print(
-                    f"AVISO Gemini falhou ({type(exc).__name__}) na tentativa {tentativa + 1}/{max_t}. "
-                    f"Aguardando {espera:.1f}s...",
-                    flush=True,
-                )
-                sleep_fn(espera)
-                continue
-            raise
+                modelos_fila.extend(descobertos)
 
-    assert ultimo_erro is not None
-    raise ultimo_erro
+    raise RuntimeError(f"Todos os modelos Gemini falharam ({sorted(testados)}). Ultimo erro: {ultimo_erro_msg}")
 
 
 def _resumir_historico_proibido(dados_hist: dict) -> str:
@@ -821,11 +1006,13 @@ def gerar_roteiro_inedito_gemini(
     modelo: str = GEMINI_MODELO_PADRAO,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
+    modelo_ativo_ref: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     """Gera obrigatoriamente um titulo e roteiro bruto 100% ineditos via Gemini (contra historico)."""
     prox_id = proximo_numero_livre(dados_hist)
     motivo_rej: str | None = None
     ultimo_erro = "Gemini nao retornou um roteiro inedito valido."
+    ref_local = modelo_ativo_ref if modelo_ativo_ref is not None else {}
 
     for tentativa in range(1, 4):
         prompt = _montar_prompt_roteiro_inedito(
@@ -837,10 +1024,10 @@ def gerar_roteiro_inedito_gemini(
         dados = _chamar_gemini_json(
             prompt=prompt,
             api_key=api_key,
-            modelo=modelo,
-            temperature=0.85,
+            modelo=ref_local.get("modelo", modelo),
             urlopen_fn=urlopen_fn,
             sleep_fn=sleep_fn,
+            modelo_ativo_ref=ref_local,
         )
         titulo_gerado = sanitizar_texto(str(dados.get("titulo", "") or titulo_sugerido or "")).strip()
         tema_gerado = sanitizar_texto(str(dados.get("tema", "") or "")).strip()
@@ -897,7 +1084,7 @@ def gerar_roteiro_inedito_mock(dados_hist: dict, titulo_sugerido: str | None = N
         f"Bruno atende tremendo. Do outro lado, a voz da atendente da central de monitoramento pergunta: "
         f"Senhor, por que voce ligou todas as seis secadoras se a camera mostra voce parado fora da loja "
         f"olhando pela vitrine? Bruno vira o pescoco devagar em direcao a rua deserta. "
-        f"Do lado de fora, encostado no vidro embaçado, um homem com o mesmo uniforme dele levanta a mao "
+        f"Do lado de fora, encostado no vidro embacado, um homem com o mesmo uniforme dele levanta a mao "
         f"e escreve ao contrario no vidro: ja deu o meu tempo, agora e a sua vez."
     )
     return titulo, roteiro
@@ -911,6 +1098,7 @@ def chamar_gemini_diretor(
     modelo: str = GEMINI_MODELO_PADRAO,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
+    modelo_ativo_ref: dict[str, str] | None = None,
 ) -> dict:
     """Chama Gemini REST API (stdlib urllib) passando a chave no header x-goog-api-key."""
     prompt = _montar_prompt_gemini(roteiro_bruto, titulo_sugerido, sorted(catalogo_sfx.keys()))
@@ -918,9 +1106,9 @@ def chamar_gemini_diretor(
         prompt=prompt,
         api_key=api_key,
         modelo=modelo,
-        temperature=0.35,
         urlopen_fn=urlopen_fn,
         sleep_fn=sleep_fn,
+        modelo_ativo_ref=modelo_ativo_ref,
     )
 
 
@@ -1520,6 +1708,7 @@ def produzir_direcao_v6(
     titulo_efetivo = titulo
     texto_entrada = str(roteiro_bruto or "").strip()
     veio_de_inedito = False
+    modelo_ativo_ref: dict[str, str] = {}
 
     if gerar_inedito or not texto_entrada:
         dados_hist = carregar_historico(caminho_historico)
@@ -1536,6 +1725,7 @@ def produzir_direcao_v6(
                 modelo=modelo,
                 urlopen_fn=urlopen_fn,
                 sleep_fn=sleep_fn,
+                modelo_ativo_ref=modelo_ativo_ref,
             )
         titulo_efetivo = titulo or titulo_gerado
 
@@ -1558,11 +1748,13 @@ def produzir_direcao_v6(
                 titulo_sugerido=titulo_efetivo,
                 api_key=api_key,
                 catalogo_sfx=catalogo_sfx,
-                modelo=modelo,
+                modelo=modelo_ativo_ref.get("modelo", modelo),
                 urlopen_fn=urlopen_fn,
                 sleep_fn=sleep_fn,
+                modelo_ativo_ref=modelo_ativo_ref,
             )
-            origem = f"gemini_inedito:{modelo}" if veio_de_inedito else f"gemini:{modelo}"
+            modelo_usado = modelo_ativo_ref.get("modelo", modelo)
+            origem = f"gemini_inedito:{modelo_usado}" if veio_de_inedito else f"gemini:{modelo_usado}"
         except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, RuntimeError, ValueError, TimeoutError) as exc:
             if exigir_gemini:
                 raise RuntimeError(
@@ -1626,10 +1818,15 @@ def main() -> None:
     grupo.add_argument(
         "--gerar-inedito",
         action="store_true",
-        help="Cria automaticamente um roteiro 100% inedito via Gemini evitando temas do historico_videos.json.",
+        help="Cria automaticamente um roteiro 100%% inedito via Gemini evitando temas do historico_videos.json.",
     )
     parser.add_argument("--titulo", type=str, default=None, help="Titulo opcional do video.")
-    parser.add_argument("--modelo", type=str, default=GEMINI_MODELO_PADRAO, help="Modelo Gemini (padrao: gemini-2.5-flash).")
+    parser.add_argument(
+        "--modelo",
+        type=str,
+        default=GEMINI_MODELO_PADRAO,
+        help=f"Modelo Gemini preferido (padrao: {GEMINI_MODELO_PADRAO}; com fallback automatico).",
+    )
     parser.add_argument("--mock", action="store_true", help="Executa em modo deterministico offline sem chamar a API.")
     parser.add_argument(
         "--exigir-gemini",
