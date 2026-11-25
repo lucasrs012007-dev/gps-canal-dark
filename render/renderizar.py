@@ -58,6 +58,12 @@ class ServidorSilencioso(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(RAIZ), **kwargs)
 
+    def guess_type(self, path):
+        ctype = super().guess_type(path)
+        if ctype in ("text/html", "application/json", "text/javascript", "application/javascript", "text/css"):
+            return f"{ctype}; charset=utf-8"
+        return ctype
+
     def log_message(self, format, *args):
         pass
 

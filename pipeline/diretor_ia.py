@@ -7,7 +7,7 @@ gerando automaticamente:
 2. `roteiro_XX.txt` pronto para o pipeline V5.2 (tags [VOZ:perfil], [SFX:...], [CTA_PAUSA]
    e [CORTE_PARTE_2] automatico acima de 130 palavras).
 3. `cenas.json` (schema versionado "6.0", validado e auto-corrigido em Python) guiando os
-   9 modulos visuais do `player_universal.html`, paleta, protagonista, relogio e 3 a 5 hits Katana.
+   10 modulos visuais do `player_universal.html`, paleta, protagonista, relogio e 3 a 5 hits Katana.
 
 Uso (na raiz do repositorio):
     python3 pipeline/diretor_ia.py --gerar-inedito --exigir-gemini
@@ -60,76 +60,76 @@ ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
 CTA_FALA_PADRAO = "Quer aprender a fazer vídeos assim no automático? Comente EU QUERO."
 LIMITE_PALAVRAS_PARTE_2 = 130
-CANAL_NOME = "E Se Voce?"
+CANAL_NOME = "E Se Você?"
 
 PILARES_EDITORIAIS: tuple[dict[str, str], ...] = (
     {
         "id": "cenarios_hipoteticos",
-        "nome": "Cenarios hipoteticos ('E se voce...?')",
-        "gancho": "Comece direto em segunda pessoa com uma pergunta ou situacao extrema de sobrevivencia/decisao ('E se voce ficasse preso em...', 'E se voce acordasse...', 'E se o mundo parasse por...').",
+        "nome": "Cenários hipotéticos ('E se você...?')",
+        "gancho": "Comece direto em segunda pessoa com uma pergunta ou situação extrema de sobrevivência/decisão ('E se você ficasse preso em...', 'E se você acordasse...', 'E se o mundo parasse por...').",
         "instrucoes": (
-            "Conduza o espectador passo a passo em segunda pessoa ('voce') pelos minutos ou horas seguintes, "
-            "mostrando reacoes fisicas reais, dilemas psicologicos e escalada de tensao ate uma consequencia "
-            "final surpreendente e memoravel na ultima frase."
+            "Conduza o espectador passo a passo em segunda pessoa ('você') pelos minutos ou horas seguintes, "
+            "mostrando reações físicas reais, dilemas psicológicos e escalada de tensão até uma consequência "
+            "final surpreendente e memorável na última frase."
         ),
         "exemplos": (
-            "ficar preso dentro de um submarino sem comunicacao, acordar sendo a unica pessoa na cidade, "
-            "aceitar ficar 30 dias numa sala branca sem relogio por 10 milhoes, perder a gravidade por 60 segundos, "
-            "ficar preso num teleferico durante tempestade, acordar 24 horas antes de um apagao global"
+            "ficar preso dentro de um submarino sem comunicação, acordar sendo a única pessoa na cidade, "
+            "aceitar ficar 30 dias numa sala branca sem relógio por 10 milhões, perder a gravidade por 60 segundos, "
+            "ficar preso num teleférico durante tempestade, acordar 24 horas antes de um apagão global"
         ),
         "horario_padrao": "15:00",
-        "titulo_fallback": "E Se Voce Acordasse Sozinho",
+        "titulo_fallback": "E Se Você Acordasse Sozinho",
     },
     {
         "id": "curiosidades_bizarras",
         "nome": "Curiosidades bizarras e fatos pouco conhecidos",
-        "gancho": "Abra com um fato real chocante, contraintuitivo ou quase ninguem sabe ('Voce sabia que existe...', 'Existe um fenomeno real...', 'Seu cerebro esconde um mecanismo bizarro...').",
+        "gancho": "Abra com um fato real chocante, contraintuitivo ou que quase ninguém sabe ('Você sabia que existe...', 'Existe um fenômeno real...', 'Seu cérebro esconde um mecanismo bizarro...').",
         "instrucoes": (
-            "Apresente um fato real e documentado de ciencia, psicologia, biologia humana, engenharia, "
-            "natureza extrema ou historia pouco conhecida. Estruture em camadas: o que parece comum, "
-            "a explicacao surpreendente por tras e o detalhe final inquietante que prende a atencao."
+            "Apresente um fato real e documentado de ciência, psicologia, biologia humana, engenharia, "
+            "natureza extrema ou história pouco conhecida. Estruture em camadas: o que parece comum, "
+            "a explicação surpreendente por trás e o detalhe final inquietante que prende a atenção."
         ),
         "exemplos": (
-            "o som oceanico The Bloop e o Ponto Nemo, a sindrome da mao alheia, a Zona de Silencio no deserto, "
-            "por que o espaco tem cheiro de metal queimado, protocolos reais ocultos de aviacao ou usinas, "
-            "o fenomeno da paralisia de decisao em ambientes extremos, cidades subterraneas reais"
+            "o som oceânico The Bloop e o Ponto Nemo, a síndrome da mão alheia, a Zona de Silêncio no deserto, "
+            "por que o espaço tem cheiro de metal queimado, protocolos reais ocultos de aviação ou usinas, "
+            "o fenômeno da paralisia de decisão em ambientes extremos, cidades subterrâneas reais"
         ),
         "horario_padrao": "14:20",
         "titulo_fallback": "O Fato Bizarro Que Poucos Sabem",
     },
     {
         "id": "misterios_reais",
-        "nome": "Misterios reais e lugares proibidos",
-        "gancho": "Abra apresentando um lugar proibido real, um sinal sem explicacao ou um caso documentado ('Existe um lugar no planeta onde entrar e crime...', 'Ha um misterio real que ninguem resolveu...').",
+        "nome": "Mistérios reais e lugares proibidos",
+        "gancho": "Abra apresentando um lugar proibido real, um sinal sem explicação ou um caso documentado ('Existe um lugar no planeta onde entrar é crime...', 'Há um mistério real que ninguém resolveu...').",
         "instrucoes": (
-            "Narre um misterio real ou local de acesso vetado por governos/ciencia com detalhes concretos "
-            "(localizacao, datas, protocolos de seguranca ou registros oficiais), aumentando o clima "
-            "investigativo ate o enigma sem resposta que fecha o episodio."
+            "Narre um mistério real ou local de acesso vetado por governos/ciência com detalhes concretos "
+            "(localização, datas, protocolos de segurança ou registros oficiais), aumentando o clima "
+            "investigativo até o enigma sem resposta que fecha o episódio."
         ),
         "exemplos": (
-            "Ilha Sentinela do Norte, Cofre Global de Sementes de Svalbard, Caverna de Lascaux fechada ao publico, "
-            "Ilha da Queimada Grande, estacao de radio fantasma UVB-76, Area de exclusao em ilhas remotas, "
-            "arquivos secretos de expedicoes polares ou navios encontrados a deriva"
+            "Ilha Sentinela do Norte, Cofre Global de Sementes de Svalbard, Caverna de Lascaux fechada ao público, "
+            "Ilha da Queimada Grande, estação de rádio fantasma UVB-76, área de exclusão em ilhas remotas, "
+            "arquivos secretos de expedições polares ou navios encontrados à deriva"
         ),
         "horario_padrao": "21:40",
-        "titulo_fallback": "O Lugar Proibido Que Ninguem Entra",
+        "titulo_fallback": "O Lugar Proibido Que Ninguém Entra",
     },
     {
         "id": "suspense_urbano",
         "nome": "Relatos curtos de suspense urbano",
-        "gancho": "Abra situando rapidamente um personagem comum em um cenario urbano cotidiano realista (metro, hotel, hospital, estacionamento, entrega, portaria, escritorio vazio) com um detalhe fora do normal.",
+        "gancho": "Abra situando rapidamente um personagem comum em um cenário urbano cotidiano realista (metrô, hotel, hospital, estacionamento, entrega, portaria, escritório vazio) com um detalhe fora do normal.",
         "instrucoes": (
-            "Desenvolva um micro-suspense psicologico realista e cinematografico sem repetir cenarios "
-            "do historico (evite repetir madrugada no quarto ou espelho se ja apareceram recentemente), "
-            "escalando a tensao ate um plot twist seco e perturbador na ultima frase."
+            "Desenvolva um micro-suspense psicológico realista e cinematográfico sem repetir cenários "
+            "do histórico (evite repetir madrugada no quarto ou espelho se já apareceram recentemente), "
+            "escalando a tensão até um plot twist seco e perturbador na última frase."
         ),
         "exemplos": (
-            "ultimo vagao do metro parado no tunel, camera de seguranca de estacionamento subterraneo, "
-            "quarto de hotel com recado escrito no mesmo dia, plantao noturno em hospital, "
-            "cabine de pedagio isolada, entrega de encomenda sem remetente"
+            "último vagão do metrô parado no túnel, câmera de segurança de estacionamento subterrâneo, "
+            "quarto de hotel com recado escrito no mesmo dia, plantão noturno em hospital, "
+            "cabine de pedágio isolada, entrega de encomenda sem remetente"
         ),
         "horario_padrao": "23:18",
-        "titulo_fallback": "O Aviso no Ultimo Vagao",
+        "titulo_fallback": "O Aviso no Último Vagão",
     },
 )
 PILARES_POR_ID: dict[str, dict[str, str]] = {p["id"]: p for p in PILARES_EDITORIAIS}
@@ -142,8 +142,28 @@ MODULOS_CENARIO: tuple[str, ...] = (
     "elevador_cabine",
     "carro_noite",
     "sala_cozinha",
+    "escritorio",
     "big_face",
     "blecaute_olhos",
+)
+
+POSES_VALIDAS: tuple[str, ...] = (
+    "idle",
+    "walk",
+    "phone",
+    "panic",
+    "press",
+    "reach",
+    "flutuando",
+    "segurando_mesa",
+    "caindo",
+)
+
+PROPS_FLUTUANTES_VALIDOS: tuple[str, ...] = (
+    "lapiseira",
+    "xicara_cafe",
+    "cadeiras",
+    "silhuetas_janela",
 )
 
 PERFIS_VOZ: tuple[str, ...] = (
@@ -357,29 +377,190 @@ def extrair_nome_protagonista(texto: str) -> str:
     return "Protagonista"
 
 
-def inferir_modulo_por_texto(texto: str, idx: int, total: int) -> str:
-    """Seleciona um dos 9 modulos visuais do player_universal.html conforme pistas do texto."""
+PT_ACENTOS_EXATOS: dict[str, str] = {
+    "voce": "você", "voces": "vocês", "nao": "não", "mao": "mão", "maos": "mãos",
+    "pes": "pés", "direcao": "direção", "direcoes": "direções", "levitacao": "levitação",
+    "levitaçao": "levitação", "escritorio": "escritório", "escritorios": "escritórios",
+    "xicara": "xícara", "xicaras": "xícaras", "cafe": "café", "cafes": "cafés",
+    "chao": "chão", "panico": "pânico", "pulmao": "pulmão", "pulmoes": "pulmões",
+    "ceu": "céu", "ceus": "céus", "balao": "balão", "baloes": "balões",
+    "comeca": "começa", "comecam": "começam", "comecou": "começou", "armario": "armário",
+    "armarios": "armários", "movimentacao": "movimentação", "caotica": "caótica",
+    "caotico": "caótico", "vidraca": "vidraça", "forca": "força", "ja": "já",
+    "so": "só", "ate": "até", "entao": "então", "tambem": "também",
+    "ninguem": "ninguém", "alguem": "alguém", "atras": "atrás", "silencio": "silêncio",
+    "escuridao": "escuridão", "camera": "câmera", "cameras": "câmeras", "relogio": "relógio",
+    "oxigenio": "oxigênio", "cerebro": "cérebro", "pressao": "pressão", "explosoes": "explosões",
+    "ligacao": "ligação", "notificacao": "notificação", "coracao": "coração",
+    "respiracao": "respiração", "gravacao": "gravação", "estacao": "estação",
+    "atencao": "atenção", "decisao": "decisão", "revelacao": "revelação",
+    "comunicacao": "comunicação", "situacao": "situação", "sensacao": "sensação",
+    "sao": "são", "estao": "estão", "alivio": "alívio", "ultimo": "último", "ultima": "última",
+    "unico": "único", "unica": "única", "numero": "número", "proximo": "próximo",
+    "proxima": "próxima", "rapido": "rápido", "rapida": "rápida", "automatico": "automático",
+    "automatica": "automática", "eletrico": "elétrico", "eletronico": "eletrônico",
+    "metalico": "metálico", "subterraneo": "subterrâneo", "terreo": "térreo",
+    "espaco": "espaço", "braco": "braço", "bracos": "braços", "cabeca": "cabeça",
+    "baba": "babá", "berco": "berço", "macaneta": "maçaneta", "historia": "história",
+    "misterio": "mistério", "cenario": "cenário", "cenarios": "cenários", "fenomeno": "fenômeno",
+    "hipotetico": "hipotético", "hipoteticos": "hipotéticos", "emergencia": "emergência",
+    "visao": "visão", "presenca": "presença", "video": "vídeo", "videos": "vídeos",
+    "audio": "áudio", "predio": "prédio", "tunel": "túnel", "vagao": "vagão",
+    "aviao": "avião", "metro": "metrô", "horario": "horário", "apos": "após",
+    "la": "lá", "ha": "há", "porem": "porém", "alem": "além", "atraves": "através",
+    "dioxido": "dióxido", "vigesima": "vigésima", "valvula": "válvula", "oceanico": "oceânico",
+    "biologico": "biológico", "agencias": "agências", "satelites": "satélites",
+    "estacoes": "estações", "hidrofones": "hidrofones", "acustica": "acústica",
+    "artico": "Ártico", "autorizacao": "autorização", "milhao": "milhão", "milhoes": "milhões",
+    "funcionarios": "funcionários", "ficcao": "ficção", "cientifica": "científica",
+}
+
+RE_PALAVRA_PT = re.compile(r"[A-Za-zÀ-ÿ]+")
+
+
+def _preservar_caixa(orig: str, alvo: str) -> str:
+    if orig.isupper():
+        return alvo.upper()
+    if orig[:1].isupper() and orig[1:].islower():
+        return alvo[:1].upper() + alvo[1:]
+    return alvo
+
+
+def restaurar_acentos_ptbr(texto: str) -> str:
+    """Preserva UTF-8 completo e restaura acentos inequivocos em pt-BR caso venham omitidos."""
+    bruto = unicodedata.normalize("NFC", str(texto or ""))
+    if not bruto:
+        return ""
+
+    def _sub(match: re.Match[str]) -> str:
+        palavra = match.group(0)
+        low = palavra.lower()
+        alvo = PT_ACENTOS_EXATOS.get(low)
+        if alvo is None:
+            if low.endswith("çao") and len(low) > 3:
+                alvo = low[:-3] + "ção"
+            elif low.endswith("çoes") and len(low) > 4:
+                alvo = low[:-4] + "ções"
+        return _preservar_caixa(palavra, alvo) if alvo else palavra
+
+    return RE_PALAVRA_PT.sub(_sub, bruto)
+
+
+def texto_indica_gravidade_zero(texto: str) -> bool:
     norm = normalizar_texto(texto)
+    termos = (
+        "gravidade", "flutua", "flutuam", "flutuando", "flutuar", "levita", "levitar",
+        "levitacao", "sem peso", "peso zero", "leveza", "perderam o contato",
+        "subindo aos ceus", "subindo como baloes", "baloes soltos", "despenca",
+        "queda livre", "caindo", "teto de gesso", "sai do chao",
+    )
+    return any(t in norm for t in termos)
+
+
+def texto_indica_escritorio(texto: str) -> bool:
+    norm = normalizar_texto(texto)
+    termos = (
+        "escritorio", "teto de gesso", "piso acarpetado", "acarpetado", "carpete",
+        "monitor", "monitores", "computador", "lapiseira", "xicara de cafe",
+        "andar inteiro", "janelas de vidro", "vidraca", "cadeiras", "armarios",
+        "predio comercial", "mesa de trabalho", "baia", "reuniao", "colegas",
+    )
+    return any(t in norm for t in termos)
+
+
+def texto_indica_vulto(texto: str) -> bool:
+    norm = normalizar_texto(texto)
+    termos = (
+        "vulto", "sombra", "silhueta atras", "alguem atras", "atras de voce",
+        "atras da porta", "olhos no escuro", "invasor", "sorrindo", "sorriu",
+        "espelho", "reflexo", "encara", "baba eletronica", "guarda roupa",
+        "lado de fora", "olhando pra lente", "olhando para a lente",
+    )
+    return any(t in norm for t in termos)
+
+
+def inferir_pose_por_texto(
+    texto: str,
+    modulo: str,
+    perfil: str,
+    gravidade_zero: bool = False,
+) -> str:
+    norm = normalizar_texto(texto)
+    if any(k in norm for k in ("despenca", "queda livre", "caindo", "direcao ao chao", "chao de concreto", "cai com toda")):
+        return "caindo"
+    if any(k in norm for k in ("segurar na mesa", "segura na mesa", "agarrar na mesa", "agarra a mesa", "pes ja perderam", "perderam o contato")):
+        return "segurando_mesa"
+    if any(k in norm for k in ("flutua", "flutuam", "flutuando", "flutuar", "levita", "levitar", "levitacao", "teto de gesso", "leveza", "centro da sala", "subindo", "contra as janelas")):
+        return "flutuando"
+    if gravidade_zero and modulo in ("escritorio", "sala_cozinha"):
+        return "flutuando"
+    if perfil == "panico":
+        return "panic"
+    if modulo == "celular_notificacao":
+        return "phone"
+    if "corredor" in norm or "andando" in norm or "caminh" in norm:
+        return "walk"
+    return "idle"
+
+
+def inferir_props_flutuantes(
+    texto: str,
+    objeto_atual: str = "",
+    gravidade_zero: bool = False,
+) -> list[str]:
+    norm_txt = normalizar_texto(texto)
+    norm_obj = normalizar_texto(objeto_atual)
+    norm_all = f"{norm_txt} {norm_obj}".strip()
+    itens: list[str] = []
+    if any(k in norm_all for k in ("lapiseira", "caneta", "lapis", "papel", "folha")):
+        itens.append("lapiseira")
+    if any(k in norm_all for k in ("xicara", "cafe", "caneca", "gotas", "esferas")):
+        itens.append("xicara_cafe")
+    if any(k in norm_all for k in ("cadeira", "cadeiras", "armario", "armarios", "empilhando", "teto de gesso", "mesa", "andar inteiro")):
+        itens.append("cadeiras")
+    if any(k in norm_txt for k in ("janela", "janelas", "vidraca", "vidro", "horizonte", "pedestres", "carros", "baloes", "ceus", "silhueta", "lado de fora")):
+        itens.append("silhuetas_janela")
+    if gravidade_zero and not itens:
+        itens = ["lapiseira", "xicara_cafe", "cadeiras"]
+    return itens
+
+
+def inferir_modulo_por_texto(
+    texto: str,
+    idx: int,
+    total: int,
+    contexto_global: str = "",
+) -> str:
+    """Seleciona um dos 10 modulos visuais do player_universal.html conforme pistas do texto."""
+    norm = normalizar_texto(texto)
+    ctx_escritorio = texto_indica_escritorio(contexto_global) if contexto_global else False
+    ctx_zero_g = texto_indica_gravidade_zero(contexto_global) if contexto_global else False
+
     if idx == total - 1 and total >= 3:
         if any(k in norm for k in ("olho", "olhos", "escuro", "blecaute", "apagou", "apaga", "sombra", "sorri", "atras")):
             return "blecaute_olhos"
+        if ctx_escritorio and any(k in norm for k in ("despenca", "queda", "chao", "concreto", "gravidade")):
+            return "escritorio"
+        if ctx_zero_g and any(k in norm for k in ("despenca", "queda", "chao", "gravidade")):
+            return "escritorio" if ctx_escritorio else "big_face"
         return "blecaute_olhos" if idx % 2 == 1 else "big_face"
     if idx == total - 2 and total >= 4:
-        if any(k in norm for k in ("choque", "gelou", "congelou", "grito", "arrepio", "panico", "coracao", "rosto", "pavor")):
+        if any(k in norm for k in ("contador", "mente", "choque", "gelou", "congelou", "grito", "arrepio", "panico", "coracao", "rosto", "pavor")) and not any(k in norm for k in ("janela", "vidraca", "cadeira", "teto", "lapiseira")):
             return "big_face"
 
     regras: list[tuple[str, tuple[str, ...]]] = [
+        ("escritorio", ("escritorio", "teto de gesso", "acarpetado", "carpete", "lapiseira", "xicara de cafe", "monitores", "computador", "andar inteiro", "janelas de vidro", "vidraca", "cadeiras", "armarios", "reuniao", "colegas")),
         ("celular_notificacao", ("celular", "mensagem", "notificacao", "whatsapp", "tela", "ligacao", "chamada", "audio", "foto", "sms", "vibra", "vibrou", "toca", "tocou", "alerta", "sinal", "radio")),
-        ("camera_cctv", ("camera", "cctv", "monitor", "gravacao", "gravando", "lente", "baba eletronica", "portaria", "vigilancia", "filmando", "satelite", "radar", "arquivo", "cientista", "laboratorio", "expedicao", "ilha", "oceano", "deserto")),
-        ("elevador_cabine", ("elevador", "subsolo", "andar", "botoeira", "espelho", "cabine", "terreo", "submarino", "capsula", "bunker", "cofre", "teleferico", "sala branca")),
+        ("camera_cctv", ("camera", "cctv", "gravacao", "gravando", "lente", "baba eletronica", "portaria", "vigilancia", "filmando", "satelite", "radar", "arquivo", "cientista", "laboratorio", "expedicao", "ilha", "oceano", "deserto")),
+        ("elevador_cabine", ("elevador", "subsolo", "botoeira", "espelho", "cabine", "terreo", "submarino", "capsula", "bunker", "cofre", "teleferico", "sala branca")),
         ("carro_noite", ("carro", "estrada", "rodovia", "gps", "farol", "volante", "motorista", "retrovisor", "asfalto", "pista", "freio", "aviao", "navio", "trem", "metro", "vagao")),
-        ("corredor_escuro", ("corredor", "escada", "cadeira", "passos", "hall", "porta", "macaneta", "fechadura", "batida", "batendo", "tunel", "caverna", "subterraneo", "ruina")),
-        ("quarto_noturno", ("quarto", "cama", "travesseiro", "cobertor", "guarda roupa", "armario", "acorda", "acordou", "dormindo", "janela", "cortina", "hotel")),
-        ("sala_cozinha", ("sala", "cozinha", "sofa", "mesa", "geladeira", "televisao", "tv", "sacola", "apartamento", "casa", "escritorio")),
-        ("big_face", ("congelou", "gelou", "coracao", "suor", "olhou", "rosto", "respiracao", "panico", "medo", "cerebro", "mente", "oxigenio", "gravidade", "pressao", "corpo")),
+        ("corredor_escuro", ("corredor", "escada", "passos", "hall", "porta", "macaneta", "fechadura", "batida", "batendo", "tunel", "caverna", "subterraneo", "ruina")),
+        ("quarto_noturno", ("quarto", "cama", "travesseiro", "cobertor", "guarda roupa", "acorda", "acordou", "dormindo", "cortina", "hotel")),
+        ("sala_cozinha", ("cozinha", "sofa", "geladeira", "televisao", "tv", "sacola", "apartamento", "casa")),
+        ("big_face", ("congelou", "gelou", "coracao", "suor", "olhou", "rosto", "respiracao", "panico", "medo", "cerebro", "mente", "oxigenio", "pressao", "pulmoes", "contador")),
         ("blecaute_olhos", ("blecaute", "breu", "apagao", "escuridao", "olhos", "vulto", "sombra", "silencio", "vazio")),
     ]
-    melhor_mod = "quarto_noturno"
+    melhor_mod = "escritorio" if ctx_escritorio else "quarto_noturno"
     melhor_score = 0
     for mod, termos in regras:
         score = sum(1 for termo in termos if termo in norm)
@@ -387,9 +568,13 @@ def inferir_modulo_por_texto(texto: str, idx: int, total: int) -> str:
             melhor_score = score
             melhor_mod = mod
     if melhor_score > 0:
+        if ctx_escritorio and melhor_mod in ("carro_noite", "sala_cozinha") and not any(k in norm for k in ("volante", "estrada", "rodovia", "motorista", "cozinha", "geladeira", "sofa")):
+            return "escritorio"
         return melhor_mod
 
-    ciclo = ("quarto_noturno", "corredor_escuro", "sala_cozinha", "big_face", "blecaute_olhos")
+    if ctx_escritorio:
+        return "escritorio"
+    ciclo = ("quarto_noturno", "corredor_escuro", "sala_cozinha", "escritorio", "big_face", "blecaute_olhos")
     return ciclo[idx % len(ciclo)]
 
 
@@ -566,7 +751,7 @@ def _escolher_katana_hits(blocos: list[dict], total_desejado: int = 4) -> list[d
 
         gatilho = re.sub(r"[^a-z0-9]", "", normalizar_texto(escolhida)) or "choque"
         usadas.add(gatilho)
-        palavra_upper = escolhida.upper()
+        palavra_upper = restaurar_acentos_ptbr(escolhida).upper()
         eh_ultimo = h_i == len(indices_candidatos[:5])
         hits.append(
             {
@@ -589,19 +774,21 @@ def diretor_mock_deterministico(
 ) -> dict:
     """Modo deterministico offline (--mock e fallback de seguranca do Gemini)."""
     catalogo = catalogo_sfx or carregar_catalogo_sfx()
-    limpo = sanitizar_texto(roteiro_bruto)
+    limpo = restaurar_acentos_ptbr(sanitizar_texto(roteiro_bruto))
     blocos_txt = _dividir_em_blocos_narrativos(limpo)
     horario = extrair_horario(limpo)
     nome_prot = extrair_nome_protagonista(limpo)
+    ctx_escritorio = texto_indica_escritorio(limpo)
+    ctx_zero_g = texto_indica_gravidade_zero(limpo)
 
     if titulo_forcado and sanitizar_texto(titulo_forcado):
-        titulo = sanitizar_texto(titulo_forcado)[:72]
+        titulo = restaurar_acentos_ptbr(sanitizar_texto(titulo_forcado))[:72]
     else:
         primeiras = blocos_txt[0].rstrip(".!?").split()
         titulo = " ".join(primeiras[:6]).strip() or "Suspense da Madrugada"
         titulo = titulo[0].upper() + titulo[1:]
 
-    tema = sanitizar_texto(blocos_txt[0] + " " + (blocos_txt[-1] if len(blocos_txt) > 1 else ""))[:180]
+    tema = restaurar_acentos_ptbr(sanitizar_texto(blocos_txt[0] + " " + (blocos_txt[-1] if len(blocos_txt) > 1 else "")))[:180]
     palavras_chave = _extrair_palavras_chave(titulo, limpo, qtd=7)
 
     n = len(blocos_txt)
@@ -611,12 +798,12 @@ def diretor_mock_deterministico(
 
     for i, txt in enumerate(blocos_txt):
         norm = normalizar_texto(txt)
-        mod = inferir_modulo_por_texto(txt, i, n)
+        mod = inferir_modulo_por_texto(txt, i, n, contexto_global=limpo)
         if i == 0 and any(k in norm for k in ("quarto", "acorda", "acordou", "cama")) and mod == "celular_notificacao":
             mod = "quarto_noturno"
-        if mod == ultimo_mod:
+        if mod == ultimo_mod and not (ctx_escritorio and mod == "escritorio"):
             alternativas = [
-                m for m in ("big_face", "corredor_escuro", "sala_cozinha", "quarto_noturno", "blecaute_olhos")
+                m for m in ("big_face", "corredor_escuro", "sala_cozinha", "escritorio", "quarto_noturno", "blecaute_olhos")
                 if m != ultimo_mod
             ]
             if i == n - 1:
@@ -627,10 +814,12 @@ def diretor_mock_deterministico(
                 mod = alternativas[i % len(alternativas)]
         ultimo_mod = mod
 
+        grav_zero = texto_indica_gravidade_zero(txt) or (ctx_zero_g and i >= 1)
+
         if i == n - 1:
             perfil = "sussurro_twist"
-            mood = "red" if mod == "big_face" else "dark"
-            expr = "shock" if mod == "big_face" else "sinister_smile"
+            mood = "red" if (mod == "big_face" or grav_zero) else "dark"
+            expr = "shock" if (mod == "big_face" or grav_zero) else "sinister_smile"
         elif any(k in norm for k in ("ligacao", "chamada", "telefone", "na linha", "celular")) and (":" in txt or '"' in txt):
             perfil = "voz_telefone"
             mood = "violet"
@@ -639,7 +828,7 @@ def diretor_mock_deterministico(
             perfil = "interfone_porteiro"
             mood = "cctv" if mod == "camera_cctv" else "violet"
             expr = "fear"
-        elif i >= max(1, int(n * 0.55)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao")):
+        elif i >= max(1, int(n * 0.55)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca")):
             perfil = "panico"
             mood = "red" if i >= n - 3 else "violet"
             expr = "shock" if i >= n - 2 else "fear"
@@ -648,22 +837,36 @@ def diretor_mock_deterministico(
             mood = "cctv" if mod == "camera_cctv" else ("navy" if i % 2 == 0 else "violet")
             expr = "worry" if i > 0 else "neutral"
 
+        pose = inferir_pose_por_texto(txt, mod, perfil, gravidade_zero=grav_zero)
+        if pose == "caindo" and expr == "sinister_smile":
+            expr = "shock"
+        obj_principal = (
+            "lapiseira" if "lapiseira" in norm
+            else ("xicara_cafe" if ("xicara" in norm or "cafe" in norm)
+                  else ("guarda_roupa" if ("armario" in norm or "guarda roupa" in norm) else "janela"))
+        )
+        flutuantes = inferir_props_flutuantes(txt, objeto_atual=obj_principal, gravidade_zero=grav_zero) if grav_zero else []
+        tem_vulto = texto_indica_vulto(txt) and not (grav_zero and not any(k in norm for k in ("vulto", "sombra", "olhos", "invasor")))
+
         citacao = extrair_citacao_tela(txt, limite=84)
         props = {
-            "objeto": "guarda_roupa" if "armario" in norm or "guarda roupa" in norm else "janela",
-            "vulto": i >= max(2, n // 2),
+            "objeto": obj_principal,
+            "vulto": tem_vulto,
+            "gravidade_zero": grav_zero,
+            "objetos_flutuantes": flutuantes,
+            "silhuetas_janela": "silhuetas_janela" in flutuantes,
             "celular_app": "ALERTA" if any(k in norm for k in ("alerta", "emergencia", "banco", "pix")) else "MENSAGEM",
             "celular_remetente": "NÚMERO OCULTO" if "oculto" in norm or "desconhecido" in norm else "CONTATO",
             "celular_mensagem": citacao,
-            "celular_mensagem_2": "NÃO OLHE PARA TRÁS." if i >= n - 3 else "",
+            "celular_mensagem_2": "NÃO OLHE PARA TRÁS." if (i >= n - 3 and not grav_zero) else "",
             "cctv_cam": f"CAM 0{(i % 3) + 1}",
-            "cctv_local": "CORREDOR" if "corredor" in norm else ("QUARTO" if "quarto" in norm else "ACESSO"),
+            "cctv_local": "ESCRITÓRIO" if ctx_escritorio else ("CORREDOR" if "corredor" in norm else ("QUARTO" if "quarto" in norm else "ACESSO")),
             "cctv_status": "MOVIMENTO DETECTADO" if i < n - 2 else "ALERTA DE PRESENÇA",
             "elevador_andar": "S3" if "subsolo" in norm or "s3" in norm else "06",
             "gps_destino": "DESTINO: SUA CASA" if "casa" in norm else "DESTINO DESCONHECIDO",
             "gps_alerta": "ROTA RECALCULADA" if "gps" in norm or "rota" in norm else "ALERTA DE TRAJETO",
-            "corredor_objeto": "cadeira" if "cadeira" in norm else ("vulto" if i >= n // 2 else "porta"),
-            "pose": "panic" if perfil == "panico" else ("phone" if mod == "celular_notificacao" else ("walk" if "corredor" in norm else "idle")),
+            "corredor_objeto": "cadeira" if "cadeira" in norm else ("vulto" if tem_vulto else "porta"),
+            "pose": pose,
         }
 
         blocos.append(
@@ -721,41 +924,50 @@ def _montar_prompt_gemini(
     sfx_validos: list[str],
     pilar: dict[str, str] | None = None,
 ) -> str:
-    titulo_hint = f"Titulo sugerido pelo usuario: {titulo_sugerido}\n" if titulo_sugerido else ""
+    titulo_hint = f"Título sugerido pelo usuário: {titulo_sugerido}\n" if titulo_sugerido else ""
     pilar_hint = (
-        f"Pilar editorial deste episodio: {pilar['nome']} (id={pilar['id']}).\n"
+        f"Pilar editorial deste episódio: {pilar['nome']} (id={pilar['id']}).\n"
         if pilar is not None
         else ""
     )
     horario_ex = pilar["horario_padrao"] if pilar is not None else "15:00"
     return (
-        f"Voce e o Diretor IA V6 do canal '{CANAL_NOME}' (YouTube Shorts / Reels de alta retencao em pt-BR: "
-        "cenarios hipoteticos, curiosidades bizarras, misterios reais, lugares proibidos e suspense urbano).\n"
+        f"Você é o Diretor IA V6 do canal '{CANAL_NOME}' (YouTube Shorts / Reels de alta retenção em pt-BR: "
+        "cenários hipotéticos, curiosidades bizarras, mistérios reais, lugares proibidos e suspense urbano).\n"
         "Transforme o roteiro bruto abaixo em um plano estruturado JSON estrito.\n"
-        "REGRAS OBRIGATORIAS:\n"
-        "1. ZERO emoji e ZERO travessao (em-dash ou en-dash) em qualquer texto.\n"
-        "2. Preserve fielmente o roteiro bruto em portugues natural, dividido em 6 a 12 blocos narrativos.\n"
-        "3. Cada bloco escolhe:\n"
-        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use sussurro_twist no bloco final de impacto/revelacao; nunca use cta_comercial nos blocos de historia).\n"
-        f"   - modulo: um de {list(MODULOS_CENARIO)}.\n"
+        "REGRAS OBRIGATÓRIAS:\n"
+        "1. ZERO emoji e ZERO travessão (em-dash ou en-dash) em qualquer texto.\n"
+        "2. ORTOGRAFIA COMPLETA EM PORTUGUÊS (UTF-8): preserve e escreva TODOS os acentos e cedilhas "
+        "(ex.: você, não, mão, pés, direção, levitação, escritório, xícara, café, chão, pânico) no título, "
+        "nos blocos narrativos, nas mensagens e nas linhas de katana_hits. Nunca remova acentos.\n"
+        "3. Preserve fielmente o roteiro bruto em português natural, dividido em 6 a 12 blocos narrativos.\n"
+        "4. Cada bloco escolhe:\n"
+        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use sussurro_twist no bloco final de impacto/revelação; nunca use cta_comercial nos blocos de história).\n"
+        f"   - modulo: um de {list(MODULOS_CENARIO)}. Use 'escritorio' sempre que a cena ocorrer em escritório, mesas com monitores, janelas panorâmicas, teto de gesso ou cenários hipotéticos de gravidade zero (evite repetir 'sala_cozinha' quando o ambiente for corporativo ou científico; intercale com 'big_face' nos picos internos de tensão).\n"
         f"   - mood: um de {list(MOODS_VALIDOS)}.\n"
-        f"   - expressao: um de {list(EXPRESSOES_VALIDAS)}.\n"
+        f"   - expressao: um de {list(EXPRESSOES_VALIDAS)} (nunca use 'sinister_smile' em cenas de queda livre ou pânico do protagonista; use 'shock' ou 'fear').\n"
         f"   - camera: um de {list(CAMERAS_VALIDAS)}.\n"
-        f"   - sfx_depois: null ou um de {sfx_validos} (coloque impacto_twist no penultimo bloco antes da revelacao final; no maximo 3 SFX no total).\n"
-        "   - props: objeto com textos curtos reais quando aplicavel (celular_app, celular_remetente, celular_mensagem, celular_mensagem_2, cctv_cam, cctv_local, cctv_status, elevador_andar, gps_destino, gps_alerta, corredor_objeto, objeto, vulto, pose).\n"
-        "4. katana_hits: lista de 3 a 5 impactos curtos (1 a 2 palavras em MAIUSCULAS), cada um com bloco_idx (indice 0-based do bloco), palavra_gatilho (uma palavra exata sem acento/pontuacao presente no texto daquele bloco), linhas (lista de 1 a 2 strings curtas), duracao (0.36 a 0.48), cor ('red', 'yellow' ou 'white').\n"
-        f"5. horario: string HH:MM mencionada no roteiro (ou horario coerente com o clima do episodio, como '{horario_ex}').\n"
-        "6. protagonista.nome: nome do personagem do roteiro ou 'Voce' quando narrado em segunda pessoa/documental.\n"
-        "7. Responda APENAS com JSON valido no formato:\n"
+        f"   - sfx_depois: null ou um de {sfx_validos} (coloque impacto_twist no penúltimo bloco antes da revelação final; no máximo 3 SFX no total).\n"
+        f"   - props: objeto com:\n"
+        f"     * pose: um de {list(POSES_VALIDAS)} (use 'flutuando', 'segurando_mesa' ou 'caindo' em cenas de gravidade zero/queda, nunca deixe 'idle' parado quando houver ação física).\n"
+        "     * gravidade_zero: true ou false (true quando houver flutuação, levitação, perda de gravidade ou queda livre).\n"
+        f"     * objetos_flutuantes: lista usando subconjunto de {list(PROPS_FLUTUANTES_VALIDOS)} quando gravidade_zero=true.\n"
+        "     * silhuetas_janela: true quando pessoas ou carros estiverem flutuando/subindo fora da janela panorâmica.\n"
+        "     * vulto: true APENAS em cenas de terror/suspense com sombra ou presença ameaçadora (use false em cenários hipotéticos físicos ou científicos sem invasor).\n"
+        "     * demais campos curtos quando aplicáveis (objeto, celular_app, celular_remetente, celular_mensagem, celular_mensagem_2, cctv_cam, cctv_local, cctv_status, elevador_andar, gps_destino, gps_alerta, corredor_objeto).\n"
+        "5. katana_hits: lista de 3 a 5 impactos curtos (1 a 2 palavras em MAIÚSCULAS COM ACENTUAÇÃO UTF-8 CORRETA, ex.: ['LEVITAÇÃO', 'TOTAL'], ['QUEDA', 'LIVRE']), cada um com bloco_idx (índice 0-based do bloco), palavra_gatilho (palavra presente no texto daquele bloco), linhas (lista de 1 a 2 strings curtas acentuadas), duracao (0.36 a 0.48), cor ('red', 'yellow' ou 'white').\n"
+        f"6. horario: string HH:MM mencionada no roteiro (ou horário coerente com o clima do episódio, como '{horario_ex}').\n"
+        "7. protagonista.nome: nome do personagem do roteiro ou 'Você' quando narrado em segunda pessoa/documental.\n"
+        "8. Responda APENAS com JSON válido no formato:\n"
         "{\n"
         '  "titulo": "...",\n'
         '  "tema": "resumo curto em 1 frase",\n'
         '  "palavras_chave": ["kw1", "kw2", "kw3", "kw4", "kw5"],\n'
         f'  "horario": "{horario_ex}",\n'
-        '  "protagonista": {"nome": "Voce", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
+        '  "protagonista": {"nome": "Você", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
         '  "paleta": {"bg_navy": "#0A0F1D", "bg_violet": "#130926", "bg_red": "#3B0A0A", "accent": "#38D9FF", "alert": "#FF3B30", "yellow": "#FFD400"},\n'
-        '  "blocos": [{"perfil_voz": "...", "texto": "...", "modulo": "...", "mood": "...", "expressao": "...", "camera": "...", "sfx_depois": null, "props": {}}],\n'
-        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "travou", "linhas": ["TRAVOU"], "duracao": 0.42, "cor": "red"}]\n'
+        '  "blocos": [{"perfil_voz": "...", "texto": "...", "modulo": "...", "mood": "...", "expressao": "...", "camera": "...", "sfx_depois": null, "props": {"pose": "idle", "gravidade_zero": false, "objetos_flutuantes": [], "silhuetas_janela": false, "vulto": false}}],\n'
+        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "levitar", "linhas": ["LEVITAÇÃO", "TOTAL"], "duracao": 0.42, "cor": "red"}]\n'
         "}\n\n"
         f"{pilar_hint}"
         f"{titulo_hint}"
@@ -1124,42 +1336,44 @@ def _montar_prompt_roteiro_inedito(
     pilar_ativo = pilar or selecionar_proximo_pilar(dados_hist, proximo_id)
     proibidos = _resumir_historico_proibido(dados_hist)
     dica_titulo = (
-        f"Use ou adapte este titulo solicitado pelo usuario: '{titulo_sugerido}'.\n"
+        f"Use ou adapte este título solicitado pelo usuário: '{titulo_sugerido}'.\n"
         if titulo_sugerido
-        else "Crie um titulo curto, magnetico e inedito em portugues do Brasil (3 a 7 palavras) alinhado ao pilar.\n"
+        else "Crie um título curto, magnético e inédito em português do Brasil (3 a 7 palavras) alinhado ao pilar.\n"
     )
     aviso_rej = (
-        f"\nATENCAO: a tentativa anterior foi rejeitada por similaridade ({motivo_rejeicao}). "
-        "Mude COMPLETAMENTE o assunto, o cenario, os elementos centrais e a revelacao final!\n"
+        f"\nATENÇÃO: a tentativa anterior foi rejeitada por similaridade ({motivo_rejeicao}). "
+        "Mude COMPLETAMENTE o assunto, o cenário, os elementos centrais e a revelação final!\n"
         if motivo_rejeicao
         else ""
     )
     return (
-        f"Voce e o roteirista-chefe do canal '{CANAL_NOME}' (YouTube Shorts / Reels de altissima retencao "
-        f"em portugues do Brasil, episodio Video {proximo_id:02d}).\n"
-        "O canal alterna entre 4 pilares: cenarios hipoteticos ('E se voce...?'), curiosidades bizarras e "
-        "fatos pouco conhecidos, misterios reais e lugares proibidos, e relatos curtos de suspense urbano.\n\n"
-        f"PILAR OBRIGATORIO DESTE EPISODIO: {pilar_ativo['nome']} (id={pilar_ativo['id']})\n"
-        f"- Gancho inicial obrigatorio: {pilar_ativo['gancho']}\n"
+        f"Você é o roteirista-chefe do canal '{CANAL_NOME}' (YouTube Shorts / Reels de altíssima retenção "
+        f"em português do Brasil, episódio Vídeo {proximo_id:02d}).\n"
+        "O canal alterna entre 4 pilares: cenários hipotéticos ('E se você...?'), curiosidades bizarras e "
+        "fatos pouco conhecidos, mistérios reais e lugares proibidos, e relatos curtos de suspense urbano.\n\n"
+        f"PILAR OBRIGATÓRIO DESTE EPISÓDIO: {pilar_ativo['nome']} (id={pilar_ativo['id']})\n"
+        f"- Gancho inicial obrigatório: {pilar_ativo['gancho']}\n"
         f"- Desenvolvimento editorial: {pilar_ativo['instrucoes']}\n"
-        f"- Territorios de inspiracao (escolha algo inedito que NAO esteja no historico): {pilar_ativo['exemplos']}.\n\n"
-        "TEMAS JA PRODUZIDOS (PROIBIDO REPETIR TEMA, CENARIO, OBJETO CENTRAL OU REVELACAO):\n"
+        f"- Territórios de inspiração (escolha algo inédito que NÃO esteja no histórico): {pilar_ativo['exemplos']}.\n\n"
+        "TEMAS JÁ PRODUZIDOS (PROIBIDO REPETIR TEMA, CENÁRIO, OBJETO CENTRAL OU REVELAÇÃO):\n"
         f"{proibidos}\n"
         f"{aviso_rej}\n"
-        "REGRAS OBRIGATORIAS DO ROTEIRO:\n"
+        "REGRAS OBRIGATÓRIAS DO ROTEIRO:\n"
         f"1. {dica_titulo}"
-        "2. Escreva entre 185 e 245 palavras (ritmo agil e continuo para gerar automaticamente Parte 1 e Parte 2).\n"
-        "3. Siga estritamente o pilar obrigatorio acima (nao transforme cenarios hipoteticos, curiosidades "
-        "ou misterios reais em historia generica de terror de madrugada).\n"
+        "2. Escreva entre 185 e 245 palavras (ritmo ágil e contínuo para gerar automaticamente Parte 1 e Parte 2).\n"
+        "3. Siga estritamente o pilar obrigatório acima (não transforme cenários hipotéticos, curiosidades "
+        "ou mistérios reais em história genérica de terror de madrugada).\n"
         "4. Use frases curtas, diretas e visuais, com gancho forte nos primeiros 3 segundos, cliffhanger "
-        "natural no meio (transicao Parte 1 -> Parte 2) e impacto final seco e inesquecivel na ultima frase.\n"
-        "5. ZERO emoji, ZERO travessao (em-dash ou en-dash), ZERO tags [VOZ] ou [SFX], ZERO CTA "
-        "(a CTA e as tags serao inseridas automaticamente na etapa seguinte).\n"
-        "6. Responda APENAS com JSON valido no formato:\n"
+        "natural no meio (transição Parte 1 para Parte 2) e impacto final seco e inesquecível na última frase.\n"
+        "5. ORTOGRAFIA COMPLETA EM PORTUGUÊS (UTF-8): escreva com TODOS os acentos gráficos e cedilhas corretos "
+        "(ex.: você, não, mão, pés, direção, levitação, escritório, xícara, café, chão, pânico). Nunca remova acentos.\n"
+        "6. ZERO emoji, ZERO travessão (em-dash ou en-dash), ZERO tags [VOZ] ou [SFX], ZERO CTA "
+        "(a CTA e as tags serão inseridas automaticamente na etapa seguinte).\n"
+        "7. Responda APENAS com JSON válido no formato:\n"
         "{\n"
-        '  "titulo": "Titulo Inedito Curto",\n'
-        '  "tema": "Resumo objetivo em 1 frase da premissa inedita",\n'
-        '  "roteiro_bruto": "Texto corrido completo do roteiro em pt-BR (185 a 245 palavras)."\n'
+        '  "titulo": "Título Inédito Curto",\n'
+        '  "tema": "Resumo objetivo em 1 frase da premissa inédita",\n'
+        '  "roteiro_bruto": "Texto corrido completo do roteiro em pt-BR com acentuação UTF-8 completa (185 a 245 palavras)."\n'
         "}\n"
     )
 
@@ -1201,9 +1415,9 @@ def gerar_roteiro_inedito_gemini(
             sleep_fn=sleep_fn,
             modelo_ativo_ref=ref_local,
         )
-        titulo_gerado = sanitizar_texto(str(dados.get("titulo", "") or titulo_sugerido or "")).strip()
-        tema_gerado = sanitizar_texto(str(dados.get("tema", "") or "")).strip()
-        roteiro_gerado = sanitizar_texto(str(dados.get("roteiro_bruto", "") or "")).strip()
+        titulo_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("titulo", "") or titulo_sugerido or ""))).strip()
+        tema_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("tema", "") or ""))).strip()
+        roteiro_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("roteiro_bruto", "") or ""))).strip()
 
         if len(roteiro_gerado.split()) < 60:
             ultimo_erro = f"Roteiro inedito curto demais ({len(roteiro_gerado.split())} palavras)."
@@ -1251,76 +1465,76 @@ def gerar_roteiro_inedito_mock(
 
     modelos_mock: dict[str, tuple[str, str]] = {
         "cenarios_hipoteticos": (
-            f"E Se Voce Acordasse Preso no Submarino {prox_id:02d}",
+            f"E Se Você Acordasse Preso no Submarino {prox_id:02d}",
             (
-                "E se voce acordasse agora trancado dentro de um submarino parado a trezentos metros "
-                "de profundidade no fundo do oceano? No primeiro minuto, voce nota que as luzes principais "
-                "apagaram e apenas o painel de emergencia brilha em vermelho. O medidor mostra quarenta e oito "
-                "horas de oxigenio disponivel e nenhuma resposta no radio de superficie. Seu primeiro instinto "
-                "e correr pelos compartimentos batendo no casco de aco para chamar atencao, mas isso e o pior "
-                "erro possivel: cada movimento acelerado consome o dobro de ar e eleva o dioxido de carbono na "
-                "cabine. Depois de doze horas, a temperatura cai para seis graus e o silencio metalico comeca "
-                "a enganar seu cerebro com ruidos falsos de passos fora da escotilha. Na vigesima quarta hora, "
-                "o ar fica pesado, sua visao perde o foco lateral e voce descobre uma valvula de lastro manual "
-                "perto do corredor central. Ao girar a trava de ferro com as maos tremendo, o submarino inclina "
-                "devagar, mas o visor de pressao acende um alerta que ninguem esperava: a escotilha externa ja "
-                "havia sido destravada pelo lado de fora antes mesmo de voce acordar."
+                "E se você acordasse agora trancado dentro de um submarino parado a trezentos metros "
+                "de profundidade no fundo do oceano? No primeiro minuto, você nota que as luzes principais "
+                "apagaram e apenas o painel de emergência brilha em vermelho. O medidor mostra quarenta e oito "
+                "horas de oxigênio disponível e nenhuma resposta no rádio de superfície. Seu primeiro instinto "
+                "é correr pelos compartimentos batendo no casco de aço para chamar atenção, mas isso é o pior "
+                "erro possível: cada movimento acelerado consome o dobro de ar e eleva o dióxido de carbono na "
+                "cabine. Depois de doze horas, a temperatura cai para seis graus e o silêncio metálico começa "
+                "a enganar seu cérebro com ruídos falsos de passos fora da escotilha. Na vigésima quarta hora, "
+                "o ar fica pesado, sua visão perde o foco lateral e você descobre uma válvula de lastro manual "
+                "perto do corredor central. Ao girar a trava de ferro com as mãos tremendo, o submarino inclina "
+                "devagar, mas o visor de pressão acende um alerta que ninguém esperava: a escotilha externa já "
+                "havia sido destravada pelo lado de fora antes mesmo de você acordar."
             ),
         ),
         "curiosidades_bizarras": (
-            f"O Fenomeno Real do Ponto Nemo {prox_id:02d}",
+            f"O Fenômeno Real do Ponto Nemo {prox_id:02d}",
             (
-                "Voce sabia que existe um ponto no oceano tao isolado que, se voce estiver la, os seres "
-                "humanos mais proximos de voce nao estao na Terra, mas passando dentro da Estacao Espacial "
-                "Internacional? Esse lugar real se chama Ponto Nemo, no meio do Oceano Pacifico Sul, a mais "
-                "de dois mil e seiscentos quilometros da ilha habitada mais proxima. Por causa das correntes "
-                "marinhas circulares, quase nenhum nutriente chega ate aquela regiao, transformando as aguas "
-                "em um deserto biologico quase sem peixes. E exatamente por ser tao remoto que agencias "
-                "espaciais usam o Ponto Nemo como o maior cemiterio de naves do planeta: centenas de satelites "
-                "desativados e fragmentos de estacoes espaciais ja foram derrubados de proposito naquela area. "
+                "Você sabia que existe um ponto no oceano tão isolado que, se você estiver lá, os seres "
+                "humanos mais próximos de você não estão na Terra, mas passando dentro da Estação Espacial "
+                "Internacional? Esse lugar real se chama Ponto Nemo, no meio do Oceano Pacífico Sul, a mais "
+                "de dois mil e seiscentos quilômetros da ilha habitada mais próxima. Por causa das correntes "
+                "marinhas circulares, quase nenhum nutriente chega até aquela região, transformando as águas "
+                "em um deserto biológico quase sem peixes. É exatamente por ser tão remoto que agências "
+                "espaciais usam o Ponto Nemo como o maior cemitério de naves do planeta: centenas de satélites "
+                "desativados e fragmentos de estações espaciais já foram derrubados de propósito naquela área. "
                 "Mas o detalhe mais bizarro aconteceu em mil novecentos e noventa e sete, quando hidrofones "
-                "militares captaram um som subaquatico gigantesco vindo de perto dali, ouvido a cinco mil "
-                "quilometros de distancia. Os cientistas atribuiram o ruido a um bloco de gelo se partindo, "
-                "porem ninguem nunca conseguiu gravar outro som com a mesma assinatura acustica ate hoje."
+                "militares captaram um som subaquático gigantesco vindo de perto dali, ouvido a cinco mil "
+                "quilômetros de distância. Os cientistas atribuíram o ruído a um bloco de gelo se partindo, "
+                "porém ninguém nunca conseguiu gravar outro som com a mesma assinatura acústica até hoje."
             ),
         ),
         "misterios_reais": (
             f"O Cofre Proibido no Gelo de Svalbard {prox_id:02d}",
             (
-                "Existe uma porta de concreto cravada dentro de uma montanha congelada no Artico onde quase "
-                "ninguem na Terra tem autorizacao para entrar. Trata-se do Cofre Global de Sementes de "
-                "Svalbard, construido cento e vinte metros montanha adentro em uma ilha gelada da Noruega. "
-                "Ele foi projetado para resistir a terremotos, explosoes, falhas eletricas e ate ao derretimento "
-                "total das geleiras, mantendo mais de um milhao de amostras de sementes guardadas a dezoito "
-                "graus negativos. O acesso e monitorado por sensores de movimento, portas blindadas duplas e "
-                "protocolos que impedem ate pesquisadores sem credencial diplomatica de passar do primeiro "
-                "corredor. Mesmo sem funcionarios permanentes la dentro, as cameras registram cada mudanca de "
-                "temperatura vinte e quatro horas por dia. O detalhe mais intrigante e que apenas um pais "
-                "precisou abrir sua caixa lacrada ate hoje apos um conflito armado, provando que a estrutura "
-                "nao e um exagero de ficcao cientifica: ela existe porque governos inteiros ja calcularam "
+                "Existe uma porta de concreto cravada dentro de uma montanha congelada no Ártico onde quase "
+                "ninguém na Terra tem autorização para entrar. Trata-se do Cofre Global de Sementes de "
+                "Svalbard, construído cento e vinte metros montanha adentro em uma ilha gelada da Noruega. "
+                "Ele foi projetado para resistir a terremotos, explosões, falhas elétricas e até ao derretimento "
+                "total das geleiras, mantendo mais de um milhão de amostras de sementes guardadas a dezoito "
+                "graus negativos. O acesso é monitorado por sensores de movimento, portas blindadas duplas e "
+                "protocolos que impedem até pesquisadores sem credencial diplomática de passar do primeiro "
+                "corredor. Mesmo sem funcionários permanentes lá dentro, as câmeras registram cada mudança de "
+                "temperatura vinte e quatro horas por dia. O detalhe mais intrigante é que apenas um país "
+                "precisou abrir sua caixa lacrada até hoje após um conflito armado, provando que a estrutura "
+                "não é um exagero de ficção científica: ela existe porque governos inteiros já calcularam "
                 "exatamente o que fazer se a agricultura global colapsar de uma vez."
             ),
         ),
         "suspense_urbano": (
-            f"O Ultimo Vagao da Linha Sul {prox_id:02d}",
+            f"O Último Vagão da Linha Sul {prox_id:02d}",
             (
-                "Eram vinte e tres e dezoito quando Mateus entrou no ultimo vagao vazio do metro voltando do "
+                "Eram vinte e três e dezoito quando Mateus entrou no último vagão vazio do metrô voltando do "
                 "trabalho no centro. Ele sentou perto da janela escura e colocou os fones para abafar o chiado "
-                "dos trilhos. Quando o trem mergulhou no tunel longo, as luzes fluorescentes piscaram duas "
-                "vezes e o painel eletronico acima da porta travou mostrando o nome de uma estacao desativada "
-                "ha quase trinta anos. Mateus tirou o fone e percebeu silencio total, sem barulho de motor. "
-                "O vidro da janela refletia todos os bancos vazios, exceto o assento logo atras dele, onde um "
-                "homem de capa escura aparecia sentado de cabeca baixa. Mateus virou rapido por cima do ombro: "
-                "o banco real atras dele estava completamente vazio. O interfone de emergencia perto da porta "
-                "chiou alto e a voz apressada da central perguntou: passageiro do ultimo vagao, como voce "
-                "entrou ai se esse trem esta desligado na garagem ha quarenta minutos? Mateus olhou de novo "
-                "para o reflexo na janela. O homem no vidro agora estava de pe atras da nuca dele, sorrindo."
+                "dos trilhos. Quando o trem mergulhou no túnel longo, as luzes fluorescentes piscaram duas "
+                "vezes e o painel eletrônico acima da porta travou mostrando o nome de uma estação desativada "
+                "há quase trinta anos. Mateus tirou o fone e percebeu silêncio total, sem barulho de motor. "
+                "O vidro da janela refletia todos os bancos vazios, exceto o assento logo atrás dele, onde um "
+                "homem de capa escura aparecia sentado de cabeça baixa. Mateus virou rápido por cima do ombro: "
+                "o banco real atrás dele estava completamente vazio. O interfone de emergência perto da porta "
+                "chiou alto e a voz apressada da central perguntou: passageiro do último vagão, como você "
+                "entrou aí se esse trem está desligado na garagem há quarenta minutos? Mateus olhou de novo "
+                "para o reflexo na janela. O homem no vidro agora estava de pé atrás da nuca dele, sorrindo."
             ),
         ),
     }
 
     titulo_padrao, roteiro = modelos_mock[pid]
-    titulo = sanitizar_texto(titulo_sugerido) if titulo_sugerido else titulo_padrao
+    titulo = restaurar_acentos_ptbr(sanitizar_texto(titulo_sugerido)) if titulo_sugerido else titulo_padrao
     return titulo, roteiro
 
 
@@ -1360,12 +1574,15 @@ def validar_e_corrigir_plano(
         avisos.append("Plano invalido (nao e dict): fallback deterministico aplicado.")
         return fallback, avisos
 
-    titulo = sanitizar_texto(titulo_forcado or plano_bruto.get("titulo") or fallback["titulo"])[:72]
+    ctx_escritorio = texto_indica_escritorio(roteiro_bruto)
+    ctx_zero_g = texto_indica_gravidade_zero(roteiro_bruto)
+
+    titulo = restaurar_acentos_ptbr(sanitizar_texto(titulo_forcado or plano_bruto.get("titulo") or fallback["titulo"]))[:72]
     if not titulo:
         titulo = fallback["titulo"]
         avisos.append("Titulo ausente: preenchido pelo fallback.")
 
-    tema = sanitizar_texto(plano_bruto.get("tema") or fallback["tema"])[:200]
+    tema = restaurar_acentos_ptbr(sanitizar_texto(plano_bruto.get("tema") or fallback["tema"]))[:200]
     if len(tema) < 12:
         tema = fallback["tema"]
 
@@ -1389,7 +1606,7 @@ def validar_e_corrigir_plano(
     prot_in = plano_bruto.get("protagonista") if isinstance(plano_bruto.get("protagonista"), dict) else {}
     jaq = _validar_hex(prot_in.get("jaqueta"), fallback["protagonista"]["jaqueta"])
     protagonista = {
-        "nome": sanitizar_texto(prot_in.get("nome") or fallback["protagonista"]["nome"])[:28] or "Protagonista",
+        "nome": restaurar_acentos_ptbr(sanitizar_texto(prot_in.get("nome") or fallback["protagonista"]["nome"]))[:28] or "Protagonista",
         "jaqueta": jaq,
         "jaqueta_sombra": _validar_hex(prot_in.get("jaqueta_sombra"), _escurecer_hex(jaq, 0.72)),
         "jaqueta_escura": _validar_hex(prot_in.get("jaqueta_escura"), _escurecer_hex(jaq, 0.44)),
@@ -1405,25 +1622,41 @@ def validar_e_corrigir_plano(
     blocos_in = plano_bruto.get("blocos")
     blocos_validos: list[dict] = []
     sfx_permitidos = set(catalogo_sfx.keys()) - {"glitch_cta", "cta_pop"}
+    pose_aliases = {
+        "float": "flutuando",
+        "floating": "flutuando",
+        "levitando": "flutuando",
+        "hold_desk": "segurando_mesa",
+        "segurando": "segurando_mesa",
+        "falling": "caindo",
+        "queda": "caindo",
+    }
 
     if isinstance(blocos_in, list) and len(blocos_in) >= 3:
         sfx_count = 0
         for idx, b in enumerate(blocos_in):
             if not isinstance(b, dict):
                 continue
-            txt = sanitizar_texto(b.get("texto", ""))
+            txt = restaurar_acentos_ptbr(sanitizar_texto(b.get("texto", "")))
             if not txt:
                 continue
             if not txt.endswith((".", "!", "?")):
                 txt += "."
+            norm_txt = normalizar_texto(txt)
             perfil = str(b.get("perfil_voz", "narrador_tenso")).strip().lower()
             if perfil not in PERFIS_VOZ or perfil == "cta_comercial":
                 perfil = "narrador_tenso"
                 avisos.append(f"Bloco {idx + 1}: perfil_voz corrigido para narrador_tenso.")
             modulo = str(b.get("modulo", "")).strip().lower()
             if modulo not in MODULOS_CENARIO:
-                modulo = inferir_modulo_por_texto(txt, idx, len(blocos_in))
+                modulo = inferir_modulo_por_texto(txt, idx, len(blocos_in), contexto_global=roteiro_bruto)
                 avisos.append(f"Bloco {idx + 1}: modulo invalido substituido por '{modulo}'.")
+            elif modulo == "sala_cozinha" and (
+                texto_indica_escritorio(txt)
+                or (ctx_escritorio and not any(k in norm_txt for k in ("cozinha", "geladeira", "sofa")))
+            ):
+                modulo = "escritorio"
+                avisos.append(f"Bloco {idx + 1}: sala_cozinha promovido para 'escritorio' pelo contexto do roteiro.")
             mood = str(b.get("mood", "navy")).strip().lower()
             if mood not in MOODS_VALIDOS:
                 mood = "cctv" if modulo == "camera_cctv" else "navy"
@@ -1444,22 +1677,74 @@ def validar_e_corrigir_plano(
                     avisos.append(f"Bloco {idx + 1}: sfx_depois '{sfx_dep}' ignorado.")
 
             props_in = b.get("props") if isinstance(b.get("props"), dict) else {}
+            obj_str = sanitizar_texto(str(props_in.get("objeto", "janela")))[:32] or "janela"
+            grav_zero_expl = props_in.get("gravidade_zero")
+            if isinstance(grav_zero_expl, bool):
+                grav_zero = grav_zero_expl or texto_indica_gravidade_zero(txt)
+            else:
+                grav_zero = texto_indica_gravidade_zero(txt) or (ctx_zero_g and idx >= 1)
+
+            pose_raw = sanitizar_texto(str(props_in.get("pose", ""))).lower()
+            pose_norm = pose_aliases.get(pose_raw, pose_raw)
+            if pose_norm not in POSES_VALIDAS or (pose_norm == "idle" and (grav_zero or texto_indica_gravidade_zero(txt))):
+                pose_norm = inferir_pose_por_texto(txt, modulo, perfil, gravidade_zero=grav_zero)
+
+            if (pose_norm == "caindo" or grav_zero) and expr == "sinister_smile" and not texto_indica_vulto(txt):
+                expr = "shock"
+                avisos.append(f"Bloco {idx + 1}: expressao sinister_smile ajustada para 'shock' em cena de gravidade/queda.")
+
+            flut_list: list[str] = []
+            raw_flut = props_in.get("objetos_flutuantes")
+            if isinstance(raw_flut, list):
+                for item in raw_flut:
+                    k_it = normalizar_texto(str(item)).replace(" ", "_")
+                    if "lapiseira" in k_it or "caneta" in k_it:
+                        cand_it = "lapiseira"
+                    elif "xicara" in k_it or "cafe" in k_it:
+                        cand_it = "xicara_cafe"
+                    elif "cadeira" in k_it:
+                        cand_it = "cadeiras"
+                    elif "silhueta" in k_it or "janela" in k_it:
+                        cand_it = "silhuetas_janela"
+                    else:
+                        cand_it = k_it
+                    if cand_it in PROPS_FLUTUANTES_VALIDOS and cand_it not in flut_list:
+                        flut_list.append(cand_it)
+            if grav_zero or any(k in normalizar_texto(obj_str) for k in ("lapiseira", "xicara", "cafe", "cadeira")):
+                for inf_it in inferir_props_flutuantes(txt, objeto_atual=obj_str, gravidade_zero=grav_zero):
+                    if inf_it not in flut_list:
+                        flut_list.append(inf_it)
+
+            silhuetas_jan = bool(props_in.get("silhuetas_janela")) or ("silhuetas_janela" in flut_list)
+            if silhuetas_jan and "silhuetas_janela" not in flut_list:
+                flut_list.append("silhuetas_janela")
+
+            if "vulto" in props_in:
+                tem_vulto = bool(props_in.get("vulto"))
+                if tem_vulto and grav_zero and not texto_indica_vulto(txt):
+                    tem_vulto = False
+            else:
+                tem_vulto = texto_indica_vulto(txt)
+
             citacao = extrair_citacao_tela(txt, limite=84)
             props = {
-                "objeto": sanitizar_texto(str(props_in.get("objeto", "janela")))[:32] or "janela",
-                "vulto": bool(props_in.get("vulto", idx >= max(2, len(blocos_in) // 2))),
-                "celular_app": sanitizar_texto(str(props_in.get("celular_app", "MENSAGEM")))[:24].upper() or "MENSAGEM",
-                "celular_remetente": sanitizar_texto(str(props_in.get("celular_remetente", "DESCONHECIDO")))[:28].upper() or "DESCONHECIDO",
-                "celular_mensagem": sanitizar_texto(str(props_in.get("celular_mensagem", "")))[:92] or citacao,
-                "celular_mensagem_2": sanitizar_texto(str(props_in.get("celular_mensagem_2", "")))[:92],
+                "objeto": obj_str,
+                "vulto": tem_vulto,
+                "gravidade_zero": grav_zero,
+                "objetos_flutuantes": flut_list,
+                "silhuetas_janela": silhuetas_jan,
+                "celular_app": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("celular_app", "MENSAGEM"))))[:24].upper() or "MENSAGEM",
+                "celular_remetente": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("celular_remetente", "DESCONHECIDO"))))[:28].upper() or "DESCONHECIDO",
+                "celular_mensagem": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("celular_mensagem", ""))))[:92] or citacao,
+                "celular_mensagem_2": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("celular_mensagem_2", ""))))[:92],
                 "cctv_cam": sanitizar_texto(str(props_in.get("cctv_cam", "CAM 01")))[:18].upper() or "CAM 01",
-                "cctv_local": sanitizar_texto(str(props_in.get("cctv_local", "CORREDOR")))[:24].upper() or "CORREDOR",
-                "cctv_status": sanitizar_texto(str(props_in.get("cctv_status", "MOVIMENTO DETECTADO")))[:36].upper() or "MOVIMENTO DETECTADO",
+                "cctv_local": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("cctv_local", "ESCRITÓRIO" if ctx_escritorio else "CORREDOR"))))[:24].upper() or "CORREDOR",
+                "cctv_status": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("cctv_status", "MOVIMENTO DETECTADO"))))[:36].upper() or "MOVIMENTO DETECTADO",
                 "elevador_andar": sanitizar_texto(str(props_in.get("elevador_andar", "S3")))[:6].upper() or "S3",
-                "gps_destino": sanitizar_texto(str(props_in.get("gps_destino", "SEM DESTINO")))[:32].upper() or "SEM DESTINO",
-                "gps_alerta": sanitizar_texto(str(props_in.get("gps_alerta", "ROTA RECALCULADA")))[:40].upper() or "ROTA RECALCULADA",
+                "gps_destino": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("gps_destino", "SEM DESTINO"))))[:32].upper() or "SEM DESTINO",
+                "gps_alerta": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("gps_alerta", "ROTA RECALCULADA"))))[:40].upper() or "ROTA RECALCULADA",
                 "corredor_objeto": sanitizar_texto(str(props_in.get("corredor_objeto", "porta")))[:20].lower() or "porta",
-                "pose": sanitizar_texto(str(props_in.get("pose", "idle")))[:20].lower() or "idle",
+                "pose": pose_norm,
             }
             blocos_validos.append(
                 {
@@ -1485,7 +1770,7 @@ def validar_e_corrigir_plano(
         if not any(b.get("sfx_depois") == "impacto_twist" for b in blocos_validos):
             blocos_validos[-2]["sfx_depois"] = "impacto_twist"
 
-    # Valida e normaliza 3 a 5 katana_hits ligados a palavras reais dos blocos
+    # Valida e normaliza 3 a 5 katana_hits ligados a palavras reais dos blocos (preservando acentos UTF-8)
     hits_in = plano_bruto.get("katana_hits")
     hits_validos: list[dict] = []
     blocos_com_hit: set[int] = set()
@@ -1503,7 +1788,7 @@ def validar_e_corrigir_plano(
             if isinstance(linhas_raw, str):
                 linhas_raw = [linhas_raw]
             linhas = [
-                sanitizar_texto(str(ln)).upper()[:22]
+                restaurar_acentos_ptbr(sanitizar_texto(str(ln))).upper()[:22]
                 for ln in (linhas_raw or [])
                 if sanitizar_texto(str(ln))
             ][:2]
@@ -1815,8 +2100,20 @@ def validar_cenas_json(cenas: dict) -> list[str]:
                 erros.append(f"cenas[{idx}].mood invalido: {c.get('mood')!r}.")
             if c.get("expressao") not in EXPRESSOES_VALIDAS:
                 erros.append(f"cenas[{idx}].expressao invalida: {c.get('expressao')!r}.")
-            if not isinstance(c.get("props"), dict):
+            props_c = c.get("props")
+            if not isinstance(props_c, dict):
                 erros.append(f"cenas[{idx}].props precisa ser objeto.")
+            else:
+                pose_c = props_c.get("pose")
+                if pose_c is not None and str(pose_c).strip().lower() not in POSES_VALIDAS:
+                    erros.append(f"cenas[{idx}].props.pose invalida: {pose_c!r}.")
+                if "gravidade_zero" in props_c and not isinstance(props_c.get("gravidade_zero"), bool):
+                    erros.append(f"cenas[{idx}].props.gravidade_zero precisa ser booleano.")
+                flut_c = props_c.get("objetos_flutuantes")
+                if flut_c is not None and (
+                    not isinstance(flut_c, list) or not all(isinstance(x, str) for x in flut_c)
+                ):
+                    erros.append(f"cenas[{idx}].props.objetos_flutuantes precisa ser lista de strings.")
 
     hits = cenas.get("katana_hits")
     if not isinstance(hits, list) or not (3 <= len(hits) <= 5):
