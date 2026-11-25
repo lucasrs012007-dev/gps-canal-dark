@@ -1,7 +1,7 @@
 {
-  "versao": 12,
+  "versao": 13,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 12,
+  "video_atual": 13,
   "videos": [
     {
       "id": 1,
@@ -285,7 +285,7 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_12.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v6",
       "parte_label": "PARTE 1",
       "cta_modo": "final",
@@ -293,6 +293,32 @@
       "saidas_partes": [
         "output/short_12_parte1.mp4",
         "output/short_12_parte2.mp4"
+      ]
+    },
+    {
+      "id": 13,
+      "slug": "trinta-dias-na-sala-branca",
+      "titulo": "Trinta Dias Na Sala Branca",
+      "tema": "O impacto assustador da privação sensorial e da perda de percepção temporal.",
+      "palavras_chave": [
+        "sala branca",
+        "privação sensorial",
+        "experimento",
+        "psicologia",
+        "desafio"
+      ],
+      "roteiro": "roteiro_13.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_13.mp4",
+      "status": "em_producao",
+      "motor": "v6",
+      "parte_label": "PARTE 1",
+      "cta_modo": "final",
+      "pilar": "cenarios_hipoteticos",
+      "saidas_partes": [
+        "output/short_13_parte1.mp4",
+        "output/short_13_parte2.mp4"
       ]
     }
   ]
