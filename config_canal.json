@@ -1,0 +1,52 @@
+{
+  "nome_canal": "E Se Você?",
+  "idioma": "pt-BR",
+  "pilares_editoriais": [
+    {
+      "id": "cenarios_hipoteticos",
+      "nome": "Cenários hipotéticos ('E se você...?')",
+      "gancho": "Comece direto em segunda pessoa com uma pergunta ou situação extrema de sobrevivência/decisão ('E se você ficasse preso em...', 'E se você acordasse...', 'E se o mundo parasse por...').",
+      "instrucoes": "Conduza o espectador passo a passo em segunda pessoa ('você') pelos minutos ou horas seguintes, mostrando reações físicas reais, dilemas psicológicos e escalada de tensão até uma consequência final surpreendente e memorável na última frase.",
+      "exemplos": "ficar preso dentro de um submarino sem comunicação, acordar sendo a única pessoa na cidade, aceitar ficar 30 dias numa sala branca sem relógio por 10 milhões, perder a gravidade por 60 segundos, ficar preso num teleférico durante tempestade, acordar 24 horas antes de um apagão global",
+      "horario_padrao": "15:00",
+      "titulo_fallback": "E Se Você Acordasse Sozinho"
+    },
+    {
+      "id": "curiosidades_bizarras",
+      "nome": "Curiosidades bizarras e fatos pouco conhecidos",
+      "gancho": "Abra com um fato real chocante, contraintuitivo ou que quase ninguém sabe ('Você sabia que existe...', 'Existe um fenômeno real...', 'Seu cérebro esconde um mecanismo bizarro...').",
+      "instrucoes": "Apresente um fato real e documentado de ciência, psicologia, biologia humana, engenharia, natureza extrema ou história pouco conhecida. Estruture em camadas: o que parece comum, a explicação surpreendente por trás e o detalhe final inquietante que prende a atenção.",
+      "exemplos": "o som oceânico The Bloop e o Ponto Nemo, a síndrome da mão alheia, a Zona de Silêncio no deserto, por que o espaço tem cheiro de metal queimado, protocolos reais ocultos de aviação ou usinas, o fenômeno da paralisia de decisão em ambientes extremos, cidades subterrâneas reais",
+      "horario_padrao": "14:20",
+      "titulo_fallback": "O Fato Bizarro Que Poucos Sabem"
+    },
+    {
+      "id": "misterios_reais",
+      "nome": "Mistérios reais e lugares proibidos",
+      "gancho": "Abra apresentando um lugar proibido real, um sinal sem explicação ou um caso documentado ('Existe um lugar no planeta onde entrar é crime...', 'Há um mistério real que ninguém resolveu...').",
+      "instrucoes": "Narre um mistério real ou local de acesso vetado por governos/ciência com detalhes concretos (localização, datas, protocolos de segurança ou registros oficiais), aumentando o clima investigativo até o enigma sem resposta que fecha o episódio.",
+      "exemplos": "Ilha Sentinela do Norte, Cofre Global de Sementes de Svalbard, Caverna de Lascaux fechada ao público, Ilha da Queimada Grande, estação de rádio fantasma UVB-76, área de exclusão em ilhas remotas, arquivos secretos de expedições polares ou navios encontrados à deriva",
+      "horario_padrao": "21:40",
+      "titulo_fallback": "O Lugar Proibido Que Ninguém Entra"
+    },
+    {
+      "id": "suspense_urbano",
+      "nome": "Relatos curtos de suspense urbano",
+      "gancho": "Abra situando rapidamente um personagem comum em um cenário urbano cotidiano realista (metrô, hotel, hospital, estacionamento, entrega, portaria, escritório vazio) com um detalhe fora do normal.",
+      "instrucoes": "Desenvolva um micro-suspense psicológico realista e cinematográfico sem repetir cenários do histórico (evite repetir madrugada no quarto ou espelho se já apareceram recentemente), escalando a tensão até um plot twist seco e perturbador na última frase.",
+      "exemplos": "último vagão do metrô parado no túnel, câmera de segurança de estacionamento subterrâneo, quarto de hotel com recado escrito no mesmo dia, plantão noturno em hospital, cabine de pedágio isolada, entrega de encomenda sem remetente",
+      "horario_padrao": "23:18",
+      "titulo_fallback": "O Aviso no Último Vagão"
+    }
+  ],
+  "estilo_visual_prompt": "stylized 2.5D dark cinematic digital illustration, moody dramatic lighting, vertical 9:16 composition, no text, no watermark",
+  "velocidade_voz": 1.02,
+  "cta_final": "E você, o que faria nessa situação, me conta aqui nos comentários?",
+  "hashtags_padrao": [
+    "shorts",
+    "curiosidades",
+    "ese",
+    "suspense"
+  ],
+  "privacidade_youtube": "public"
+}

@@ -29,11 +29,12 @@ on:
         default: false
         type: boolean
       youtube_privacidade:
-        description: "Privacidade do upload automatico no YouTube Shorts"
+        description: "Privacidade do upload no YouTube Shorts (config = usar config_canal.json)"
         required: false
-        default: "public"
+        default: "config"
         type: choice
         options:
+          - config
           - public
           - unlisted
           - private
@@ -101,7 +102,9 @@ jobs:
           python3 - <<'PY'
           import os
           from pathlib import Path
+          from pipeline.config_canal import carregar_config_canal
 
+          cfg_canal = carregar_config_canal()
           ev = os.environ.get("EVENT_NAME", "")
 
           def to_bool_str(val: str, padrao: bool) -> str:
@@ -120,20 +123,21 @@ jobs:
               v = str(val or "").strip().lower()
               return v if v in ("inbox", "direct") else padrao
 
+          yt_padrao = to_privacy(str(cfg_canal.get("privacidade_youtube", "public")), "public")
           tt_padrao = to_tiktok_mode(os.environ.get("VAR_TT_MODE", ""), "inbox")
 
           if ev == "schedule":
               usar_atual = "false"
               enviar_tg = "true"
               modo_teste = "false"
-              yt_privacy = "public"
+              yt_privacy = yt_padrao
               tt_mode = tt_padrao
           else:
               pref = "RD_" if ev == "repository_dispatch" else "WD_"
               usar_atual = to_bool_str(os.environ.get(pref + "USAR_ATUAL", ""), False)
               enviar_tg = to_bool_str(os.environ.get(pref + "ENVIAR_TG", ""), True)
               modo_teste = to_bool_str(os.environ.get(pref + "MODO_TESTE", ""), False)
-              yt_privacy = to_privacy(os.environ.get(pref + "YT_PRIVACIDADE", ""), "public")
+              yt_privacy = to_privacy(os.environ.get(pref + "YT_PRIVACIDADE", ""), yt_padrao)
               tt_mode = to_tiktok_mode(os.environ.get(pref + "TT_MODE", ""), tt_padrao)
 
           gh_env = Path(os.environ["GITHUB_ENV"])
@@ -145,7 +149,8 @@ jobs:
               arq.write(f"TIKTOK_MODE={tt_mode}\n")
 
           print(
-              f"Evento={ev} | usar_video_atual={usar_atual} | enviar_telegram={enviar_tg} "
+              f"Canal='{cfg_canal['nome_canal']}' ({cfg_canal['idioma']}) | Evento={ev} | "
+              f"usar_video_atual={usar_atual} | enviar_telegram={enviar_tg} "
               f"| modo_teste={modo_teste} | youtube_privacy={yt_privacy} | tiktok_mode={tt_mode}"
           )
           PY

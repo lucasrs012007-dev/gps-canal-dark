@@ -43,6 +43,11 @@ RAIZ = Path(__file__).resolve().parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from pipeline.config_canal import (  # noqa: E402
+    carregar_config_canal,
+    obter_hashtags_plataforma,
+)
+
 ARQUIVO_ENV = RAIZ / ".env"
 PASTA_OUTPUT = RAIZ / "output"
 ARQUIVO_CENAS = RAIZ / "cenas.json"
@@ -260,6 +265,8 @@ def carregar_metadados_cenas(
         or int(cenas["video_id"]) == int(alvo_id)
     )
 
+    cfg_canal = carregar_config_canal()
+    nome_canal = _limpar_texto_social(cfg_canal.get("nome_canal", "E Se Você?")) or "E Se Você?"
     if cenas_bate and str(cenas.get("titulo", "")).strip():
         titulo = str(cenas["titulo"]).strip()
     elif str(reg_hist.get("titulo", "")).strip():
@@ -267,7 +274,7 @@ def carregar_metadados_cenas(
     elif str(cenas.get("titulo", "")).strip():
         titulo = str(cenas["titulo"]).strip()
     else:
-        titulo = f"E Se Você Passasse Por Isso? {alvo_id:02d}" if alvo_id else "E Se Você Passasse Por Isso?"
+        titulo = f"{nome_canal} {alvo_id:02d}" if alvo_id else nome_canal
 
     tema = str(reg_hist.get("tema", "") or "").strip()
     gancho = _extrair_gancho_roteiro(str(reg_hist.get("roteiro", "") or ""), raiz=raiz)
@@ -305,11 +312,14 @@ def carregar_metadados_cenas(
     }
 
 
-def montar_legenda_reels(meta: dict) -> str:
-    """Gera legenda curta em portugues com gancho, pergunta de retencao e hashtags para Reels."""
-    titulo = _limpar_texto_social(meta.get("titulo", "")) or "E Se Você Passasse Por Isso?"
+def montar_legenda_reels(meta: dict, config: dict | None = None) -> str:
+    """Gera legenda curta com gancho, CTA e hashtags de config_canal.json para Reels."""
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
+    fallback_titulo = _limpar_texto_social(cfg.get("nome_canal", "E Se Você?")) or "E Se Você?"
+    titulo = _limpar_texto_social(meta.get("titulo", "")) or fallback_titulo
     gancho = _limpar_texto_social(meta.get("gancho", ""))
     tema = _limpar_texto_social(meta.get("tema", ""))
+    cta_final = _limpar_texto_social(cfg.get("cta_final", "")) or _limpar_texto_social(meta.get("cta", ""))
 
     abertura = titulo if titulo.endswith((".", "!", "?")) else f"{titulo}."
     complemento = gancho or tema
@@ -319,7 +329,7 @@ def montar_legenda_reels(meta: dict) -> str:
         if complemento.lower() == abertura.lower():
             complemento = ""
 
-    tags_base = ["reels", "curiosidades", "ese", "suspense"]
+    tags_base = obter_hashtags_plataforma("instagram", cfg)
     extras: list[str] = []
     for kw in meta.get("palavras_chave") or []:
         slug = _slug_hashtag(str(kw))
@@ -332,7 +342,8 @@ def montar_legenda_reels(meta: dict) -> str:
     blocos = [abertura]
     if complemento:
         blocos.append(complemento)
-    blocos.append("O que você faria nessa situação? Comente aqui embaixo.")
+    if cta_final:
+        blocos.append(cta_final)
     blocos.append(hashtags)
 
     legenda = "\n\n".join(b for b in blocos if b).strip()

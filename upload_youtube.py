@@ -38,6 +38,11 @@ RAIZ = Path(__file__).resolve().parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from pipeline.config_canal import (  # noqa: E402
+    carregar_config_canal,
+    obter_hashtags_plataforma,
+)
+
 ARQUIVO_ENV = RAIZ / ".env"
 PASTA_OUTPUT = RAIZ / "output"
 ARQUIVO_CENAS = RAIZ / "cenas.json"
@@ -124,18 +129,23 @@ def _restaurar_acentos_se_disponivel(texto: str) -> str:
         return texto
 
 
-def normalizar_privacidade(valor: str | None) -> str:
-    """Valida YOUTUBE_PRIVACY (padrao: public; aceita public, unlisted ou private)."""
+def normalizar_privacidade(valor: str | None, padrao: str | None = None) -> str:
+    """Valida YOUTUBE_PRIVACY usando privacidade_youtube de config_canal.json como padrao."""
     raw = str(valor or "").strip().lower()
     if raw in PRIVACIDADES_VALIDAS:
         return raw
-    if raw:
+    fb = str(padrao or "").strip().lower()
+    if fb not in PRIVACIDADES_VALIDAS:
+        fb = str(carregar_config_canal().get("privacidade_youtube", "public")).strip().lower()
+    if fb not in PRIVACIDADES_VALIDAS:
+        fb = "public"
+    if raw and raw != "config":
         print(
             f"AVISO YOUTUBE_PRIVACY='{raw}' invalido (aceitos: {', '.join(PRIVACIDADES_VALIDAS)}). "
-            "Usando padrao 'public'.",
+            f"Usando padrao '{fb}'.",
             flush=True,
         )
-    return "public"
+    return fb
 
 
 def extrair_numero_short(caminho: Path) -> int | None:
@@ -247,6 +257,8 @@ def carregar_metadados_video(
         or int(cenas["video_id"]) == int(alvo_id)
     )
 
+    cfg_canal = carregar_config_canal()
+    nome_canal = _limpar_texto_youtube(cfg_canal.get("nome_canal", "E Se Você?")) or "E Se Você?"
     titulo = ""
     if cenas_bate and str(cenas.get("titulo", "")).strip():
         titulo = str(cenas["titulo"]).strip()
@@ -255,7 +267,7 @@ def carregar_metadados_video(
     elif str(cenas.get("titulo", "")).strip():
         titulo = str(cenas["titulo"]).strip()
     else:
-        titulo = f"E Se Você Passasse Por Isso? {alvo_id:02d}" if alvo_id else "E Se Você Passasse Por Isso?"
+        titulo = f"{nome_canal} {alvo_id:02d}" if alvo_id else nome_canal
 
     tema = str(reg_hist.get("tema", "") or "").strip()
     gancho = _extrair_gancho_roteiro(str(reg_hist.get("roteiro", "") or ""), raiz=raiz)
@@ -289,9 +301,11 @@ def carregar_metadados_video(
     }
 
 
-def montar_titulo_shorts(titulo_base: str) -> str:
+def montar_titulo_shorts(titulo_base: str, config: dict | None = None) -> str:
     """Monta titulo otimizado para YouTube Shorts (<= 100 caracteres, incluindo #Shorts)."""
-    base = _limpar_texto_youtube(titulo_base) or "E Se Você Passasse Por Isso?"
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
+    fallback_titulo = _limpar_texto_youtube(cfg.get("nome_canal", "E Se Você?")) or "E Se Você?"
+    base = _limpar_texto_youtube(titulo_base) or fallback_titulo
     sufixo = " #Shorts"
     if "#shorts" in base.lower():
         if len(base) <= LIMITE_TITULO_YT:
@@ -306,11 +320,13 @@ def montar_titulo_shorts(titulo_base: str) -> str:
     return f"{base}{sufixo}"
 
 
-def montar_descricao_shorts(meta: dict) -> str:
-    """Monta descricao curta em portugues com gancho, CTA e hashtags (#shorts #curiosidades #ese)."""
+def montar_descricao_shorts(meta: dict, config: dict | None = None) -> str:
+    """Monta descricao curta com gancho, CTA de config_canal.json e hashtags padrao."""
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
     titulo = _limpar_texto_youtube(meta.get("titulo", ""))
     gancho = _limpar_texto_youtube(meta.get("gancho", ""))
     tema = _limpar_texto_youtube(meta.get("tema", ""))
+    cta_final = _limpar_texto_youtube(cfg.get("cta_final", ""))
 
     abertura = gancho or tema or f"{titulo}: descubra o que aconteceria em cada segundo."
     if not abertura.endswith((".", "!", "?")):
@@ -320,7 +336,7 @@ def montar_descricao_shorts(meta: dict) -> str:
     if tema and tema.lower() != abertura.lower() and tema.lower() not in abertura.lower():
         complemento = tema if tema.endswith((".", "!", "?")) else f"{tema}."
 
-    tags_base = ["shorts", "curiosidades", "ese"]
+    tags_base = obter_hashtags_plataforma("youtube", cfg)
     extras: list[str] = []
     for kw in meta.get("palavras_chave") or []:
         slug = _slug_hashtag(str(kw))
@@ -333,23 +349,22 @@ def montar_descricao_shorts(meta: dict) -> str:
     blocos: list[str] = [abertura]
     if complemento:
         blocos.append(complemento)
-    blocos.append("O que você faria nessa situação? Comente aqui embaixo!")
-    blocos.append("Quer aprender a criar vídeos assim no automático? Comente EU QUERO.")
+    if cta_final:
+        blocos.append(cta_final)
     blocos.append(hashtags)
 
     descricao = "\n\n".join(b for b in blocos if b).strip()
     return descricao[:LIMITE_DESCRICAO_YT]
 
 
-def montar_tags_youtube(palavras_chave: list[str] | None) -> list[str]:
+def montar_tags_youtube(palavras_chave: list[str] | None, config: dict | None = None) -> list[str]:
     """Gera lista de tags validas para o YouTube respeitando o teto de caracteres."""
-    iniciais = list(palavras_chave or []) + [
-        "shorts",
-        "youtube shorts",
-        "curiosidades",
-        "e se voce",
-        "cenarios hipoteticos",
-    ]
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
+    tags_cfg = obter_hashtags_plataforma("youtube", cfg)
+    nome_canal = _limpar_texto_youtube(cfg.get("nome_canal", ""))
+    iniciais = list(palavras_chave or []) + tags_cfg + ["youtube shorts"]
+    if nome_canal:
+        iniciais.append(nome_canal.lower())
     tags: list[str] = []
     vistas: set[str] = set()
     total_chars = 0
@@ -370,19 +385,26 @@ def montar_tags_youtube(palavras_chave: list[str] | None) -> list[str]:
     return tags
 
 
-def montar_body_youtube(meta: dict, privacidade: str) -> dict:
+def montar_body_youtube(
+    meta: dict,
+    privacidade: str | None = None,
+    config: dict | None = None,
+) -> dict:
     """Constroi o payload snippet + status oficial para youtube.videos().insert."""
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
+    idioma = str(cfg.get("idioma", "pt-BR") or "pt-BR").strip() or "pt-BR"
+    priv_padrao = str(cfg.get("privacidade_youtube", "public") or "public")
     return {
         "snippet": {
-            "title": montar_titulo_shorts(meta.get("titulo", "")),
-            "description": montar_descricao_shorts(meta),
-            "tags": montar_tags_youtube(meta.get("palavras_chave")),
+            "title": montar_titulo_shorts(meta.get("titulo", ""), config=cfg),
+            "description": montar_descricao_shorts(meta, config=cfg),
+            "tags": montar_tags_youtube(meta.get("palavras_chave"), config=cfg),
             "categoryId": YOUTUBE_CATEGORY_ENTERTAINMENT,
-            "defaultLanguage": "pt-BR",
-            "defaultAudioLanguage": "pt-BR",
+            "defaultLanguage": idioma,
+            "defaultAudioLanguage": idioma,
         },
         "status": {
-            "privacyStatus": normalizar_privacidade(privacidade),
+            "privacyStatus": normalizar_privacidade(privacidade, padrao=priv_padrao),
             "selfDeclaredMadeForKids": False,
         },
     }
@@ -511,11 +533,15 @@ def main() -> int:
     args = parser.parse_args()
 
     carregar_env()
+    cfg_canal = carregar_config_canal()
 
     client_id = os.environ.get("YOUTUBE_CLIENT_ID", "").strip()
     client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET", "").strip()
     refresh_token = os.environ.get("YOUTUBE_REFRESH_TOKEN", "").strip()
-    privacidade = normalizar_privacidade(args.privacidade or os.environ.get("YOUTUBE_PRIVACY", "public"))
+    privacidade = normalizar_privacidade(
+        args.privacidade or os.environ.get("YOUTUBE_PRIVACY", ""),
+        padrao=str(cfg_canal.get("privacidade_youtube", "public")),
+    )
 
     if not args.dry_run:
         faltantes = [
@@ -555,7 +581,7 @@ def main() -> int:
 
     video_id_num = extrair_numero_short(video_path)
     meta = carregar_metadados_video(video_id=video_id_num)
-    body = montar_body_youtube(meta, privacidade=privacidade)
+    body = montar_body_youtube(meta, privacidade=privacidade, config=cfg_canal)
     tamanho_mb = video_path.stat().st_size / (1024 * 1024)
 
     print(

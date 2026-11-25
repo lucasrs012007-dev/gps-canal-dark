@@ -38,6 +38,10 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from pipeline.config_canal import (  # noqa: E402
+    carregar_config_canal,
+    obter_hashtags_plataforma,
+)
 from pipeline.historico import (  # noqa: E402
     caminho_saida_atual,
     caminhos_partes_atual,
@@ -119,13 +123,17 @@ def extrair_gancho_roteiro(video_info: dict, raiz: Path = RAIZ) -> str:
     return "Uma historia de suspense que muda completamente nos segundos finais."
 
 
-def montar_hashtags(video_info: dict, parte: str = "parte1", maximo: int = 6) -> str:
-    """Gera hashtags limpas e relevantes a partir das palavras-chave do video ativo."""
-    base = (
-        ["shorts", "suspense", "terrorpsicologico", "parte2"]
-        if parte == "parte2"
-        else ["shorts", "suspense", "terrorpsicologico", "historiasdesuspense"]
-    )
+def montar_hashtags(
+    video_info: dict,
+    parte: str = "parte1",
+    maximo: int = 6,
+    config: dict | None = None,
+) -> str:
+    """Gera hashtags limpas a partir de config_canal.json e palavras-chave do video ativo."""
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
+    base = list(obter_hashtags_plataforma("telegram", cfg))[:4]
+    if parte == "parte2" and "parte2" not in base:
+        base = base[:3] + ["parte2"]
     extras: list[str] = []
     palavras = video_info.get("palavras_chave") or []
     if isinstance(palavras, list):
@@ -144,32 +152,29 @@ def montar_legenda_postagem(
     parte: str | None = None,
     eh_parte1: bool = True,
     raiz: Path = RAIZ,
+    config: dict | None = None,
 ) -> str:
     """Monta legenda pronta para copiar e colar no Reels / YouTube Shorts / TikTok."""
-    titulo = str(video_info.get("titulo", "Short Dark")).strip()
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
+    titulo = str(video_info.get("titulo") or cfg.get("nome_canal") or "Short Dark").strip()
+    cta_canal = str(cfg.get("cta_final") or "").strip() or (
+        "E você, o que faria nessa situação, me conta aqui nos comentários?"
+    )
     modo = parte if parte in ("parte1", "parte2", "unico") else ("parte1" if eh_parte1 else "unico")
 
     if modo == "parte2":
-        cta = (
-            "Você esperava esse final? Comente o que faria no lugar dele. "
-            "Quer aprender a criar vídeos assim no automático? Comente EU QUERO que eu te envio no Direct."
-        )
-        hashtags = montar_hashtags(video_info, parte="parte2")
+        hashtags = montar_hashtags(video_info, parte="parte2", config=cfg)
         return (
             f"{titulo} (PARTE 2 - FINAL)\n"
             f"Continuação da Parte 1: assista ao desfecho completo de {titulo}.\n\n"
-            f"{cta}\n\n"
+            f"{cta_canal}\n\n"
             f"{hashtags}"
         )
 
     sufixo_parte = " (PARTE 1)" if modo == "parte1" else ""
     gancho = extrair_gancho_roteiro(video_info, raiz=raiz)
-    cta = (
-        "Quer aprender a criar vídeos assim no automático? "
-        "Comente EU QUERO que eu te envio o passo a passo no Direct."
-    )
-    hashtags = montar_hashtags(video_info, parte="parte1")
-    return f"{titulo}{sufixo_parte}\n{gancho}\n\n{cta}\n\n{hashtags}"
+    hashtags = montar_hashtags(video_info, parte="parte1", config=cfg)
+    return f"{titulo}{sufixo_parte}\n{gancho}\n\n{cta_canal}\n\n{hashtags}"
 
 
 def ler_youtube_url_arquivo(caminho: Path | None = None) -> str:

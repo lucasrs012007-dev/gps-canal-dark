@@ -49,6 +49,11 @@ RAIZ = Path(__file__).resolve().parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from pipeline.config_canal import (  # noqa: E402
+    carregar_config_canal,
+    obter_hashtags_plataforma,
+)
+
 ARQUIVO_ENV = RAIZ / ".env"
 PASTA_OUTPUT = RAIZ / "output"
 ARQUIVO_CENAS = RAIZ / "cenas.json"
@@ -305,6 +310,8 @@ def carregar_metadados_tiktok(
         or int(cenas["video_id"]) == int(alvo_id)
     )
 
+    cfg_canal = carregar_config_canal()
+    nome_canal = _limpar_texto_social(cfg_canal.get("nome_canal", "E Se Você?")) or "E Se Você?"
     if cenas_bate and str(cenas.get("titulo", "")).strip():
         titulo = str(cenas["titulo"]).strip()
     elif str(reg_hist.get("titulo", "")).strip():
@@ -312,7 +319,7 @@ def carregar_metadados_tiktok(
     elif str(cenas.get("titulo", "")).strip():
         titulo = str(cenas["titulo"]).strip()
     else:
-        titulo = f"E Se Você Passasse Por Isso? {alvo_id:02d}" if alvo_id else "E Se Você Passasse Por Isso?"
+        titulo = f"{nome_canal} {alvo_id:02d}" if alvo_id else nome_canal
 
     tema = str(reg_hist.get("tema", "") or "").strip()
     gancho = _extrair_gancho_roteiro(str(reg_hist.get("roteiro", "") or ""), raiz=raiz)
@@ -345,12 +352,14 @@ def carregar_metadados_tiktok(
     }
 
 
-def montar_titulo_tiktok(meta: dict) -> str:
-    """Monta legenda/titulo conciso com hashtags relevantes para o TikTok (<= 2200 chars)."""
-    titulo = _limpar_texto_social(meta.get("titulo", "")) or "E Se Você Passasse Por Isso?"
+def montar_titulo_tiktok(meta: dict, config: dict | None = None) -> str:
+    """Monta legenda/titulo conciso com hashtags de config_canal.json para o TikTok (<= 2200 chars)."""
+    cfg = config if isinstance(config, dict) else carregar_config_canal()
+    fallback_titulo = _limpar_texto_social(cfg.get("nome_canal", "E Se Você?")) or "E Se Você?"
+    titulo = _limpar_texto_social(meta.get("titulo", "")) or fallback_titulo
     gancho = _limpar_texto_social(meta.get("gancho", ""))
 
-    tags_base = ["curiosidades", "ese", "suspense", "fyp"]
+    tags_base = obter_hashtags_plataforma("tiktok", cfg)
     extras: list[str] = []
     for kw in meta.get("palavras_chave") or []:
         slug = _slug_hashtag(str(kw))

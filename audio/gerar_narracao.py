@@ -47,6 +47,10 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from pipeline.config_canal import (  # noqa: E402
+    carregar_config_canal,
+    obter_perfil_idioma,
+)
 from pipeline.historico import (  # noqa: E402
     calcular_sha256_arquivo,
     caminho_roteiro_atual,
@@ -61,6 +65,13 @@ EVENTOS_JSON = PASTA_AUDIO / "eventos.json"
 TEXTO_TXT = PASTA_AUDIO / "narracao.txt"
 ARQUIVO_ENV = RAIZ / ".env"
 
+_CFG_CANAL = carregar_config_canal()
+_PERFIL_IDIOMA = obter_perfil_idioma(_CFG_CANAL["idioma"])
+IDIOMA_CANAL = _PERFIL_IDIOMA["codigo"]
+IDIOMA_HUMANO = _PERFIL_IDIOMA["nome_humano"]
+GTTS_LANG = _PERFIL_IDIOMA["gtts_lang"]
+GTTS_TLD = _PERFIL_IDIOMA["gtts_tld"]
+
 # Perfis vocais canonicos
 PERFIL_VOZ_PADRAO = "narrador_tenso"
 PERFIS_VOZ_CANONICOS = (
@@ -72,8 +83,8 @@ PERFIS_VOZ_CANONICOS = (
     "sussurro_twist",
 )
 
-# Velocidade natural (1.02x) e limpeza de silencios longos preservando respiracao humana
-VELOCIDADE_VOZ_PADRAO = 1.02
+# Velocidade natural lida de config_canal.json (padrao 1.02x) e limpeza de silencios longos
+VELOCIDADE_VOZ_PADRAO = float(_CFG_CANAL["velocidade_voz"])
 SILENCIO_INTERNO_MAX_S = 0.22
 SILENCIO_INTERNO_MANTER_S = 0.06
 GEMINI_TTS_MIN_INTERVAL_PADRAO = 21.0
@@ -89,28 +100,28 @@ GEMINI_TAXA_PCM_PADRAO = 24000
 
 INSTRUCOES_ATUACAO_GEMINI: dict[str, str] = {
     "narrador_tenso": (
-        "Direcao vocal (portugues do Brasil): narrador masculino de voz grave, natural e envolvente, "
+        f"Direcao vocal ({IDIOMA_HUMANO}): narrador masculino de voz grave, natural e envolvente, "
         "como alguem contando uma historia viciante de perto. Diccao nitida, ritmo fluido sem correria "
         "e sem tom robotico, mantendo respiracao natural e evitando pausas longas demais."
     ),
     "panico": (
-        "Direcao vocal (portugues do Brasil): narrador tenso, urgente e alterado por perigo real, "
+        f"Direcao vocal ({IDIOMA_HUMANO}): narrador tenso, urgente e alterado por perigo real, "
         "ritmo firme e expressivo mantendo diccao clara, respiracao natural e sem correria exagerada."
     ),
     "interfone_porteiro": (
-        "Direcao vocal (portugues do Brasil): outro personagem masculino falando tenso e apressado "
+        f"Direcao vocal ({IDIOMA_HUMANO}): outro personagem masculino falando tenso e apressado "
         "pelo interfone, voz natural e alarmada com diccao clara e sem pausas arrastadas."
     ),
     "voz_telefone": (
-        "Direcao vocal (portugues do Brasil): outro personagem masculino falando alarmado e direto "
+        f"Direcao vocal ({IDIOMA_HUMANO}): outro personagem masculino falando alarmado e direto "
         "por ligacao telefonica, voz natural e tensa com diccao nitida."
     ),
     "cta_comercial": (
-        "Direcao vocal (portugues do Brasil): locutor natural, proximo e direto, falando em tom "
+        f"Direcao vocal ({IDIOMA_HUMANO}): locutor natural, proximo e direto, falando em tom "
         "conversacional e claro, sem exageros artificiais."
     ),
     "sussurro_twist": (
-        "Direcao vocal (portugues do Brasil): voz baixa, proxima do microfone, fria e precisa, "
+        f"Direcao vocal ({IDIOMA_HUMANO}): voz baixa, proxima do microfone, fria e precisa, "
         "mantendo naturalidade e impacto ao entregar a revelacao final sem arrastar demais."
     ),
 }
@@ -159,8 +170,8 @@ PERFIS_ELEVENLABS: dict[str, dict[str, float | bool]] = {
 }
 
 # Configuracoes de voz: edge-tts multi-bloco natural (Fallback 2, taxas equilibradas +0% a +8%)
-EDGE_VOZ = "pt-BR-AntonioNeural"
-EDGE_VOZ_SECUNDARIA = "pt-BR-FabioNeural"
+EDGE_VOZ = _PERFIL_IDIOMA["edge_voz_principal"]
+EDGE_VOZ_SECUNDARIA = _PERFIL_IDIOMA["edge_voz_secundaria"]
 EDGE_VOZ_PORTEIRO = EDGE_VOZ_SECUNDARIA
 EDGE_PITCH = "-4Hz"
 EDGE_RATE = "+4%"
@@ -224,14 +235,15 @@ PADRAO_BATIDAS = re.compile(
 SEPARADOR_FRASES = re.compile(r"(?<!\.\.)(?<=[\.\!\?])\s+")
 
 
-def obter_velocidade_voz() -> float:
+def obter_velocidade_voz(caminho_config: Path | str | None = None) -> float:
     raw = os.environ.get("VELOCIDADE_VOZ", "").strip()
     if raw:
         try:
             return max(0.5, min(2.0, float(raw)))
         except ValueError:
             pass
-    return VELOCIDADE_VOZ_PADRAO
+    cfg = carregar_config_canal(caminho_config)
+    return float(cfg["velocidade_voz"])
 
 
 def obter_intervalo_min_gemini() -> float:
@@ -729,7 +741,7 @@ def montar_payload_gemini_tts(
     texto_limpo = sanitizar_texto_tts(texto)
     prompt_atuacao = (
         f"{direcao}\n"
-        "Leia apenas o texto exato abaixo em portugues do Brasil, com ritmo agil, sem adicionar nem omitir palavras:\n"
+        f"Leia apenas o texto exato abaixo em {IDIOMA_HUMANO}, com ritmo natural e envolvente, sem adicionar nem omitir palavras:\n"
         f"{texto_limpo}"
     )
     return {
@@ -1144,7 +1156,7 @@ def sintetizar_gtts(
         from gtts import gTTS as cls  # type: ignore[import-not-found]
 
     destino_mp3.unlink(missing_ok=True)
-    tts = cls(text=texto_limpo, lang="pt", tld="com.br")
+    tts = cls(text=texto_limpo, lang=GTTS_LANG, tld=GTTS_TLD)
     tts.save(str(destino_mp3))
     if not destino_mp3.is_file() or destino_mp3.stat().st_size < 64:
         raise RuntimeError("gTTS gerou arquivo de audio vazio.")

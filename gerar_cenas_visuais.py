@@ -57,14 +57,18 @@ GEMINI_IMAGEN_MODELOS: tuple[str, ...] = (
     "imagen-3.0-generate-002",
     "imagen-4.0-fast-generate-001",
 )
+from pipeline.config_canal import carregar_config_canal  # noqa: E402
+
 GEMINI_IMAGE_CONTENT_MODELOS: tuple[str, ...] = (
     "gemini-2.5-flash-image",
     "gemini-2.0-flash-exp-image-generation",
 )
-ESTILO_VISUAL_PADRAO = (
-    "stylized 2.5D dark cinematic digital illustration, moody dramatic lighting, "
-    "vertical 9:16 composition, no text, no watermark"
-)
+ESTILO_VISUAL_PADRAO = str(carregar_config_canal()["estilo_visual_prompt"])
+
+
+def obter_estilo_visual_ativo(caminho_config: Path | str | None = None) -> str:
+    """Retorna o estilo visual configurado em config_canal.json (com fallback seguro)."""
+    return str(carregar_config_canal(caminho_config)["estilo_visual_prompt"])
 
 CORES_MOOD_FALLBACK: dict[str, tuple[tuple[int, int, int], tuple[int, int, int], tuple[int, int, int]]] = {
     "navy": ((9, 15, 30), (18, 38, 68), (56, 217, 255)),
@@ -239,18 +243,23 @@ def calcular_seed_cena(video_id: int, slug: str, idx_1based: int, prompt: str) -
     return (int(digest[:8], 16) % 899_999) + 100_000
 
 
-def _encurtar_prompt_para_url(prompt: str, max_chars: int = MAX_CHARS_PROMPT_URL) -> str:
+def _encurtar_prompt_para_url(
+    prompt: str,
+    max_chars: int = MAX_CHARS_PROMPT_URL,
+    estilo_visual: str | None = None,
+) -> str:
     limpo = re.sub(r"\s+", " ", str(prompt or "")).strip()
     if len(limpo) <= max_chars:
         return limpo
-    estilo_low = ESTILO_VISUAL_PADRAO.lower()
+    estilo = (estilo_visual or "").strip() or obter_estilo_visual_ativo()
+    estilo_low = estilo.lower()
     if estilo_low in limpo.lower():
         pos = limpo.lower().rfind(estilo_low)
         corpo = limpo[:pos].rstrip(" ,.;")
-        cota = max(80, max_chars - len(ESTILO_VISUAL_PADRAO) - 2)
+        cota = max(80, max_chars - len(estilo) - 2)
         if len(corpo) > cota:
             corpo = corpo[:cota].rsplit(" ", 1)[0].rstrip(" ,.;")
-        return f"{corpo}, {ESTILO_VISUAL_PADRAO}"
+        return f"{corpo}, {estilo}"
     return limpo[:max_chars].rsplit(" ", 1)[0].rstrip(" ,.;")
 
 
@@ -274,12 +283,14 @@ def obter_prompt_cena(
     idx_0based: int,
     total_cenas: int,
     protagonista: dict | None = None,
+    estilo_visual: str | None = None,
 ) -> str:
-    """Retorna prompt_imagem da cena em cenas.json (com fallback automatico para JSON legado)."""
+    """Retorna prompt_imagem da cena em cenas.json (com fallback usando estilo_visual_prompt de config_canal.json)."""
+    estilo = (estilo_visual or "").strip() or obter_estilo_visual_ativo()
     bruto = str(cena.get("prompt_imagem", "") or "").strip()
     if len(bruto) >= 24:
-        if ESTILO_VISUAL_PADRAO.lower() not in bruto.lower():
-            return f"{bruto.rstrip(' ,.;')}, {ESTILO_VISUAL_PADRAO}"
+        if estilo.lower() not in bruto.lower():
+            return f"{bruto.rstrip(' ,.;')}, {estilo}"
         return bruto
 
     try:
@@ -287,7 +298,7 @@ def obter_prompt_cena(
 
         props = cena.get("props") if isinstance(cena.get("props"), dict) else {}
         texto_pista = str(props.get("celular_mensagem", "") or cena.get("id", ""))
-        return gerar_prompt_imagem_cena(
+        gerado = gerar_prompt_imagem_cena(
             texto_bloco=texto_pista,
             modulo=str(cena.get("modulo", "corredor_escuro")),
             mood=str(cena.get("mood", "navy")),
@@ -298,12 +309,15 @@ def obter_prompt_cena(
             idx=idx_0based,
             total=total_cenas,
         )
+        if estilo.lower() not in gerado.lower():
+            return f"{gerado.rstrip(' ,.;')}, {estilo}"
+        return gerado
     except Exception:
         mood = str(cena.get("mood", "navy"))
         mod = str(cena.get("modulo", "corredor_escuro")).replace("_", " ")
         return (
             f"Dramatic vertical cinematic scene in a dark {mod} with {mood} atmospheric rim lighting, "
-            f"scene beat {idx_0based + 1}, {ESTILO_VISUAL_PADRAO}"
+            f"scene beat {idx_0based + 1}, {estilo}"
         )
 
 
@@ -567,6 +581,7 @@ def gerar_todas_cenas_visuais(
     video_id = int(dados.get("video_id") or 1)
     slug = str(dados.get("slug") or f"video-{video_id:02d}")
     protagonista = dados.get("protagonista") if isinstance(dados.get("protagonista"), dict) else {}
+    estilo_canal = str(dados.get("estilo_visual") or "").strip() or obter_estilo_visual_ativo()
 
     saida_dir.mkdir(parents=True, exist_ok=True)
     if limpar_antigas:
@@ -590,7 +605,13 @@ def gerar_todas_cenas_visuais(
         for idx, cena in enumerate(lista_cenas, start=1):
             cena_id = f"cena_{idx:02d}"
             destino_jpg = saida_dir / f"{cena_id}.jpg"
-            prompt = obter_prompt_cena(cena, idx - 1, total, protagonista=protagonista)
+            prompt = obter_prompt_cena(
+                cena,
+                idx - 1,
+                total,
+                protagonista=protagonista,
+                estilo_visual=estilo_canal,
+            )
             seed = calcular_seed_cena(video_id, slug, idx, prompt)
             mood = str(cena.get("mood", "navy"))
             raw_tmp = tmp_dir / f"{cena_id}_raw.bin"

@@ -35,6 +35,10 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from pipeline.config_canal import (  # noqa: E402
+    carregar_config_canal,
+    obter_perfil_idioma,
+)
 from pipeline.historico import (  # noqa: E402
     ARQUIVO_HISTORICO,
     _similares,
@@ -59,85 +63,41 @@ GEMINI_MODELOS_FALLBACK: tuple[str, ...] = (
 ARQUIVO_ENV = RAIZ / ".env"
 ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
-CTA_FINAL_PADRAO = "E você, o que faria nessa situação, me conta aqui nos comentários?"
-ESTILO_VISUAL_PROMPT_IMAGEM = (
+LIMITE_PALAVRAS_PARTE_2 = 130
+
+CONFIG_CANAL: dict = {}
+CANAL_NOME: str = "E Se Você?"
+IDIOMA_CANAL: str = "pt-BR"
+IDIOMA_HUMANO: str = "português do Brasil"
+CTA_FINAL_PADRAO: str = "E você, o que faria nessa situação, me conta aqui nos comentários?"
+ESTILO_VISUAL_PROMPT_IMAGEM: str = (
     "stylized 2.5D dark cinematic digital illustration, moody dramatic lighting, "
     "vertical 9:16 composition, no text, no watermark"
 )
-LIMITE_PALAVRAS_PARTE_2 = 130
-CANAL_NOME = "E Se Você?"
+PILARES_EDITORIAIS: tuple[dict[str, str], ...] = ()
+PILARES_POR_ID: dict[str, dict[str, str]] = {}
 
-PILARES_EDITORIAIS: tuple[dict[str, str], ...] = (
-    {
-        "id": "cenarios_hipoteticos",
-        "nome": "Cenários hipotéticos ('E se você...?')",
-        "gancho": "Comece direto em segunda pessoa com uma pergunta ou situação extrema de sobrevivência/decisão ('E se você ficasse preso em...', 'E se você acordasse...', 'E se o mundo parasse por...').",
-        "instrucoes": (
-            "Conduza o espectador passo a passo em segunda pessoa ('você') pelos minutos ou horas seguintes, "
-            "mostrando reações físicas reais, dilemas psicológicos e escalada de tensão até uma consequência "
-            "final surpreendente e memorável na última frase."
-        ),
-        "exemplos": (
-            "ficar preso dentro de um submarino sem comunicação, acordar sendo a única pessoa na cidade, "
-            "aceitar ficar 30 dias numa sala branca sem relógio por 10 milhões, perder a gravidade por 60 segundos, "
-            "ficar preso num teleférico durante tempestade, acordar 24 horas antes de um apagão global"
-        ),
-        "horario_padrao": "15:00",
-        "titulo_fallback": "E Se Você Acordasse Sozinho",
-    },
-    {
-        "id": "curiosidades_bizarras",
-        "nome": "Curiosidades bizarras e fatos pouco conhecidos",
-        "gancho": "Abra com um fato real chocante, contraintuitivo ou que quase ninguém sabe ('Você sabia que existe...', 'Existe um fenômeno real...', 'Seu cérebro esconde um mecanismo bizarro...').",
-        "instrucoes": (
-            "Apresente um fato real e documentado de ciência, psicologia, biologia humana, engenharia, "
-            "natureza extrema ou história pouco conhecida. Estruture em camadas: o que parece comum, "
-            "a explicação surpreendente por trás e o detalhe final inquietante que prende a atenção."
-        ),
-        "exemplos": (
-            "o som oceânico The Bloop e o Ponto Nemo, a síndrome da mão alheia, a Zona de Silêncio no deserto, "
-            "por que o espaço tem cheiro de metal queimado, protocolos reais ocultos de aviação ou usinas, "
-            "o fenômeno da paralisia de decisão em ambientes extremos, cidades subterrâneas reais"
-        ),
-        "horario_padrao": "14:20",
-        "titulo_fallback": "O Fato Bizarro Que Poucos Sabem",
-    },
-    {
-        "id": "misterios_reais",
-        "nome": "Mistérios reais e lugares proibidos",
-        "gancho": "Abra apresentando um lugar proibido real, um sinal sem explicação ou um caso documentado ('Existe um lugar no planeta onde entrar é crime...', 'Há um mistério real que ninguém resolveu...').",
-        "instrucoes": (
-            "Narre um mistério real ou local de acesso vetado por governos/ciência com detalhes concretos "
-            "(localização, datas, protocolos de segurança ou registros oficiais), aumentando o clima "
-            "investigativo até o enigma sem resposta que fecha o episódio."
-        ),
-        "exemplos": (
-            "Ilha Sentinela do Norte, Cofre Global de Sementes de Svalbard, Caverna de Lascaux fechada ao público, "
-            "Ilha da Queimada Grande, estação de rádio fantasma UVB-76, área de exclusão em ilhas remotas, "
-            "arquivos secretos de expedições polares ou navios encontrados à deriva"
-        ),
-        "horario_padrao": "21:40",
-        "titulo_fallback": "O Lugar Proibido Que Ninguém Entra",
-    },
-    {
-        "id": "suspense_urbano",
-        "nome": "Relatos curtos de suspense urbano",
-        "gancho": "Abra situando rapidamente um personagem comum em um cenário urbano cotidiano realista (metrô, hotel, hospital, estacionamento, entrega, portaria, escritório vazio) com um detalhe fora do normal.",
-        "instrucoes": (
-            "Desenvolva um micro-suspense psicológico realista e cinematográfico sem repetir cenários "
-            "do histórico (evite repetir madrugada no quarto ou espelho se já apareceram recentemente), "
-            "escalando a tensão até um plot twist seco e perturbador na última frase."
-        ),
-        "exemplos": (
-            "último vagão do metrô parado no túnel, câmera de segurança de estacionamento subterrâneo, "
-            "quarto de hotel com recado escrito no mesmo dia, plantão noturno em hospital, "
-            "cabine de pedágio isolada, entrega de encomenda sem remetente"
-        ),
-        "horario_padrao": "23:18",
-        "titulo_fallback": "O Aviso no Último Vagão",
-    },
-)
-PILARES_POR_ID: dict[str, dict[str, str]] = {p["id"]: p for p in PILARES_EDITORIAIS}
+
+def recarregar_config_canal(caminho: Path | str | None = None) -> dict:
+    """Recarrega config_canal.json e atualiza constantes globais do Diretor IA."""
+    global CONFIG_CANAL, CANAL_NOME, IDIOMA_CANAL, IDIOMA_HUMANO
+    global CTA_FINAL_PADRAO, ESTILO_VISUAL_PROMPT_IMAGEM, PILARES_EDITORIAIS, PILARES_POR_ID
+
+    cfg = carregar_config_canal(caminho)
+    perfil_idioma = obter_perfil_idioma(cfg["idioma"])
+
+    CONFIG_CANAL = cfg
+    CANAL_NOME = str(cfg["nome_canal"])
+    IDIOMA_CANAL = str(perfil_idioma["codigo"])
+    IDIOMA_HUMANO = str(perfil_idioma["nome_humano"])
+    CTA_FINAL_PADRAO = str(cfg["cta_final"])
+    ESTILO_VISUAL_PROMPT_IMAGEM = str(cfg["estilo_visual_prompt"])
+    PILARES_EDITORIAIS = tuple(dict(p) for p in cfg["pilares_editoriais"])
+    PILARES_POR_ID = {p["id"]: p for p in PILARES_EDITORIAIS}
+    return cfg
+
+
+recarregar_config_canal()
 
 MODULOS_CENARIO: tuple[str, ...] = (
     "quarto_noturno",
@@ -1265,15 +1225,15 @@ def _montar_prompt_gemini(
         else ""
     )
     horario_ex = pilar["horario_padrao"] if pilar is not None else "15:00"
+    resumo_pilares = ", ".join(p["nome"] for p in PILARES_EDITORIAIS)
     return (
-        f"Você é o Diretor IA V6 do canal '{CANAL_NOME}' (YouTube Shorts / Reels de alta retenção em pt-BR: "
-        "cenários hipotéticos, curiosidades bizarras, mistérios reais, lugares proibidos e suspense urbano).\n"
+        f"Você é o Diretor IA V6 do canal '{CANAL_NOME}' (YouTube Shorts / Reels de alta retenção em {IDIOMA_CANAL}: "
+        f"{resumo_pilares}).\n"
         "Transforme o roteiro bruto abaixo em um plano estruturado JSON estrito.\n"
         "REGRAS OBRIGATÓRIAS:\n"
         "1. ZERO emoji e ZERO travessão (em-dash ou en-dash) em qualquer texto.\n"
-        "2. ORTOGRAFIA COMPLETA EM PORTUGUÊS (UTF-8): preserve e escreva TODOS os acentos e cedilhas "
-        "(ex.: você, não, mão, pés, direção, levitação, escritório, xícara, café, chão, pânico) no título, "
-        "nos blocos narrativos, nas mensagens e nas linhas de katana_hits. Nunca remova acentos.\n"
+        f"2. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): preserve e escreva TODOS os acentos e grafia correta "
+        "no título, nos blocos narrativos, nas mensagens e nas linhas de katana_hits. Nunca remova acentos.\n"
         "3. RITMO HUMANO E SEM PAUSA NO MEIO: preserve o roteiro em frases curtas, diretas e faladas como um humano "
         "contando algo viciante, dividido em 7 a 12 blocos narrativos. PROIBIDO inserir pausa comercial, propaganda ou CTA "
         "no meio do vídeo. Deixe o gancho/CTA curto de 1 frase APENAS como último bloco do vídeo.\n"
@@ -1676,10 +1636,11 @@ def _montar_prompt_roteiro_inedito(
 ) -> str:
     pilar_ativo = pilar or selecionar_proximo_pilar(dados_hist, proximo_id)
     proibidos = _resumir_historico_proibido(dados_hist)
+    resumo_pilares = ", ".join(p["nome"] for p in PILARES_EDITORIAIS)
     dica_titulo = (
         f"Use ou adapte este título solicitado pelo usuário: '{titulo_sugerido}'.\n"
         if titulo_sugerido
-        else "Crie um título curto, magnético e inédito em português do Brasil (3 a 7 palavras) alinhado ao pilar.\n"
+        else f"Crie um título curto, magnético e inédito em {IDIOMA_HUMANO} (3 a 7 palavras) alinhado ao pilar.\n"
     )
     aviso_rej = (
         f"\nATENÇÃO: a tentativa anterior foi rejeitada por similaridade ({motivo_rejeicao}). "
@@ -1689,9 +1650,8 @@ def _montar_prompt_roteiro_inedito(
     )
     return (
         f"Você é o roteirista-chefe do canal '{CANAL_NOME}' (YouTube Shorts / Reels de altíssima retenção "
-        f"em português do Brasil, episódio Vídeo {proximo_id:02d}).\n"
-        "O canal alterna entre 4 pilares: cenários hipotéticos ('E se você...?'), curiosidades bizarras e "
-        "fatos pouco conhecidos, mistérios reais e lugares proibidos, e relatos curtos de suspense urbano.\n\n"
+        f"em {IDIOMA_HUMANO} [{IDIOMA_CANAL}], episódio Vídeo {proximo_id:02d}).\n"
+        f"O canal alterna entre {len(PILARES_EDITORIAIS)} pilar(es) editorial(is): {resumo_pilares}.\n\n"
         f"PILAR OBRIGATÓRIO DESTE EPISÓDIO: {pilar_ativo['nome']} (id={pilar_ativo['id']})\n"
         f"- Gancho inicial obrigatório: {pilar_ativo['gancho']}\n"
         f"- Desenvolvimento editorial: {pilar_ativo['instrucoes']}\n"
@@ -1702,8 +1662,7 @@ def _montar_prompt_roteiro_inedito(
         "REGRAS OBRIGATÓRIAS DO ROTEIRO:\n"
         f"1. {dica_titulo}"
         "2. Escreva entre 185 e 245 palavras em ritmo contínuo e envolvente.\n"
-        "3. Siga estritamente o pilar obrigatório acima (não transforme cenários hipotéticos, curiosidades "
-        "ou mistérios reais em história genérica de terror de madrugada).\n"
+        "3. Siga estritamente o pilar obrigatório acima (não fuja do foco editorial configurado para este episódio).\n"
         "4. VOZ HUMANA E VICIANTE (ZERO TOM ROBÓTICO): escreva em frases curtas, diretas e faladas como um humano "
         "contando algo viciante para um amigo. Ritmo conversacional real, verbos concretos e imagens mentais imediatas. "
         "PROIBIDO usar clichês de IA ou linguagem de redação formal como 'mergulhe nessa história', 'prepare-se para descobrir', "
@@ -1712,18 +1671,17 @@ def _montar_prompt_roteiro_inedito(
         "5. RETENÇÃO SEM INTERRUPÇÃO: abra com um gancho impossível de ignorar nos primeiros 3 segundos e mantenha "
         "a tensão crescente até a virada final seca e memorável. PROIBIDO inserir qualquer pausa comercial, propaganda, "
         "anúncio ou CTA no meio do vídeo (jamais interrompa a história por volta do segundo 14 ou no meio do roteiro). "
-        "Deixe APENAS um gancho/CTA curto e natural de 1 única frase no finalzinho do vídeo (ex.: provocando o espectador "
-        "a responder nos comentários o que faria ou o que acha).\n"
-        "6. ORTOGRAFIA COMPLETA EM PORTUGUÊS (UTF-8): escreva com acentuação UTF-8 100% correta em TODAS as palavras "
-        "(ex.: você, não, mão, pés, direção, levitação, escritório, xícara, café, chão, pânico, silêncio, coração, "
-        "câmera, está, é, até, também). Nunca remova acentos nem cedilhas.\n"
+        "Deixe APENAS um gancho/CTA curto e natural de 1 única frase no finalzinho do vídeo "
+        f"(referência do canal: '{CTA_FINAL_PADRAO}').\n"
+        f"6. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): escreva com acentuação e grafia UTF-8 100% corretas "
+        "em TODAS as palavras. Nunca remova acentos nem cedilhas.\n"
         "7. ZERO emoji, ZERO travessão (em-dash ou en-dash), ZERO tags [VOZ], [SFX] ou [CTA_PAUSA] "
         "(a marcação técnica será feita na etapa seguinte).\n"
         "8. Responda APENAS com JSON válido no formato:\n"
         "{\n"
         '  "titulo": "Título Inédito Curto",\n'
         '  "tema": "Resumo objetivo em 1 frase da premissa inédita",\n'
-        '  "roteiro_bruto": "Texto corrido completo do roteiro em pt-BR falado natural com acentuação UTF-8 100% correta, sem pausa comercial no meio e fechando com 1 frase curta de gancho/CTA no finalzinho (185 a 245 palavras)."\n'
+        f'  "roteiro_bruto": "Texto corrido completo do roteiro em {IDIOMA_CANAL} falado natural com grafia UTF-8 100% correta, sem pausa comercial no meio e fechando com 1 frase curta de gancho/CTA no finalzinho (185 a 245 palavras)."\n'
         "}\n"
     )
 
@@ -1877,7 +1835,23 @@ def gerar_roteiro_inedito_mock(
         ),
     }
 
-    titulo_padrao, roteiro = modelos_mock[pid]
+    if pid in modelos_mock:
+        titulo_padrao, roteiro = modelos_mock[pid]
+    else:
+        nome_pilar = str(pilar_ativo.get("nome") or pid.replace("_", " ").title()).strip()
+        titulo_fb = str(pilar_ativo.get("titulo_fallback") or nome_pilar[:44]).strip()
+        titulo_padrao = f"{titulo_fb} {prox_id:02d}"
+        roteiro = (
+            f"Quase ninguém percebe o que realmente acontece quando o assunto é {nome_pilar}. "
+            f"No canal {CANAL_NOME}, a gente olhou os detalhes que passam batido todo dia. "
+            "No primeiro minuto tudo parece comum e previsível, sem nenhum sinal de alerta. "
+            "Só que uma pequena escolha repetida em silêncio muda completamente o resultado final. "
+            "Quem entende esse mecanismo cedo consegue virar o jogo antes de perder tempo e energia. "
+            "Quando você junta as peças na ordem certa, o padrão fica impossível de ignorar. "
+            "O detalhe que quase todo mundo deixa de lado é exatamente o ponto onde tudo muda de direção. "
+            "No fim das contas, a diferença entre quem trava e quem avança está nesse único ajuste prático. "
+            f"{CTA_FINAL_PADRAO}"
+        )
     titulo = restaurar_acentos_ptbr(sanitizar_texto(titulo_sugerido)) if titulo_sugerido else titulo_padrao
     return titulo, roteiro
 
@@ -2508,10 +2482,11 @@ def validar_cenas_json(cenas: dict) -> list[str]:
             if c.get("expressao") not in EXPRESSOES_VALIDAS:
                 erros.append(f"cenas[{idx}].expressao invalida: {c.get('expressao')!r}.")
             prompt_img = c.get("prompt_imagem")
+            estilo_esperado = str(cenas.get("estilo_visual") or ESTILO_VISUAL_PROMPT_IMAGEM).strip()
             if not isinstance(prompt_img, str) or len(prompt_img.strip()) < 40:
                 erros.append(f"cenas[{idx}].prompt_imagem obrigatorio ausente ou curto demais.")
             else:
-                if ESTILO_VISUAL_PROMPT_IMAGEM not in prompt_img:
+                if estilo_esperado and estilo_esperado.lower() not in prompt_img.lower():
                     erros.append(
                         f"cenas[{idx}].prompt_imagem sem o estilo visual obrigatorio."
                     )
@@ -2832,7 +2807,10 @@ def produzir_direcao_v6(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Diretor IA V6 ('E Se Voce?'): cria episodio inedito nos 4 pilares ou converte roteiro bruto."
+        description=(
+            f"Diretor IA V6 ('{CANAL_NOME}'): cria episodio inedito nos "
+            f"{len(PILARES_EDITORIAIS)} pilar(es) de config_canal.json ou converte roteiro bruto."
+        )
     )
     grupo = parser.add_mutually_exclusive_group(required=True)
     grupo.add_argument("--roteiro-texto", type=str, help="Texto bruto do roteiro em linha de comando.")
@@ -2840,7 +2818,7 @@ def main() -> None:
     grupo.add_argument(
         "--gerar-inedito",
         action="store_true",
-        help="Cria automaticamente um roteiro 100%% inedito via Gemini alternando os 4 pilares do canal.",
+        help="Cria automaticamente um roteiro 100%% inedito via Gemini alternando os pilares de config_canal.json.",
     )
     parser.add_argument("--titulo", type=str, default=None, help="Titulo opcional do video.")
     parser.add_argument(
@@ -2848,7 +2826,7 @@ def main() -> None:
         type=str,
         choices=tuple(p["id"] for p in PILARES_EDITORIAIS),
         default=None,
-        help="Forca um dos 4 pilares editoriais (padrao: alternancia automatica pelo historico).",
+        help="Forca um dos pilares editoriais de config_canal.json (padrao: alternancia automatica pelo historico).",
     )
     parser.add_argument(
         "--modelo",
