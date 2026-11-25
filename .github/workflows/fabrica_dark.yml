@@ -37,6 +37,14 @@ on:
           - public
           - unlisted
           - private
+      tiktok_modo:
+        description: "Modo do envio ao TikTok (inbox = rascunhos/inbox, direct = publicacao direta)"
+        required: false
+        default: "inbox"
+        type: choice
+        options:
+          - inbox
+          - direct
   repository_dispatch:
     types:
       - novo_roteiro
@@ -50,7 +58,7 @@ concurrency:
 
 jobs:
   produzir-e-renderizar:
-    name: Diretor IA -> Audio -> Render -> YouTube -> Telegram
+    name: Diretor IA -> Audio -> Render -> YouTube/IG/TikTok -> Telegram
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -65,12 +73,15 @@ jobs:
       WD_ENVIAR_TG: ${{ inputs.enviar_telegram }}
       WD_MODO_TESTE: ${{ inputs.modo_teste }}
       WD_YT_PRIVACIDADE: ${{ inputs.youtube_privacidade }}
+      WD_TT_MODE: ${{ inputs.tiktok_modo }}
       RD_TITULO: ${{ github.event.client_payload.titulo }}
       RD_ROTEIRO: ${{ github.event.client_payload.roteiro }}
       RD_USAR_ATUAL: ${{ github.event.client_payload.usar_video_atual }}
       RD_ENVIAR_TG: ${{ github.event.client_payload.enviar_telegram }}
       RD_MODO_TESTE: ${{ github.event.client_payload.modo_teste }}
       RD_YT_PRIVACIDADE: ${{ github.event.client_payload.youtube_privacidade }}
+      RD_TT_MODE: ${{ github.event.client_payload.tiktok_modo }}
+      VAR_TT_MODE: ${{ vars.TIKTOK_MODE }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     steps:
@@ -105,17 +116,25 @@ jobs:
               v = str(val or "").strip().lower()
               return v if v in ("public", "unlisted", "private") else padrao
 
+          def to_tiktok_mode(val: str, padrao: str = "inbox") -> str:
+              v = str(val or "").strip().lower()
+              return v if v in ("inbox", "direct") else padrao
+
+          tt_padrao = to_tiktok_mode(os.environ.get("VAR_TT_MODE", ""), "inbox")
+
           if ev == "schedule":
               usar_atual = "false"
               enviar_tg = "true"
               modo_teste = "false"
               yt_privacy = "public"
+              tt_mode = tt_padrao
           else:
               pref = "RD_" if ev == "repository_dispatch" else "WD_"
               usar_atual = to_bool_str(os.environ.get(pref + "USAR_ATUAL", ""), False)
               enviar_tg = to_bool_str(os.environ.get(pref + "ENVIAR_TG", ""), True)
               modo_teste = to_bool_str(os.environ.get(pref + "MODO_TESTE", ""), False)
               yt_privacy = to_privacy(os.environ.get(pref + "YT_PRIVACIDADE", ""), "public")
+              tt_mode = to_tiktok_mode(os.environ.get(pref + "TT_MODE", ""), tt_padrao)
 
           gh_env = Path(os.environ["GITHUB_ENV"])
           with gh_env.open("a", encoding="utf-8") as arq:
@@ -123,10 +142,11 @@ jobs:
               arq.write(f"ENVIAR_TELEGRAM={enviar_tg}\n")
               arq.write(f"MODO_TESTE={modo_teste}\n")
               arq.write(f"YOUTUBE_PRIVACY={yt_privacy}\n")
+              arq.write(f"TIKTOK_MODE={tt_mode}\n")
 
           print(
               f"Evento={ev} | usar_video_atual={usar_atual} | enviar_telegram={enviar_tg} "
-              f"| modo_teste={modo_teste} | youtube_privacy={yt_privacy}"
+              f"| modo_teste={modo_teste} | youtube_privacy={yt_privacy} | tiktok_mode={tt_mode}"
           )
           PY
 
@@ -264,6 +284,74 @@ jobs:
         run: |
           rm -f output/youtube_url.txt
           python3 upload_youtube.py
+
+      - name: Verificar credenciais da Estacao 5B (Instagram Reels)
+        id: check_ig
+        if: ${{ success() }}
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          if [ -n "${IG_ACCESS_TOKEN}" ]; then
+            echo "habilitado=true" >> "${GITHUB_OUTPUT}"
+            echo "Estacao 5B (Instagram Reels): IG_ACCESS_TOKEN detectado; upload condicional habilitado."
+          else
+            echo "habilitado=false" >> "${GITHUB_OUTPUT}"
+            echo "AVISO Estacao 5B (Instagram Reels): IG_ACCESS_TOKEN vazio; pulando release temporaria e upload sem interromper a pipeline."
+          fi
+
+      - name: Publicar no Instagram Reels (Estacao 5B)
+        if: ${{ success() && steps.check_ig.outputs.habilitado == 'true' }}
+        continue-on-error: true
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          PUBLIC_VIDEO_URL: ${{ secrets.PUBLIC_VIDEO_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -f output/instagram_url.txt
+          if [ -z "${IG_ACCESS_TOKEN}" ] || [ -z "${IG_USER_ID}" ]; then
+            python3 upload_instagram.py
+            exit 0
+          fi
+
+          if [ -z "${PUBLIC_VIDEO_URL}" ]; then
+            VIDEO_MP4="$(python3 -c 'import upload_instagram as u; v = u.descobrir_video_completo(); print(v or "")')"
+            if [ -z "${VIDEO_MP4}" ] || [ ! -f "${VIDEO_MP4}" ]; then
+              echo "AVISO Estacao 5B: nenhum video completo output/short_NN.mp4 encontrado para release temporaria."
+              exit 0
+            fi
+
+            TAG="ig-tmp-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            ASSET_NAME="$(basename "${VIDEO_MP4}")"
+            cleanup_ig_release() {
+              gh release delete "${TAG}" --yes --cleanup-tag >/dev/null 2>&1 || true
+            }
+            trap cleanup_ig_release EXIT
+
+            gh release create "${TAG}" "${VIDEO_MP4}" \
+              --target main \
+              --prerelease \
+              --title "Temp IG Reels ${GITHUB_RUN_NUMBER}" \
+              --notes "Asset temporario da Estacao 5B (removido automaticamente ao concluir)."
+            export PUBLIC_VIDEO_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ASSET_NAME}"
+            echo "Asset temporario publicado para Estacao 5B: ${PUBLIC_VIDEO_URL}"
+          fi
+
+          python3 upload_instagram.py
+
+      - name: Publicar no TikTok (Estacao 5C)
+        if: ${{ success() }}
+        continue-on-error: true
+        env:
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_MODE: ${{ env.TIKTOK_MODE }}
+          TIKTOK_PRIVACY: ${{ vars.TIKTOK_PRIVACY }}
+        run: |
+          rm -f output/tiktok_publish_id.txt
+          python3 upload_tiktok.py
 
       - name: Publicar MP4s e metadados como Artifact
         id: upload_artifact
