@@ -41,6 +41,7 @@ from render import renderizar as rnd  # noqa: E402
 def validar_py_compile() -> None:
     alvos = [
         RAIZ / "gerar_cenas_visuais.py",
+        RAIZ / "audio" / "trilha_mix.py",
         RAIZ / "render" / "renderizar.py",
         RAIZ / "render" / "testar_storyboard.py",
         RAIZ / "pipeline" / "diretor_ia.py",
@@ -59,6 +60,7 @@ def validar_higiene() -> None:
     )
     for rel in (
         "gerar_cenas_visuais.py",
+        "audio/trilha_mix.py",
         "render/renderizar.py",
         "render/testar_storyboard.py",
         ".github/workflows/fabrica_dark.yml",

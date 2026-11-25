@@ -38,6 +38,11 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from audio.trilha_mix import (  # noqa: E402
+    PASTA_TRILHAS,
+    montar_filtro_mixagem_audio,
+    selecionar_trilha_aleatoria,
+)
 from pipeline.historico import (  # noqa: E402
     caminho_saida_atual,
     caminhos_partes_atual,
@@ -48,6 +53,7 @@ from pipeline.historico import (  # noqa: E402
 PASTA_AUDIO = RAIZ / "audio"
 AUDIO_MIX = PASTA_AUDIO / "mix_final.mp3"
 AUDIO_MP3 = PASTA_AUDIO / "narracao.mp3"
+AUDIO_VOZ_LIMPA = PASTA_AUDIO / "voz_limpa.mp3"
 LARGURA = 1080
 ALTURA = 1920
 DURACAO_PREVIA = 109.0
@@ -821,8 +827,10 @@ def montar_comando_ffmpeg_storyboard(
     *,
     arquivo_ass: Path | None = None,
     transicao_s: float = TRANSICAO_XFADE_PADRAO_S,
+    trilha_audio: Path | None = None,
+    usar_mix_profissional: bool = True,
 ) -> list[str]:
-    """Monta comando FFmpeg 1080x1920: zoompan dinamico + xfade + vinheta escura + legendas ASS + H.264 CRF 18."""
+    """Monta comando FFmpeg 1080x1920: zoompan + xfade + vinheta + ASS + trilha/ducking/loudnorm -14 LUFS."""
     if not timeline:
         raise ValueError("Timeline de cenas vazia.")
 
@@ -831,8 +839,22 @@ def montar_comando_ffmpeg_storyboard(
         cmd.extend(["-i", str(item["imagem"])])
 
     audio_input_idx = len(timeline)
+    inputs_audio_extras: list[str] = []
+    fc_audio_mix: str | None = None
+    audio_map_spec = f"{audio_input_idx}:a:0"
+
     if audio_alvo is not None:
         cmd.extend(["-i", str(audio_alvo)])
+        if usar_mix_profissional:
+            inputs_audio_extras, fc_audio_mix, audio_out_lbl, _origem = montar_filtro_mixagem_audio(
+                voice_input_idx=audio_input_idx,
+                duracao=duracao,
+                trilha_path=trilha_audio,
+                trilha_input_idx=audio_input_idx + 1,
+                label_saida="aout",
+            )
+            cmd.extend(inputs_audio_extras)
+            audio_map_spec = f"[{audio_out_lbl}]"
     else:
         cmd.extend(
             [
@@ -885,9 +907,12 @@ def montar_comando_ffmpeg_storyboard(
         pos_filtros.append(f"ass=filename='{ass_esc}'")
     partes_fc.append(f"[{label_atual}]{','.join(pos_filtros)}[vout]")
 
+    if fc_audio_mix is not None:
+        partes_fc.append(fc_audio_mix)
+
     filter_complex = ";".join(partes_fc)
-    cmd.extend(["-filter_complex", filter_complex, "-map", "[vout]", "-map", f"{audio_input_idx}:a:0"])
-    if audio_alvo is not None:
+    cmd.extend(["-filter_complex", filter_complex, "-map", "[vout]", "-map", audio_map_spec])
+    if audio_alvo is not None and fc_audio_mix is None:
         cmd.extend(["-af", "apad"])
 
     cmd.extend(
@@ -910,7 +935,7 @@ def montar_comando_ffmpeg_storyboard(
             "44100",
             "-ac",
             "2",
-            "-shortest",
+            *([] if fc_audio_mix is not None else ["-shortest"]),
             "-t",
             f"{duracao:.3f}",
             "-movflags",
@@ -922,8 +947,8 @@ def montar_comando_ffmpeg_storyboard(
 
 
 def selecionar_audio() -> Path | None:
-    """Prioriza audio/mix_final.mp3 (voz + sound design), com fallback para audio/narracao.mp3."""
-    for candidato in (AUDIO_MIX, AUDIO_MP3):
+    """Prioriza audio/mix_final.mp3, com fallback para audio/narracao.mp3 e audio/voz_limpa.mp3."""
+    for candidato in (AUDIO_MIX, AUDIO_MP3, AUDIO_VOZ_LIMPA):
         if candidato.is_file() and candidato.stat().st_size > 0:
             return candidato
     return None
@@ -1085,6 +1110,19 @@ def renderizar_storyboard_ffmpeg(
         pasta_cenas=pasta_cenas,
     )
 
+    usar_mix_prof = (audio_alvo is not None) and (not bool(getattr(args, "sem_trilha", False)))
+    trilha_escolhida: Path | None = None
+    if usar_mix_prof:
+        trilha_arg = getattr(args, "trilha", None)
+        if trilha_arg is not None:
+            trilha_escolhida = trilha_arg if trilha_arg.is_absolute() else (RAIZ / trilha_arg)
+            if not trilha_escolhida.is_file():
+                raise SystemExit(f"Arquivo de trilha informado nao encontrado: {trilha_escolhida}")
+        else:
+            pasta_tr = getattr(args, "pasta_trilhas", PASTA_TRILHAS)
+            pasta_tr = pasta_tr if pasta_tr.is_absolute() else (RAIZ / pasta_tr)
+            trilha_escolhida = selecionar_trilha_aleatoria(pasta_tr)
+
     print(
         f"Estacao 3 (Motor Hibrido Storyboard IA + FFmpeg): Video {int(video_ativo['id']):02d} "
         f"'{video_ativo['titulo']}' -> "
@@ -1096,6 +1134,16 @@ def renderizar_storyboard_ffmpeg(
         f"Cenas={len(timeline)} | 1080x1920 @ {args.fps}fps | libx264 preset=medium crf=18",
         flush=True,
     )
+    if usar_mix_prof:
+        origem_tr = (
+            f"loop aleatoria ({trilha_escolhida.name})"
+            if trilha_escolhida is not None
+            else "sintese ambiente dark/suspense FFmpeg (anoisesrc + sine)"
+        )
+        print(
+            f"  Audio profissional: {origem_tr} | ducking sidechaincompress (-22dB..-26dB) | voz loudnorm (-14 LUFS)",
+            flush=True,
+        )
     for item in timeline:
         print(
             f"  - {item['id']}: {item['imagem'].name} [{item['inicio']:.2f}s..{item['fim']:.2f}s, "
@@ -1125,6 +1173,8 @@ def renderizar_storyboard_ffmpeg(
             audio_alvo=audio_alvo,
             duracao=duracao,
             arquivo_ass=arquivo_ass,
+            trilha_audio=trilha_escolhida,
+            usar_mix_profissional=usar_mix_prof,
         )
 
         if args.dry_run_ffmpeg:
@@ -1339,6 +1389,23 @@ def main() -> None:
         help="Pasta das imagens cena_NN.jpg (padrao: output/cenas).",
     )
     parser.add_argument("--mock-cenas", action="store_true", help="Usa geracao local de imagens ao testar sem rede.")
+    parser.add_argument(
+        "--trilha",
+        type=Path,
+        default=None,
+        help="Arquivo .mp3/.wav de trilha manual (padrao: sorteia de assets/trilhas/ ou sintetiza ambiente dark).",
+    )
+    parser.add_argument(
+        "--pasta-trilhas",
+        type=Path,
+        default=PASTA_TRILHAS,
+        help="Pasta de trilhas musicais em loop (padrao: assets/trilhas).",
+    )
+    parser.add_argument(
+        "--sem-trilha",
+        action="store_true",
+        help="Desativa a mixagem de trilha ambiente e ducking na Estacao 3.",
+    )
     parser.add_argument(
         "--dry-run-ffmpeg",
         action="store_true",
