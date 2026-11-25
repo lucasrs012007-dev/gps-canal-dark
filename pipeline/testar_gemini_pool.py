@@ -801,6 +801,238 @@ def testar_diretor_ia_main_real_groq_sem_modulo() -> None:
     print("[OK] diretor_ia.main() CLI real (Groq sem 'modulo'): exit code 0, cenas.json V8 e Estacoes 5A/5B/5C OK.")
 
 
+def testar_estacao3_cloudflare_base64_e_binario() -> None:
+    """Valida geracao via Cloudflare Workers AI (JSON base64 e bytes binarios diretos) em 1080x1920 > 30KB."""
+    raw_jpg = _gerar_jpeg_rico_bytes()
+    b64_jpg = base64.b64encode(raw_jpg).decode("ascii")
+
+    class _RespCt:
+        def __init__(self, data: bytes, content_type: str):
+            self._data = data
+            self.headers = {"Content-Type": content_type}
+
+        def read(self) -> bytes:
+            return self._data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    chamadas_cf: list[tuple[str, dict]] = []
+
+    def _mock_cf_json(req, timeout=90):
+        assert req.headers.get("Authorization") == "Bearer cf-tok-999"
+        body = json.loads(req.data.decode("utf-8"))
+        chamadas_cf.append((req.full_url, body))
+        payload = json.dumps({"success": True, "result": {"image": b64_jpg}}).encode("utf-8")
+        return _RespCt(payload, "application/json")
+
+    def _mock_cf_binario_fallback(req, timeout=90):
+        body = json.loads(req.data.decode("utf-8"))
+        chamadas_cf.append((req.full_url, body))
+        if "flux-1-schnell" in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 500, "Internal Server Error", {}, io.BytesIO(b'{"success":false}'))
+        return _RespCt(raw_jpg, "image/jpeg")
+
+    with tempfile.TemporaryDirectory(prefix="teste_cf_") as tmp:
+        tmp_dir = Path(tmp)
+        p_json = tmp_dir / "cena_01.jpg"
+        p_bin = tmp_dir / "cena_02.jpg"
+        with contextlib.redirect_stdout(io.StringIO()):
+            info_json = gmc.gerar_imagem_cloudflare(
+                prompt="Foggy highway toll booth at midnight",
+                destino_jpg=p_json,
+                account_id="acc-123",
+                api_token="cf-tok-999",
+                estado={},
+                urlopen_fn=_mock_cf_json,
+                sleep_fn=lambda _: None,
+            )
+            info_bin = gmc.gerar_imagem_cloudflare(
+                prompt="Pale hand holding a muddy banknote",
+                destino_jpg=p_bin,
+                account_id="acc-123",
+                api_token="cf-tok-999",
+                estado={},
+                urlopen_fn=_mock_cf_binario_fallback,
+                sleep_fn=lambda _: None,
+            )
+        assert p_json.is_file() and p_json.stat().st_size > 30 * 1024
+        assert p_bin.is_file() and p_bin.stat().st_size > 30 * 1024
+        with Image.open(p_json) as im1, Image.open(p_bin) as im2:
+            assert im1.size == (1080, 1920) and im2.size == (1080, 1920)
+
+    assert info_json["provedor"] == "cloudflare"
+    assert info_json["modelo"] == "@cf/black-forest-labs/flux-1-schnell"
+    assert chamadas_cf[0][0] == "https://api.cloudflare.com/client/v4/accounts/acc-123/ai/run/@cf/black-forest-labs/flux-1-schnell"
+    assert chamadas_cf[0][1].get("steps") == 6
+    assert info_bin["provedor"] == "cloudflare"
+    assert info_bin["modelo"] == "@cf/bytedance/stable-diffusion-xl-lightning"
+    print("[OK] Estacao 3 (Cloudflare Workers AI): base64 JSON (FLUX.1-schnell) + bytes binarios (SDXL Lightning) em 1080x1920 OK.")
+
+
+def testar_estacao3_fallback_huggingface_cascata() -> None:
+    """Quando Cloudflare falha na cascata de gerar_midias_todas_cenas, faz fallback automatico para HF_TOKEN (FLUX.1-schnell)."""
+    raw_jpg = _gerar_jpeg_rico_bytes()
+    urls_chamadas: list[str] = []
+    hf_bodies: list[dict] = []
+
+    class _RespBin:
+        headers = {"Content-Type": "image/jpeg"}
+
+        def read(self) -> bytes:
+            return raw_jpg
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def _mock_urlopen_cascata(req, timeout=90):
+        urls_chamadas.append(req.full_url)
+        if "api.cloudflare.com" in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 503, "Service Unavailable", {}, io.BytesIO(b'{"errors":["cf down"]}'))
+        if "router.huggingface.co" in req.full_url:
+            assert req.headers.get("Authorization") == "Bearer hf_fake_token_999"
+            hf_bodies.append(json.loads(req.data.decode("utf-8")))
+            return _RespBin()
+        raise AssertionError(f"URL inesperada na cascata: {req.full_url}")
+
+    backup = {
+        k: os.environ.get(k)
+        for k in ("FAL_KEY", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "HF_TOKEN", "GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3")
+    }
+    try:
+        os.environ.pop("FAL_KEY", None)
+        os.environ["CLOUDFLARE_ACCOUNT_ID"] = "acc-down-123"
+        os.environ["CLOUDFLARE_API_TOKEN"] = "cf-down-tok-456"
+        os.environ["HF_TOKEN"] = "hf_fake_token_999"
+        os.environ.pop("GEMINI_API_KEY", None)
+        os.environ.pop("GEMINI_API_KEY_2", None)
+        os.environ.pop("GEMINI_API_KEY_3", None)
+
+        with tempfile.TemporaryDirectory(prefix="teste_hf_cascata_") as tmp:
+            tmp_dir = Path(tmp)
+            cenas_path = tmp_dir / "cenas.json"
+            saida_dir = tmp_dir / "cenas"
+            cenas_path.write_text(
+                json.dumps(
+                    {
+                        "video_id": 77,
+                        "titulo": "Teste Cascata CF -> HF",
+                        "cenas": [
+                            {
+                                "id": "cena_01",
+                                "fala": "A porta do cofre abriu devagar no escuro.",
+                                "prompt_imagem": "Heavy steel vault door creaking open inside a shadowed concrete bunker",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                manifesto = gmc.gerar_midias_todas_cenas(
+                    cenas_path=cenas_path,
+                    saida_dir=saida_dir,
+                    forcar=True,
+                    urlopen_fn=_mock_urlopen_cascata,
+                    sleep_fn=lambda _: None,
+                )
+            cena_jpg = saida_dir / "cena_01.jpg"
+            assert cena_jpg.is_file() and cena_jpg.stat().st_size > 30 * 1024
+            with Image.open(cena_jpg) as im:
+                assert im.size == (1080, 1920)
+            assert manifesto["itens"][0]["provedor"] == "huggingface"
+            assert manifesto["itens"][0]["modelo"] == "black-forest-labs/FLUX.1-schnell"
+            assert any("api.cloudflare.com" in u for u in urls_chamadas)
+            assert any("router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell" in u for u in urls_chamadas)
+            assert hf_bodies and hf_bodies[0]["parameters"] == {"width": 768, "height": 1344}
+    finally:
+        for k, v in backup.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    print("[OK] Estacao 3 (Cascata Cloudflare -> Hugging Face): fallback automatico FLUX.1-schnell em 1080x1920 OK.")
+
+
+def testar_estacao3_gemini_enterprise_fail_fast() -> None:
+    """Erro 'only supported in Gemini Enterprise Agent Platform mode' faz fail-fast imediato (0 retries, 0s sleep)."""
+    assert gmc._eh_erro_enterprise_gemini(
+        "400 INVALID_ARGUMENT: This feature is only supported in Gemini Enterprise Agent Platform mode"
+    ) is True
+    assert gmc._eh_erro_enterprise_gemini(
+        "Feature not in Gemini Developer API mode"
+    ) is True
+
+    pool = gp.GeminiPool(
+        chaves=[("GEMINI_API_KEY", "AIzaSyEntTestKey000001")],
+        modelos=list(gmc.MODELOS_GEMINI_IMAGEM),
+    )
+    raw_ok = _gerar_jpeg_rico_bytes()
+    esperas: list[float] = []
+    chamadas_modelos: list[str] = []
+
+    class _FakeModels:
+        def generate_content(self, model, contents, config):
+            chamadas_modelos.append(model)
+            if model == "gemini-2.5-flash-image":
+                raise RuntimeError(
+                    "400 INVALID_ARGUMENT: Image generation is only supported in Gemini Enterprise Agent Platform mode, "
+                    "not in Gemini Developer API mode."
+                )
+            parte = SimpleNamespace(inline_data=SimpleNamespace(data=raw_ok))
+            cand = SimpleNamespace(content=SimpleNamespace(parts=[parte]))
+            return SimpleNamespace(candidates=[cand])
+
+    fake_cli = SimpleNamespace(models=_FakeModels())
+    fake_types = SimpleNamespace(GenerateContentConfig=lambda **kw: kw)
+    cache: dict[str, str] = {}
+
+    with tempfile.TemporaryDirectory(prefix="teste_ent_ff_") as tmp:
+        p1 = Path(tmp) / "cena_01.jpg"
+        p2 = Path(tmp) / "cena_02.jpg"
+        with contextlib.redirect_stdout(io.StringIO()):
+            r1 = gmc.gerar_imagem_gemini_com_cache(
+                prompt="Dark foggy bridge over river",
+                destino_jpg=p1,
+                cache_modelo=cache,
+                types_mod=fake_types,
+                pool=pool,
+                client_factory=lambda _: fake_cli,
+                clientes_cache={},
+                sleep_fn=lambda s: esperas.append(float(s)),
+            )
+            r2 = gmc.gerar_imagem_gemini_com_cache(
+                prompt="Old iron gate in deep forest mist",
+                destino_jpg=p2,
+                cache_modelo=cache,
+                types_mod=fake_types,
+                pool=pool,
+                client_factory=lambda _: fake_cli,
+                clientes_cache={},
+                sleep_fn=lambda s: esperas.append(float(s)),
+            )
+        assert p1.is_file() and p2.is_file()
+
+    assert esperas == [], f"Enterprise block nao deveria dormir (esperas={esperas})!"
+    assert "gemini-2.5-flash-image" in pool.modelos_indisponiveis
+    assert r1["modelo"] == "gemini-2.0-flash-preview-image-generation"
+    assert r2["modelo"] == "gemini-2.0-flash-preview-image-generation"
+    # Modelo bloqueado foi chamado APENAS 1 vez (0 retries) e pulado na cena 2
+    assert chamadas_modelos == [
+        "gemini-2.5-flash-image",
+        "gemini-2.0-flash-preview-image-generation",
+        "gemini-2.0-flash-preview-image-generation",
+    ], f"Chamadas inesperadas: {chamadas_modelos}"
+    print("[OK] Estacao 3 (Gemini Enterprise fail-fast): 0 retries, 0s sleep, modelo marcado indisponivel na execucao.")
+
+
 def main() -> int:
     testar_deteccao_cota_e_carregamento_chaves()
     testar_estacao1_groq_primario_e_16_cenas()
@@ -809,7 +1041,10 @@ def main() -> int:
     testar_estacao1_rotacao_imediata_sem_travar()
     testar_estacao2_tts_rotacao_chaves_fail_fast()
     testar_estacao3_imagens_rotacao_chaves_fail_fast()
-    print("TODOS OS TESTES (GROQ PRIMARIO + MAIN CLI V8 + GEMINI POOL FAIL-FAST) PASSARAM COM SUCESSO.")
+    testar_estacao3_cloudflare_base64_e_binario()
+    testar_estacao3_fallback_huggingface_cascata()
+    testar_estacao3_gemini_enterprise_fail_fast()
+    print("TODOS OS TESTES (GROQ + CLOUDFLARE FLUX + HUGGING FACE + GEMINI POOL FAIL-FAST) PASSARAM COM SUCESSO.")
     return 0
 
 

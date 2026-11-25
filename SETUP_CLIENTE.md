@@ -107,7 +107,7 @@ git push origin main
 
 No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions -> New repository secret**.
 
-### 1. Obrigatorio (Roteiro + Voz Humana Gemini TTS + Imagens 9:16) e expansao gratuita de cota
+### 1. Obrigatorio (Voz Humana Gemini TTS + Roteiros Groq) e expansao gratuita de cota
 
 | Secret | Descricao |
 |---|---|
@@ -116,11 +116,14 @@ No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions 
 | `GEMINI_API_KEY_3` | Opcional: terceira chave Gemini para triplicar a cota diaria nas Estacoes 1, 2 e 3 |
 | `GROQ_API_KEY` | Recomendado (gratuito): motor primario da Estacao 1 (`llama-3.3-70b-versatile`) para gerar roteiros e prompts sem consumir cota do Gemini; quando vazia ou indisponivel, cai automaticamente no pool Gemini |
 
-### 2. Upgrade Plug-and-Play para Video IA por Cena (opcional)
+### 2. Geracao Gratuita de Imagens FLUX.1-schnell (Estacao 3, recomendado) e Video IA (opcional)
 
 | Secret | Descricao |
 |---|---|
-| `FAL_KEY` | Chave da API fal.ai: quando preenchida, `gerar_midia_cenas.py` gera clipes `.mp4` reais por cena via `fal-ai/wan/v2.1/t2v-480p` em 9:16 (com fallback automatico para Gemini Image API em qualquer erro) |
+| `CLOUDFLARE_ACCOUNT_ID` | Recomendado (gratuito): Account ID da Cloudflare Workers AI (Prioridade 2: `@cf/black-forest-labs/flux-1-schnell` com fallback SDXL Lightning / SDXL Base) |
+| `CLOUDFLARE_API_TOKEN` | Recomendado (gratuito): API Token com permissao **Workers AI: Read/Edit** na Cloudflare |
+| `HF_TOKEN` | Opcional (reserva gratuita): token da Hugging Face Inference (`black-forest-labs/FLUX.1-schnell` + fallback SDXL Base) acionado automaticamente se Cloudflare nao estiver configurada ou falhar |
+| `FAL_KEY` | Opcional (pago, Prioridade 1): chave da API fal.ai para gerar clipes `.mp4` reais por cena via `fal-ai/wan/v2.1/t2v-480p` em 9:16 |
 
 ### 3. YouTube Shorts (Estacao 5A, opcional)
 

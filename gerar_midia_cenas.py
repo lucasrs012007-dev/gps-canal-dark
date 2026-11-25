@@ -1,25 +1,23 @@
-"""Estacao 3A (Motor Cinematografico IA V8.0): gera midia unica por cena em 9:16 (1080x1920).
+"""Estacao 3A (Motor Cinematografico IA V8.1): gera midia unica por cena em 9:16 (1080x1920).
 
 Uso (na raiz do repositorio):
     python3 gerar_midia_cenas.py
     python3 gerar_midia_cenas.py --max-cenas 2
     python3 gerar_midia_cenas.py --forcar
 
-Estrategia de geracao (zero boneco Canvas, zero Pollinations/marca d'agua, zero tela preta):
-1. Plug-and-play Video IA via `FAL_KEY` (opcional):
-   - Se `FAL_KEY` estiver definida no ambiente, gera clipes reais `.mp4` por cena via
-     `fal-ai/wan/v2.1/t2v-480p` (9:16). Em caso de erro em alguma cena, faz fallback automatico
-     para a API de imagem do Gemini naquela cena.
-2. Modo gratuito padrao via `GEMINI_API_KEY` (`google-genai`):
-   - Tenta automaticamente os modelos nativos do Gemini:
-     1) `gemini-2.5-flash-image` (`response_modalities=["IMAGE"]`)
-     2) `gemini-2.0-flash-preview-image-generation` (`response_modalities=["IMAGE"]` / `["TEXT", "IMAGE"]`)
-     3) `imagen-3.0-generate-002` (`aspect_ratio="9:16"`)
-   - Faz cache do primeiro modelo que funcionar na conta para acelerar todas as cenas restantes.
-   - Valida rigorosamente cada imagem (> 30KB, nao preta/vazia, crop inteligente 1080x1920 sem distorcao).
-   - Se alguma cena falhar (ex.: filtro de seguranca em palavras como "morto/sangue"), reescreve
-     o prompt de forma neutra e regera; em ultimo caso, reaproveita a cena valida anterior com
-     enquadramento distinto (nunca gera tela preta vazia).
+Cascata de provedores de midia (zero boneco Canvas, zero marca d'agua, zero tela preta):
+1. Prioridade 1 (Video IA pago opcional): `FAL_KEY` (`fal-ai/wan/v2.1/t2v-480p`, 9:16).
+2. Prioridade 2 (Principal gratuito - Cloudflare Workers AI): `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`
+   usando `@cf/black-forest-labs/flux-1-schnell` com fallback para
+   `@cf/bytedance/stable-diffusion-xl-lightning` e `@cf/stabilityai/stable-diffusion-xl-base-1.0`.
+3. Prioridade 3 (Reserva gratuita - Hugging Face Inference): `HF_TOKEN` em
+   `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`
+   com fallback para `stabilityai/stable-diffusion-xl-base-1.0`.
+4. Prioridade 4 (Fallback - Gemini Image API via `GeminiPool`): com fail-fast imediato
+   para erros `only supported in Gemini Enterprise` / `not in Gemini Developer API mode`
+   e rotacao multi-chave (`GEMINI_API_KEY`, `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3`).
+- Toda imagem passa por validacao estrita (> 30KB, nao preta/vazia) e crop/redimensionamento
+  inteligente em `1080x1920` via Pillow/Lanczos.
 """
 
 from __future__ import annotations
@@ -50,6 +48,7 @@ from pipeline.gemini_pool import (  # noqa: E402
     carregar_chaves_gemini,
     eh_erro_chave_invalida,
     eh_erro_modelo_indisponivel,
+    sanitizar_texto_sem_chaves,
 )
 
 ARQUIVO_ENV = RAIZ / ".env"
@@ -61,6 +60,19 @@ LARGURA_ALVO = 1080
 ALTURA_ALVO = 1920
 TAMANHO_MIN_IMAGEM_BYTES = 30 * 1024
 TAMANHO_MIN_VIDEO_BYTES = 50 * 1024
+
+CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4/accounts"
+MODELOS_CLOUDFLARE_IMAGEM: tuple[str, ...] = (
+    "@cf/black-forest-labs/flux-1-schnell",
+    "@cf/bytedance/stable-diffusion-xl-lightning",
+    "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+)
+
+HF_INFERENCE_BASE = "https://router.huggingface.co/hf-inference/models"
+MODELOS_HF_IMAGEM: tuple[str, ...] = (
+    "black-forest-labs/FLUX.1-schnell",
+    "stabilityai/stable-diffusion-xl-base-1.0",
+)
 
 MODELOS_GEMINI_IMAGEM: tuple[str, ...] = (
     "gemini-2.5-flash-image",
@@ -458,9 +470,308 @@ def _eh_erro_429_ou_cota(exc: Exception) -> bool:
     return any(tok in txt for tok in ("429", "resource_exhausted", "quota", "free_tier_requests", "perday", "too many requests"))
 
 
+def _eh_erro_enterprise_gemini(exc: Exception | str) -> bool:
+    """Detecta bloqueio do modo Gemini Enterprise / Developer API (fail-fast imediato, sem retry nem reescrita)."""
+    txt = str(exc).lower()
+    return any(
+        tok in txt
+        for tok in (
+            "only supported in gemini enterprise",
+            "gemini enterprise agent platform",
+            "not in gemini developer api mode",
+            "enterprise agent platform mode",
+        )
+    )
+
+
 def _eh_erro_modelo_indisponivel(exc: Exception) -> bool:
     txt = str(exc).lower()
-    return eh_erro_modelo_indisponivel(txt) or "permission_denied" in txt
+    return _eh_erro_enterprise_gemini(txt) or eh_erro_modelo_indisponivel(txt) or "permission_denied" in txt
+
+
+def _ler_corpo_http_error(exc: urllib.error.HTTPError, segredos: tuple[str, ...] = ()) -> str:
+    try:
+        bruto = exc.read().decode("utf-8", errors="replace").strip()
+    except Exception:
+        bruto = ""
+    msg = re.sub(r"\s+", " ", bruto or str(exc.reason or f"HTTP {exc.code}")).strip()[:360]
+    return sanitizar_texto_sem_chaves(msg, segredos)
+
+
+def _decodificar_bytes_resposta_imagem(raw_body: bytes, content_type: str = "") -> bytes:
+    """Decodifica imagem tanto de JSON com base64 (`result.image` / `image`) quanto de bytes JPEG/PNG diretos."""
+    if not raw_body:
+        raise RuntimeError("Resposta vazia do provedor de imagem.")
+    ct_low = str(content_type or "").lower()
+    parece_json = "application/json" in ct_low or raw_body.lstrip().startswith(b"{")
+    if parece_json:
+        try:
+            obj = json.loads(raw_body.decode("utf-8"))
+        except Exception as exc:
+            raise RuntimeError(f"Resposta JSON invalida do provedor de imagem: {exc}") from exc
+        if isinstance(obj, dict):
+            if obj.get("success") is False:
+                erros = obj.get("errors") or obj.get("messages") or obj.get("error")
+                raise RuntimeError(f"Provedor retornou erro JSON: {erros}")
+            if obj.get("error") and not obj.get("image") and not obj.get("result"):
+                raise RuntimeError(f"Provedor retornou erro JSON: {obj.get('error')}")
+            res = obj.get("result")
+            b64_cand: Any = None
+            if isinstance(res, dict):
+                b64_cand = res.get("image") or res.get("b64_json") or res.get("data")
+            elif isinstance(res, str):
+                b64_cand = res
+            if b64_cand is None:
+                b64_cand = obj.get("image") or obj.get("b64_json")
+            if isinstance(b64_cand, str) and b64_cand.strip():
+                b64_limpo = b64_cand.strip()
+                if "," in b64_limpo and b64_limpo.lower().startswith("data:image"):
+                    b64_limpo = b64_limpo.split(",", 1)[1]
+                return base64.b64decode(b64_limpo)
+        raise RuntimeError("Resposta JSON nao contem campo base64 'result.image' ou 'image'.")
+    return raw_body
+
+
+def gerar_imagem_cloudflare(
+    prompt: str,
+    destino_jpg: Path,
+    account_id: str,
+    api_token: str,
+    *,
+    estado: dict[str, Any] | None = None,
+    urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> dict[str, Any]:
+    """Gera imagem 1080x1920 via Cloudflare Workers AI (FLUX.1-schnell primario + SDXL fallbacks)."""
+    acc = str(account_id or "").strip()
+    tok = str(api_token or "").strip()
+    if not acc or not tok:
+        raise RuntimeError("CLOUDFLARE_ACCOUNT_ID ou CLOUDFLARE_API_TOKEN ausente.")
+
+    est = estado if estado is not None else {}
+    if est.get("desabilitado"):
+        raise RuntimeError(f"Cloudflare Workers AI desabilitado nesta execucao ({est.get('motivo_desabilitado', '')}).")
+
+    opener = urlopen_fn or urllib.request.urlopen
+    prompt_final = garantir_estilo_prompt(prompt)
+    indisponiveis: set[str] = est.setdefault("modelos_indisponiveis", set())
+    mod_cache = str(est.get("modelo") or "")
+    fila = (
+        [mod_cache] + [m for m in MODELOS_CLOUDFLARE_IMAGEM if m != mod_cache]
+        if mod_cache
+        else list(MODELOS_CLOUDFLARE_IMAGEM)
+    )
+    fila = [m for m in fila if m not in indisponiveis]
+    if not fila:
+        raise RuntimeError("Todos os modelos Cloudflare Workers AI estao indisponiveis nesta execucao.")
+
+    headers = {
+        "Authorization": f"Bearer {tok}",
+        "Content-Type": "application/json",
+        "Accept": "application/json, image/jpeg, image/png, */*",
+        "User-Agent": "gps-canal-dark/8.3",
+    }
+
+    ultimo_erro: Exception | None = None
+    for modelo in fila:
+        url = f"{CLOUDFLARE_API_BASE}/{acc}/ai/run/{modelo}"
+        if "flux-1-schnell" in modelo:
+            payloads_modelo: list[dict[str, Any]] = [
+                {"prompt": prompt_final, "steps": 6},
+                {"prompt": prompt_final},
+            ]
+        else:
+            payloads_modelo = [
+                {"prompt": prompt_final, "num_steps": 6, "width": 768, "height": 1344},
+                {"prompt": prompt_final},
+            ]
+
+        for p_idx, payload in enumerate(payloads_modelo):
+            payload_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            avancar_modelo = False
+            for tentativa in range(2):
+                req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
+                try:
+                    with opener(req, timeout=90) as resp:
+                        raw_body = resp.read()
+                        ct = ""
+                        hdrs = getattr(resp, "headers", None)
+                        if hdrs is not None and hasattr(hdrs, "get"):
+                            ct = str(hdrs.get("Content-Type") or hdrs.get("content-type") or "")
+                    img_bytes = _decodificar_bytes_resposta_imagem(raw_body, content_type=ct)
+                    info = validar_e_padronizar_imagem(img_bytes, destino_jpg)
+                    if est.get("modelo") != modelo:
+                        est["modelo"] = modelo
+                        print(f"Modelo Cloudflare Workers AI em cache para esta rodada: {modelo}", flush=True)
+                    info["tipo"] = "imagem"
+                    info["provedor"] = "cloudflare"
+                    info["modelo"] = modelo
+                    info["reaproveitada"] = False
+                    return info
+                except urllib.error.HTTPError as exc:
+                    detalhe = _ler_corpo_http_error(exc, segredos=(tok, acc))
+                    ultimo_erro = RuntimeError(f"Cloudflare [{modelo}] HTTP {exc.code}: {detalhe}")
+                    if exc.code in (401, 403):
+                        est["desabilitado"] = True
+                        est["motivo_desabilitado"] = f"HTTP {exc.code}: {detalhe}"
+                        print(
+                            f"AVISO Cloudflare Workers AI rejeitou credenciais (HTTP {exc.code}: {detalhe}). "
+                            "Pulando Cloudflare nas proximas cenas...",
+                            flush=True,
+                        )
+                        raise ultimo_erro from None
+                    if exc.code == 400 and p_idx == 0 and len(payloads_modelo) > 1:
+                        # Schema nao aceitou width/height/steps extras: tenta payload minimo
+                        break
+                    if exc.code == 404:
+                        indisponiveis.add(modelo)
+                        if est.get("modelo") == modelo:
+                            est.pop("modelo", None)
+                        print(f"AVISO Cloudflare modelo '{modelo}' indisponivel (HTTP 404). Testando proximo...", flush=True)
+                        avancar_modelo = True
+                        break
+                    if exc.code in (429, 500, 502, 503, 504) and tentativa == 0:
+                        espera = 2.0
+                        print(
+                            f"AVISO Cloudflare [{modelo}] HTTP {exc.code} ({detalhe}); "
+                            f"aguardando {espera:.1f}s antes de tentar novamente...",
+                            flush=True,
+                        )
+                        sleep_fn(espera)
+                        continue
+                    print(f"AVISO Cloudflare [{modelo}] falhou (HTTP {exc.code}: {detalhe}). Testando proximo modelo...", flush=True)
+                    avancar_modelo = True
+                    break
+                except Exception as exc:
+                    msg_limpa = sanitizar_texto_sem_chaves(str(exc), (tok, acc))
+                    ultimo_erro = RuntimeError(f"Cloudflare [{modelo}] {type(exc).__name__}: {msg_limpa}")
+                    if tentativa == 0 and _eh_erro_temporario(exc):
+                        sleep_fn(2.0)
+                        continue
+                    print(f"AVISO Cloudflare [{modelo}] falhou ({msg_limpa}). Testando proximo modelo...", flush=True)
+                    avancar_modelo = True
+                    break
+            if avancar_modelo:
+                break
+
+    assert ultimo_erro is not None
+    raise ultimo_erro
+
+
+def gerar_imagem_huggingface(
+    prompt: str,
+    destino_jpg: Path,
+    hf_token: str,
+    *,
+    estado: dict[str, Any] | None = None,
+    urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> dict[str, Any]:
+    """Gera imagem 1080x1920 via Hugging Face Inference Router (FLUX.1-schnell + fallback SDXL)."""
+    tok = str(hf_token or "").strip()
+    if not tok:
+        raise RuntimeError("HF_TOKEN ausente.")
+
+    est = estado if estado is not None else {}
+    if est.get("desabilitado"):
+        raise RuntimeError(f"Hugging Face desabilitado nesta execucao ({est.get('motivo_desabilitado', '')}).")
+
+    opener = urlopen_fn or urllib.request.urlopen
+    prompt_final = garantir_estilo_prompt(prompt)
+    indisponiveis: set[str] = est.setdefault("modelos_indisponiveis", set())
+    mod_cache = str(est.get("modelo") or "")
+    fila = (
+        [mod_cache] + [m for m in MODELOS_HF_IMAGEM if m != mod_cache]
+        if mod_cache
+        else list(MODELOS_HF_IMAGEM)
+    )
+    fila = [m for m in fila if m not in indisponiveis]
+    if not fila:
+        raise RuntimeError("Todos os modelos Hugging Face estao indisponiveis nesta execucao.")
+
+    headers = {
+        "Authorization": f"Bearer {tok}",
+        "Content-Type": "application/json",
+        "Accept": "image/jpeg, image/png, application/octet-stream, */*",
+        "User-Agent": "gps-canal-dark/8.3",
+    }
+
+    ultimo_erro: Exception | None = None
+    for modelo in fila:
+        url = f"{HF_INFERENCE_BASE}/{modelo}"
+        payloads_modelo: list[dict[str, Any]] = [
+            {"inputs": prompt_final, "parameters": {"width": 768, "height": 1344}},
+            {"inputs": prompt_final},
+        ]
+        for p_idx, payload in enumerate(payloads_modelo):
+            payload_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            avancar_modelo = False
+            for tentativa in range(2):
+                req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
+                try:
+                    with opener(req, timeout=90) as resp:
+                        raw_body = resp.read()
+                        ct = ""
+                        hdrs = getattr(resp, "headers", None)
+                        if hdrs is not None and hasattr(hdrs, "get"):
+                            ct = str(hdrs.get("Content-Type") or hdrs.get("content-type") or "")
+                    img_bytes = _decodificar_bytes_resposta_imagem(raw_body, content_type=ct)
+                    info = validar_e_padronizar_imagem(img_bytes, destino_jpg)
+                    if est.get("modelo") != modelo:
+                        est["modelo"] = modelo
+                        print(f"Modelo Hugging Face em cache para esta rodada: {modelo}", flush=True)
+                    info["tipo"] = "imagem"
+                    info["provedor"] = "huggingface"
+                    info["modelo"] = modelo
+                    info["reaproveitada"] = False
+                    return info
+                except urllib.error.HTTPError as exc:
+                    detalhe = _ler_corpo_http_error(exc, segredos=(tok,))
+                    ultimo_erro = RuntimeError(f"HuggingFace [{modelo}] HTTP {exc.code}: {detalhe}")
+                    if exc.code in (401, 403):
+                        est["desabilitado"] = True
+                        est["motivo_desabilitado"] = f"HTTP {exc.code}: {detalhe}"
+                        print(
+                            f"AVISO Hugging Face rejeitou HF_TOKEN (HTTP {exc.code}: {detalhe}). "
+                            "Pulando Hugging Face nas proximas cenas...",
+                            flush=True,
+                        )
+                        raise ultimo_erro from None
+                    if exc.code == 400 and p_idx == 0:
+                        break
+                    if exc.code == 404:
+                        indisponiveis.add(modelo)
+                        if est.get("modelo") == modelo:
+                            est.pop("modelo", None)
+                        print(f"AVISO Hugging Face modelo '{modelo}' indisponivel (HTTP 404). Testando proximo...", flush=True)
+                        avancar_modelo = True
+                        break
+                    if exc.code in (429, 500, 502, 503, 504) and tentativa == 0:
+                        espera = 3.0
+                        print(
+                            f"AVISO Hugging Face [{modelo}] HTTP {exc.code} ({detalhe}); "
+                            f"aguardando {espera:.1f}s antes de repetir...",
+                            flush=True,
+                        )
+                        sleep_fn(espera)
+                        continue
+                    print(f"AVISO Hugging Face [{modelo}] falhou (HTTP {exc.code}: {detalhe}). Testando proximo modelo...", flush=True)
+                    avancar_modelo = True
+                    break
+                except Exception as exc:
+                    msg_limpa = sanitizar_texto_sem_chaves(str(exc), (tok,))
+                    ultimo_erro = RuntimeError(f"HuggingFace [{modelo}] {type(exc).__name__}: {msg_limpa}")
+                    if tentativa == 0 and _eh_erro_temporario(exc):
+                        sleep_fn(3.0)
+                        continue
+                    print(f"AVISO Hugging Face [{modelo}] falhou ({msg_limpa}). Testando proximo modelo...", flush=True)
+                    avancar_modelo = True
+                    break
+            if avancar_modelo:
+                break
+
+    assert ultimo_erro is not None
+    raise ultimo_erro
 
 
 def gerar_imagem_gemini_com_cache(
@@ -477,7 +788,7 @@ def gerar_imagem_gemini_com_cache(
     clientes_cache: dict[str, Any] | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
-    """Gera imagem 1080x1920 via google-genai usando GeminiPool (multi-chave + rotacao fail-fast em cota diaria)."""
+    """Gera imagem 1080x1920 via google-genai usando GeminiPool (fail-fast imediato em Enterprise e cota diaria)."""
     cache_ref = cache_modelo if cache_modelo is not None else {}
     clientes_map = clientes_cache if clientes_cache is not None else {}
 
@@ -544,6 +855,7 @@ def gerar_imagem_gemini_com_cache(
                         flush=True,
                     )
                 info["tipo"] = "imagem"
+                info["provedor"] = "gemini"
                 info["modelo"] = modelo
                 info["chave"] = nome_chave
                 info["reaproveitada"] = False
@@ -551,6 +863,18 @@ def gerar_imagem_gemini_com_cache(
             except Exception as exc:
                 ultimo_erro = exc
                 msg_limpa = pool.sanitizar(str(exc))
+
+                if _eh_erro_enterprise_gemini(msg_limpa):
+                    pool.marcar_modelo_indisponivel(modelo, msg_limpa)
+                    print(
+                        f"AVISO FAIL-FAST Gemini Image [{modelo}]: bloqueado em modo Enterprise/Developer API "
+                        f"({msg_limpa}). Marcando modelo como indisponivel sem retry...",
+                        flush=True,
+                    )
+                    if cache_ref.get("modelo") == modelo:
+                        cache_ref.pop("modelo", None)
+                        cache_ref.pop("chave", None)
+                    break
 
                 if eh_erro_chave_invalida(msg_limpa):
                     pool.marcar_chave_invalida(nome_chave, msg_limpa)
@@ -630,8 +954,10 @@ def gerar_midias_todas_cenas(
     *,
     max_cenas: int | None = None,
     forcar: bool = False,
+    urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
-    """Gera midia 9:16 (video fal.ai se FAL_KEY ativa, ou imagem 1080x1920 via GeminiPool) para cada cena."""
+    """Gera midia 9:16 por cena usando cascata FAL -> Cloudflare FLUX -> HuggingFace FLUX -> GeminiPool."""
     carregar_env()
     if not cenas_path.is_file():
         raise FileNotFoundError(f"cenas.json nao encontrado: {cenas_path}")
@@ -650,12 +976,17 @@ def gerar_midias_todas_cenas(
     _limpar_cenas_antigas_se_novo_video(saida_dir, video_id=video_id, forcar=forcar)
 
     fal_key = os.environ.get("FAL_KEY", "").strip()
+    cf_account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    cf_api_token = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
+    cf_ativo = bool(cf_account_id and cf_api_token)
+    hf_token = os.environ.get("HF_TOKEN", "").strip()
     chaves_gemini = carregar_chaves_gemini(ler_env_arquivo=False)
     pool_gemini = GeminiPool(chaves=chaves_gemini, modelos=list(MODELOS_GEMINI_IMAGEM))
-    if not fal_key and pool_gemini.total_chaves() == 0:
+
+    if not (fal_key or cf_ativo or hf_token or pool_gemini.total_chaves() > 0):
         raise RuntimeError(
-            "Nenhuma credencial de midia encontrada (GEMINI_API_KEY/2/3 e FAL_KEY ausentes). "
-            "Configure GEMINI_API_KEY (gratuito) ou FAL_KEY nos Secrets."
+            "Nenhuma credencial de midia encontrada. Configure CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN "
+            "(FLUX gratuito), HF_TOKEN (Hugging Face gratuito), FAL_KEY ou GEMINI_API_KEY nos Secrets."
         )
 
     client_factory: Callable[[str], Any] | None = None
@@ -669,19 +1000,29 @@ def gerar_midias_todas_cenas(
             client_factory = lambda k: genai.Client(api_key=k)  # noqa: E731
             types_mod = types
         except ImportError as exc:
-            if not fal_key:
+            if not (fal_key or cf_ativo or hf_token):
                 raise RuntimeError("Biblioteca google-genai nao instalada. Rode: pip install google-genai") from exc
-            print(f"AVISO google-genai ausente ({exc}); operando apenas com FAL_KEY.", flush=True)
+            print(f"AVISO google-genai ausente ({exc}); operando com provedores HTTP (Cloudflare/HF/FAL).", flush=True)
 
-    nomes_ch_str = ", ".join(pool_gemini.nomes_chaves()) or "nenhuma"
+    cadeia_desc: list[str] = []
+    if fal_key:
+        cadeia_desc.append(f"1.FAL({FAL_ENDPOINT_T2V})")
+    if cf_ativo:
+        cadeia_desc.append("2.Cloudflare(FLUX.1-schnell)")
+    if hf_token:
+        cadeia_desc.append("3.HuggingFace(FLUX.1-schnell)")
+    if pool_gemini.total_chaves() > 0:
+        cadeia_desc.append(f"4.GeminiPool({pool_gemini.total_chaves()} chave(s))")
+
     print(
         f"Estacao 3A (gerar_midia_cenas): Video {video_id:02d} '{titulo}' | "
-        f"{len(lista_cenas)} cena(s) | GeminiPool={pool_gemini.total_chaves()} chave(s) [{nomes_ch_str}] | "
-        f"FAL_KEY={'ATIVA (' + FAL_ENDPOINT_T2V + ')' if fal_key else 'desativada (Gemini Image gratuito)'}",
+        f"{len(lista_cenas)} cena(s) | Cascata={' -> '.join(cadeia_desc)}",
         flush=True,
     )
 
-    cache_modelo: dict[str, str] = {}
+    estado_cf: dict[str, Any] = {}
+    estado_hf: dict[str, Any] = {}
+    cache_modelo_gemini: dict[str, str] = {}
     itens_manifesto: list[dict[str, Any]] = []
     ultima_imagem_valida: Path | None = None
     total_geradas_originais = 0
@@ -716,12 +1057,12 @@ def gerar_midias_todas_cenas(
             except Exception:
                 destino_jpg.unlink(missing_ok=True)
 
-        # 1. Tenta Video IA via fal.ai se FAL_KEY estiver configurada
+        # Prioridade 1: Video IA via fal.ai (opcional pago)
         if fal_key:
             try:
                 info_v = gerar_video_fal_ai(prompt, destino_mp4, fal_key)
                 destino_jpg.unlink(missing_ok=True)
-                info_v.update({"indice": idx, "id": cena_id, "reaproveitada": False})
+                info_v.update({"indice": idx, "id": cena_id, "provedor": "fal.ai", "reaproveitada": False})
                 itens_manifesto.append(info_v)
                 total_geradas_originais += 1
                 print(
@@ -734,22 +1075,83 @@ def gerar_midias_todas_cenas(
                 destino_mp4.unlink(missing_ok=True)
                 print(
                     f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] fal.ai falhou ({exc}); "
-                    f"fazendo fallback automatico para Gemini Image API...",
+                    f"seguindo para geradores de imagem gratuitos...",
                     flush=True,
                 )
 
-        # 2. Modo gratuito padrao (ou fallback da fal.ai): Gemini Image API com pool multi-chave
         gerada = False
-        if pool_gemini.total_chaves() > 0 and client_factory is not None:
+
+        # Prioridade 2: Principal gratuito - Cloudflare Workers AI (FLUX.1-schnell + SDXL)
+        if not gerada and cf_ativo and not estado_cf.get("desabilitado"):
+            try:
+                info_cf = gerar_imagem_cloudflare(
+                    prompt=prompt,
+                    destino_jpg=destino_jpg,
+                    account_id=cf_account_id,
+                    api_token=cf_api_token,
+                    estado=estado_cf,
+                    urlopen_fn=urlopen_fn,
+                    sleep_fn=sleep_fn,
+                )
+                destino_mp4.unlink(missing_ok=True)
+                info_cf.update({"indice": idx, "id": cena_id})
+                itens_manifesto.append(info_cf)
+                ultima_imagem_valida = destino_jpg
+                total_geradas_originais += 1
+                gerada = True
+                print(
+                    f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK via Cloudflare "
+                    f"({info_cf['modelo']}, {info_cf['largura']}x{info_cf['altura']}, {info_cf['bytes'] / 1024:.1f} KB)",
+                    flush=True,
+                )
+            except Exception as exc_cf:
+                print(
+                    f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] Cloudflare Workers AI falhou ({exc_cf}); "
+                    f"avancando para proximo provedor da cascata...",
+                    flush=True,
+                )
+
+        # Prioridade 3: Reserva gratuita - Hugging Face Inference (FLUX.1-schnell + SDXL)
+        if not gerada and hf_token and not estado_hf.get("desabilitado"):
+            try:
+                info_hf = gerar_imagem_huggingface(
+                    prompt=prompt,
+                    destino_jpg=destino_jpg,
+                    hf_token=hf_token,
+                    estado=estado_hf,
+                    urlopen_fn=urlopen_fn,
+                    sleep_fn=sleep_fn,
+                )
+                destino_mp4.unlink(missing_ok=True)
+                info_hf.update({"indice": idx, "id": cena_id})
+                itens_manifesto.append(info_hf)
+                ultima_imagem_valida = destino_jpg
+                total_geradas_originais += 1
+                gerada = True
+                print(
+                    f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK via HuggingFace "
+                    f"({info_hf['modelo']}, {info_hf['largura']}x{info_hf['altura']}, {info_hf['bytes'] / 1024:.1f} KB)",
+                    flush=True,
+                )
+            except Exception as exc_hf:
+                print(
+                    f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] Hugging Face falhou ({exc_hf}); "
+                    f"avancando para proximo provedor da cascata...",
+                    flush=True,
+                )
+
+        # Prioridade 4: Fallback Gemini Image API via GeminiPool (fail-fast em Enterprise mode)
+        if not gerada and pool_gemini.total_chaves() > 0 and client_factory is not None and list(pool_gemini.iterar_combinacoes()):
             try:
                 info_i = gerar_imagem_gemini_com_cache(
                     prompt=prompt,
                     destino_jpg=destino_jpg,
-                    cache_modelo=cache_modelo,
+                    cache_modelo=cache_modelo_gemini,
                     types_mod=types_mod,
                     pool=pool_gemini,
                     client_factory=client_factory,
                     clientes_cache=clientes_cache,
+                    sleep_fn=sleep_fn,
                 )
                 destino_mp4.unlink(missing_ok=True)
                 info_i.update({"indice": idx, "id": cena_id})
@@ -758,15 +1160,17 @@ def gerar_midias_todas_cenas(
                 total_geradas_originais += 1
                 gerada = True
                 print(
-                    f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK via {info_i['modelo']} ({info_i.get('chave', 'GEMINI_API_KEY')}) "
-                    f"({info_i['largura']}x{info_i['altura']}, {info_i['bytes'] / 1024:.1f} KB)",
+                    f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK via Gemini "
+                    f"({info_i['modelo']} / {info_i.get('chave', 'GEMINI_API_KEY')}, "
+                    f"{info_i['largura']}x{info_i['altura']}, {info_i['bytes'] / 1024:.1f} KB)",
                     flush=True,
                 )
             except Exception as exc_orig:
-                tem_pool_vivo = bool(list(pool_gemini.iterar_combinacoes()))
+                # Nunca reescreve prompt em bloqueio de modo Enterprise/Developer API ou pool esgotado
+                tem_pool_vivo = (not _eh_erro_enterprise_gemini(exc_orig)) and bool(list(pool_gemini.iterar_combinacoes()))
                 if tem_pool_vivo:
                     print(
-                        f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] prompt original falhou ({exc_orig}). "
+                        f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] prompt original falhou no Gemini ({exc_orig}). "
                         f"Reescrevendo prompt de forma neutra para evitar filtro de seguranca...",
                         flush=True,
                     )
@@ -775,11 +1179,12 @@ def gerar_midias_todas_cenas(
                         info_n = gerar_imagem_gemini_com_cache(
                             prompt=prompt_neutro,
                             destino_jpg=destino_jpg,
-                            cache_modelo=cache_modelo,
+                            cache_modelo=cache_modelo_gemini,
                             types_mod=types_mod,
                             pool=pool_gemini,
                             client_factory=client_factory,
                             clientes_cache=clientes_cache,
+                            sleep_fn=sleep_fn,
                         )
                         destino_mp4.unlink(missing_ok=True)
                         info_n.update({"indice": idx, "id": cena_id, "prompt_neutro": True})
@@ -799,12 +1204,12 @@ def gerar_midias_todas_cenas(
                         )
                 else:
                     print(
-                        f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] pool Gemini Image totalmente esgotado "
-                        f"({pool_gemini.resumo_estado()}); pulando reescrita e reaproveitando enquadramento valido.",
+                        f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] Gemini Image indisponivel/esgotado "
+                        f"({pool_gemini.resumo_estado()}); pulando reescrita neutra (fail-fast).",
                         flush=True,
                     )
 
-        # 3. Ultimo recurso isolado: reaproveita cena valida anterior com enquadramento diferente (nunca tela preta)
+        # Ultimo recurso isolado: reaproveita cena valida anterior com enquadramento diferente (nunca tela preta)
         if not gerada:
             if ultima_imagem_valida is not None and ultima_imagem_valida.is_file():
                 info_r = reaproveitar_cena_anterior(ultima_imagem_valida, destino_jpg, indice_cena=idx)
@@ -813,6 +1218,7 @@ def gerar_midias_todas_cenas(
                         "indice": idx,
                         "id": cena_id,
                         "tipo": "imagem",
+                        "provedor": "reaproveitamento",
                         "modelo": f"reaproveitada:{ultima_imagem_valida.name}",
                     }
                 )
@@ -824,21 +1230,30 @@ def gerar_midias_todas_cenas(
                 )
             else:
                 raise RuntimeError(
-                    f"Falha critica na cena {idx:02d}/{len(lista_cenas):02d}: nenhuma midia valida anterior "
-                    f"disponivel para reaproveitamento. Verifique GEMINI_API_KEY/2/3 ou FAL_KEY."
+                    f"Falha critica na cena {idx:02d}/{len(lista_cenas):02d}: nenhum provedor gerou midia valida "
+                    "e nao ha cena anterior para reaproveitamento. Configure CLOUDFLARE_ACCOUNT_ID + "
+                    "CLOUDFLARE_API_TOKEN (FLUX gratuito), HF_TOKEN ou FAL_KEY nos Secrets."
                 )
 
     if total_geradas_originais == 0:
         raise RuntimeError("Nenhuma midia original foi gerada com sucesso.")
 
+    modelo_principal = (
+        estado_cf.get("modelo")
+        or estado_hf.get("modelo")
+        or cache_modelo_gemini.get("modelo")
+        or ("fal.ai" if fal_key else "")
+    )
     manifesto = {
         "video_id": video_id,
         "titulo": titulo,
         "total_cenas": len(itens_manifesto),
         "originais_geradas": total_geradas_originais,
         "fal_ativo": bool(fal_key),
-        "modelo_imagem_cache": cache_modelo.get("modelo", ""),
-        "chave_imagem_cache": cache_modelo.get("chave", ""),
+        "cloudflare_ativo": cf_ativo,
+        "huggingface_ativo": bool(hf_token),
+        "modelo_imagem_cache": modelo_principal,
+        "chave_imagem_cache": cache_modelo_gemini.get("chave", ""),
         "chaves_gemini_pool": pool_gemini.nomes_chaves(),
         "itens": itens_manifesto,
     }
@@ -848,7 +1263,7 @@ def gerar_midias_todas_cenas(
     )
     print(
         f"Midias prontas em {saida_dir}: {len(itens_manifesto)} arquivo(s) validados "
-        f"({total_geradas_originais} originais | modelo_cache={manifesto['modelo_imagem_cache'] or 'fal.ai'}).",
+        f"({total_geradas_originais} originais | modelo_principal={modelo_principal or 'n/a'}).",
         flush=True,
     )
     return manifesto
@@ -856,7 +1271,7 @@ def gerar_midias_todas_cenas(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Gera midia 9:16 (Video IA via FAL_KEY ou Imagem 1080x1920 via Gemini Image API) para cada cena."
+        description="Gera midia 9:16 por cena (FAL Video -> Cloudflare FLUX -> HuggingFace FLUX -> GeminiPool)."
     )
     parser.add_argument("--cenas", type=Path, default=ARQUIVO_CENAS_PADRAO, help="Caminho de cenas.json.")
     parser.add_argument("--saida-dir", type=Path, default=PASTA_SAIDA_PADRAO, help="Pasta de saida (padrao: output/cenas).")

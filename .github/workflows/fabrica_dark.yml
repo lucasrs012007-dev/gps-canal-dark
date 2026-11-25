@@ -279,8 +279,11 @@ jobs:
           python3 audio/sound_design.py
           python3 pipeline/historico.py validar-audio
 
-      - name: Estacao 3 - Motor Cinematografico IA 30fps (Gemini Image / FAL Video + FFmpeg) + Corte Parte 1 / Parte 2
+      - name: Estacao 3 - Motor Cinematografico IA 30fps (Cloudflare FLUX / HF / Gemini / FAL + FFmpeg) + Corte Parte 1 / Parte 2
         env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}

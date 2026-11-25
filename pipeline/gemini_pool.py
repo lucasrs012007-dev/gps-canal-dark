@@ -86,6 +86,10 @@ _MARCADORES_MODELO_INDISPONIVEL: tuple[str, ...] = (
     "response_mime_type",
     "json mode",
     "deprecated",
+    "only supported in gemini enterprise",
+    "gemini enterprise agent platform",
+    "not in gemini developer api mode",
+    "enterprise agent platform mode",
 )
 
 
