@@ -125,13 +125,14 @@ let parteLabel = (URL_PARTE !== null ? URL_PARTE : (typeof window.parteLabel ===
 
 /* Configuracao padrao de Modo Previa caso cenas.json ainda nao exista */
 const CENAS_PREVIEW = {
-  schema_version: '6.0',
+  schema_version: '7.0',
+  motor: 'canvas_2d_30fps',
   video_id: 0,
-  slug: 'previa-universal-v6',
-  titulo: 'Previa Motor Universal V6',
+  slug: 'previa-motor-2d-30fps',
+  titulo: 'Previa Motor 2D Animado 30fps',
   parte_label: 'PARTE 1',
-  horario: '02:47',
-  cta_modo: 'pausa_meio',
+  horario: '15:00',
+  cta_modo: 'final',
   tem_parte_2: false,
   paleta: {
     bg_navy: '#0A0F1D',
@@ -158,23 +159,23 @@ const CENAS_PREVIEW = {
     rodape: 'A HISTÓRIA CONTINUA EM INSTANTES'
   },
   cenas: [
-    { id: 'cena_01', evento_inicio: 'cena_01', modulo: 'quarto_noturno', mood: 'navy', expressao: 'neutral', camera: 'push_in', vig: 0.56, props: { objeto: 'guarda_roupa', vulto: false, pose: 'idle' } },
-    { id: 'cena_02', evento_inicio: 'cena_02', modulo: 'celular_notificacao', mood: 'navy', expressao: 'worry', camera: 'push_in', vig: 0.58, props: { celular_app: 'MENSAGEM', celular_remetente: 'NÚMERO OCULTO', celular_mensagem: 'Não abra a porta do corredor agora.', celular_mensagem_2: 'Tem alguém do lado de dentro.' } },
-    { id: 'cena_03', evento_inicio: 'cena_03', modulo: 'corredor_escuro', mood: 'violet', expressao: 'fear', camera: 'push_in', vig: 0.64, props: { corredor_objeto: 'cadeira', vulto: true, pose: 'walk' } },
-    { id: 'cena_04', evento_inicio: 'cena_04', modulo: 'camera_cctv', mood: 'cctv', expressao: 'fear', camera: 'tight_close', vig: 0.62, props: { cctv_cam: 'CAM 01', cctv_local: 'CORREDOR', cctv_status: 'MOVIMENTO DETECTADO', vulto: true } },
-    { id: 'cena_05', evento_inicio: 'cena_05', modulo: 'elevador_cabine', mood: 'violet', expressao: 'fear', camera: 'pan_right', vig: 0.64, props: { elevador_andar: 'S3', vulto: true, pose: 'panic' } },
-    { id: 'cena_06', evento_inicio: 'cena_06', modulo: 'carro_noite', mood: 'navy', expressao: 'worry', camera: 'push_in', vig: 0.60, props: { gps_destino: 'SEM DESTINO', gps_alerta: 'ROTA RECALCULADA' } },
-    { id: 'cena_07', evento_inicio: 'cena_07', modulo: 'sala_cozinha', mood: 'violet', expressao: 'fear', camera: 'pan_left', vig: 0.62, props: { vulto: true, pose: 'idle' } },
-    { id: 'cena_08', evento_inicio: 'cena_08', modulo: 'escritorio', mood: 'violet', expressao: 'fear', camera: 'pull_out', vig: 0.60, props: { gravidade_zero: true, pose: 'flutuando', objetos_flutuantes: ['lapiseira', 'xicara_cafe', 'cadeiras', 'silhuetas_janela'], silhuetas_janela: true, vulto: false } },
-    { id: 'cena_09', evento_inicio: 'cena_09', modulo: 'big_face', mood: 'red', expressao: 'shock', camera: 'tight_close', vig: 0.72, props: {} },
-    { id: 'cena_10', evento_inicio: 'cena_10', modulo: 'blecaute_olhos', mood: 'dark', expressao: 'sinister_smile', camera: 'push_in', vig: 0.78, props: { vulto: true } }
+    { id: 'cena_01', evento_inicio: 'cena_01', cenario: 'oceano_ilha', modulo: 'oceano_ilha', acao_cena: 'barco_navegando', pose: 'falando', mood: 'navy', expressao: 'focus', camera: 'float_cam', vig: 0.56, hud_dado: { rotulo: 'ZONA PROIBIDA', valor: '5 KM', progresso: 0.85 }, props: { pose: 'falando', acao_cena: 'barco_navegando' } },
+    { id: 'cena_02', evento_inicio: 'cena_02', cenario: 'floresta_noite', modulo: 'floresta_noite', acao_cena: 'chuva_flechas', pose: 'assustado', mood: 'red', expressao: 'fear', camera: 'shake_impact', vig: 0.62, hud_dado: null, props: { pose: 'assustado', acao_cena: 'chuva_flechas' } },
+    { id: 'cena_03', evento_inicio: 'cena_03', cenario: 'ceu_nuvens', modulo: 'ceu_nuvens', acao_cena: 'helicoptero_sobrevoando', pose: 'apontando', mood: 'violet', expressao: 'worry', camera: 'pan_right', vig: 0.58, hud_dado: { rotulo: 'TSUNAMI', valor: '2004', progresso: 0.72 }, props: { pose: 'apontando', acao_cena: 'helicoptero_sobrevoando' } },
+    { id: 'cena_04', evento_inicio: 'cena_04', cenario: 'oceano_ilha', modulo: 'oceano_ilha', acao_cena: 'onda_gigante', pose: 'assustado', mood: 'red', expressao: 'shock', camera: 'push_in', vig: 0.66, hud_dado: { rotulo: 'REGISTRO', valor: '2006', progresso: 0.82 }, props: { pose: 'assustado', acao_cena: 'onda_gigante' } },
+    { id: 'cena_05', evento_inicio: 'cena_05', cenario: 'laboratorio', modulo: 'laboratorio', acao_cena: 'radar_alerta', pose: 'pensando', mood: 'navy', expressao: 'focus', camera: 'pan_left', vig: 0.58, hud_dado: { rotulo: 'PERÍMETRO', valor: '100%', progresso: 1.0 }, props: { pose: 'pensando', acao_cena: 'radar_alerta' } },
+    { id: 'cena_06', evento_inicio: 'cena_06', cenario: 'espaco_orbita', modulo: 'espaco_orbita', acao_cena: 'flutuando_gravidade', pose: 'flutuando', mood: 'violet', expressao: 'worry', camera: 'float_cam', vig: 0.56, hud_dado: null, props: { pose: 'flutuando', gravidade_zero: true, acao_cena: 'flutuando_gravidade' } },
+    { id: 'cena_07', evento_inicio: 'cena_07', cenario: 'cidade_rua', modulo: 'cidade_rua', acao_cena: 'corrida_fuga', pose: 'correndo', mood: 'navy', expressao: 'fear', camera: 'pull_out', vig: 0.60, hud_dado: null, props: { pose: 'correndo', acao_cena: 'corrida_fuga' } },
+    { id: 'cena_08', evento_inicio: 'cena_08', cenario: 'arena_comparacao', modulo: 'arena_comparacao', acao_cena: 'contador_escala', pose: 'apontando', mood: 'navy', expressao: 'smug', camera: 'push_in', vig: 0.56, hud_dado: { rotulo: 'ESCALA REAL', valor: '300 M', progresso: 0.78 }, props: { pose: 'apontando', acao_cena: 'contador_escala' } },
+    { id: 'cena_09', evento_inicio: 'cena_09', cenario: 'escritorio', modulo: 'escritorio', acao_cena: 'flutuando_gravidade', pose: 'flutuando', mood: 'violet', expressao: 'shock', camera: 'pan_right', vig: 0.58, hud_dado: null, props: { pose: 'flutuando', gravidade_zero: true, objetos_flutuantes: ['lapiseira', 'xicara_cafe', 'cadeiras', 'silhuetas_janela'], silhuetas_janela: true } },
+    { id: 'cena_10', evento_inicio: 'cena_10', cenario: 'big_face', modulo: 'big_face', acao_cena: 'explosao_choque', pose: 'assustado', mood: 'red', expressao: 'shock', camera: 'shake_impact', vig: 0.72, hud_dado: null, props: { pose: 'assustado', acao_cena: 'explosao_choque' } }
   ],
   katana_hits: [
-    { id: 'hit_01', evento: 'hit_01', palavra_gatilho: 'porta', linhas: ['NÃO ABRA'], duracao: 0.42, cor: 'red' },
-    { id: 'hit_02', evento: 'hit_02', palavra_gatilho: 'camera', linhas: ['LEVITAÇÃO'], duracao: 0.42, cor: 'yellow' },
-    { id: 'hit_03', evento: 'hit_03', palavra_gatilho: 'atras', linhas: ['ATRÁS DE VOCÊ'], duracao: 0.45, cor: 'red' }
+    { id: 'hit_01', evento: 'hit_01', palavra_gatilho: 'flechas', linhas: ['CHUVA DE', 'FLECHAS'], duracao: 0.42, cor: 'red' },
+    { id: 'hit_02', evento: 'hit_02', palavra_gatilho: 'tsunami', linhas: ['ONDA', 'GIGANTE'], duracao: 0.42, cor: 'yellow' },
+    { id: 'hit_03', evento: 'hit_03', palavra_gatilho: 'proibida', linhas: ['5 KM', 'PROIBIDO'], duracao: 0.44, cor: 'red' }
   ],
-  palavras_vermelhas: ['sozinho', 'escuro', 'vulto', 'sombra', 'camera', 'porta', 'atras', 'olhos']
+  palavras_vermelhas: ['proibida', 'flechas', 'tsunami', 'perigo', 'alerta', 'choque', '2004', '2006']
 };
 
 /* Utilidades deterministicas */
@@ -458,12 +459,14 @@ function cameraPreset(camName, modulo, subIdx){
   const zMax = isDev ? 1.12 : 1.18;
   const zMin = isDev ? 1.00 : 1.01;
   const presets = {
-    push_in:     [[zMin, 540, 960], [zMax, 540, 946]],
-    pull_out:    [[zMax, 540, 948], [zMin, 540, 960]],
-    pan_left:    [[1.06, 566, 956], [1.10, 514, 956]],
-    pan_right:   [[1.06, 514, 956], [1.10, 566, 956]],
-    tight_close: [[1.05, 540, 940], [zMax, 540, 916]],
-    wide_still:  [[1.00, 540, 960], [1.05, 540, 954]]
+    push_in:      [[zMin, 540, 960], [zMax, 540, 944]],
+    pull_out:     [[zMax, 540, 946], [zMin, 540, 960]],
+    pan_left:     [[1.06, 568, 956], [1.11, 512, 956]],
+    pan_right:    [[1.06, 512, 956], [1.11, 568, 956]],
+    shake_impact: [[1.15, 540, 938], [1.04, 540, 956]],
+    float_cam:    [[1.04, 532, 952], [1.10, 548, 962]],
+    tight_close:  [[1.05, 540, 940], [zMax, 540, 916]],
+    wide_still:   [[1.00, 540, 960], [1.05, 540, 954]]
   };
   const base = presets[camName] || presets.push_in;
   if (subIdx % 2 === 1) {
@@ -490,14 +493,23 @@ function splitShots(rawList, maxDur=1.65){
       out.push({
         id: out.length + 1,
         cenaId: s.id,
+        cenario: s.cenario,
         modulo: s.modulo,
         scene: s.modulo,
+        acao_cena: s.acao_cena,
+        pose: s.pose,
+        prevPose: i === 0 ? s.prevPose : s.pose,
+        hud_dado: s.hud_dado,
+        fala: s.fala,
+        cameraName: s.camera,
         mood: s.mood,
         expressao: s.expressao,
         vig: s.vig,
         props: s.props || {},
         subIdx: i,
         subTotal: n,
+        sceneStart: s.start,
+        sceneEnd: s.end,
         start: Number(lerp(s.start, s.end, a).toFixed(3)),
         end: Number(lerp(s.start, s.end, b).toFixed(3)),
         dur: Number(((s.end - s.start) / n).toFixed(3)),
@@ -543,10 +555,17 @@ function buildShotsFromConfig(cfg, ev, dur){
   }
 
   const raw = [];
+  let lastPose = 'em_pe';
   for (let i = 0; i < n; i++) {
     const c = lista[i];
     const st = inicios[i];
     const en = (i < n - 1) ? inicios[i + 1] : dur;
+    const cen = c.cenario || c.modulo || 'oceano_ilha';
+    const props = c.props || {};
+    const poseName = c.pose || props.pose || 'falando';
+    const acaoCena = c.acao_cena || props.acao_cena || 'investigando_pista';
+    const hudDado = (c.hud_dado && typeof c.hud_dado === 'object') ? c.hud_dado : (props.hud_dado || null);
+
     /* Se a cena cruza a janela da CTA ou corte_parte_2, fatia nas barreiras exatas */
     const cortes = [st];
     if (temCta && ctaA > st + 0.05 && ctaA < en - 0.05) cortes.push(ctaA);
@@ -561,16 +580,23 @@ function buildShotsFromConfig(cfg, ev, dur){
       if (temCta && a >= ctaA - 0.02 && b <= ctaB + 0.02) continue;
       raw.push({
         id: c.id || `cena_${String(i + 1).padStart(2, '0')}`,
-        modulo: c.modulo || 'quarto_noturno',
+        cenario: cen,
+        modulo: cen,
+        acao_cena: acaoCena,
+        pose: poseName,
+        prevPose: lastPose,
+        hud_dado: hudDado,
+        fala: c.fala || '',
         mood: c.mood || 'navy',
         expressao: c.expressao || 'neutral',
         camera: c.camera || 'push_in',
         vig: typeof c.vig === 'number' ? c.vig : 0.60,
-        props: c.props || {},
+        props: { ...props, pose: poseName, acao_cena: acaoCena },
         start: a,
         end: b
       });
     }
+    lastPose = poseName;
   }
   return splitShots(raw, 1.65);
 }
@@ -986,20 +1012,44 @@ function drawCapsule(ax, ay, bx, by, w, col, shadeCol){
   g.restore();
 }
 
-function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0){
-  const lift = { neutral: 0, worry: 0.06, fear: 0.11, shock: 0.14, sinister_smile: 0.05 }[ex] || 0;
-  const tilt = { neutral: 0, worry: 0.11, fear: 0.10, shock: 0.06, sinister_smile: -0.10 }[ex] || 0;
+function speechMouthAt(t){
+  if (typeof captionGroups === 'undefined' || !captionGroups || !captionGroups.length) {
+    return 0.25 + 0.35 * Math.abs(Math.sin(t * 14.0));
+  }
+  for (let i = 0; i < captionGroups.length; i++) {
+    const grp = captionGroups[i];
+    if (t < Number(grp.inicio) - 0.04 || t > Number(grp.fim) + 0.04) continue;
+    const pals = grp.palavras || [];
+    for (let j = 0; j < pals.length; j++) {
+      const w = pals[j];
+      const ini = Number(w.inicio);
+      const fim = Number(w.fim ?? (ini + Number(w.duracao || 0.22)));
+      if (t >= ini - 0.02 && t <= fim + 0.02) {
+        const len = Math.max(1, String(w.palavra || '').length);
+        const freq = 15.0 + (len % 5) * 2.2;
+        const env = Math.sin(clamp((t - ini) / Math.max(0.06, fim - ini)) * Math.PI);
+        return clamp(0.18 + (0.45 + 0.55 * Math.abs(Math.sin(t * freq + j * 1.9))) * (0.55 + 0.45 * env), 0, 1);
+      }
+    }
+  }
+  return 0;
+}
+
+function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0, t=0, tremble=false){
+  const lift = { neutral: 0, worry: 0.06, fear: 0.11, shock: 0.14, smug: 0.04, focus: -0.04, sinister_smile: 0.05 }[ex] || 0;
+  const tilt = { neutral: 0, worry: 0.11, fear: 0.10, shock: 0.06, smug: -0.07, focus: -0.11, sinister_smile: -0.10 }[ex] || 0;
   const eyePositions = [[cx - r * 0.24, 1], [cx + r * 0.24, -1]];
   g.lineCap = 'round';
 
   for (const [x, inner] of eyePositions) {
     const y = cy - r * 0.04;
     const browY = y - r * (0.27 + lift);
+    const smugAsym = (ex === 'smug' && inner === -1) ? -r * 0.06 : 0;
     g.strokeStyle = PAL.ink;
     g.lineWidth = r * 0.068;
     g.beginPath();
-    g.moveTo(x - inner * r * 0.15, browY + (ex === 'worry' || ex === 'fear' || ex === 'shock' ? r * 0.04 : 0));
-    g.lineTo(x + inner * r * 0.15, browY - tilt * r);
+    g.moveTo(x - inner * r * 0.15, browY + smugAsym + (ex === 'worry' || ex === 'fear' || ex === 'shock' ? r * 0.04 : 0));
+    g.lineTo(x + inner * r * 0.15, browY + smugAsym - tilt * r);
     g.stroke();
 
     if (closed > 0.55) {
@@ -1014,6 +1064,9 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0){
     g.translate(x, y);
     g.scale(1, scaleY);
 
+    const tremX = (tremble || ex === 'shock') ? noise(t * 54, inner * 7 + 3) * r * 0.025 : 0;
+    const tremY = (tremble || ex === 'shock') ? noise(t * 54, inner * 11 + 9) * r * 0.025 : 0;
+
     if (ex === 'shock' || ex === 'fear' || ex === 'worry' || ex === 'sinister_smile') {
       const rx = ex === 'shock' ? r * 0.22 : (ex === 'sinister_smile' ? r * 0.18 : (ex === 'fear' ? r * 0.19 : r * 0.15));
       const ry = ex === 'shock' ? r * 0.25 : (ex === 'sinister_smile' ? r * 0.20 : (ex === 'fear' ? r * 0.21 : r * 0.17));
@@ -1021,9 +1074,20 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0){
       ell(0, 0, rx, ry);
       const pr = ex === 'shock' ? r * 0.054 : (ex === 'sinister_smile' ? r * 0.058 : (ex === 'fear' ? r * 0.075 : r * 0.085));
       g.fillStyle = PAL.ink;
-      circ(lookX * r * 0.06, lookY * r * 0.05, pr);
+      circ(lookX * r * 0.06 + tremX, lookY * r * 0.05 + tremY, pr);
       g.fillStyle = PAL.white;
-      circ(lookX * r * 0.06 - pr * 0.35, lookY * r * 0.05 - pr * 0.35, pr * 0.30);
+      circ(lookX * r * 0.06 + tremX - pr * 0.35, lookY * r * 0.05 + tremY - pr * 0.35, pr * 0.30);
+    } else if (ex === 'focus' || ex === 'smug') {
+      const rx = r * 0.15, ry = ex === 'focus' ? r * 0.115 : r * 0.13;
+      g.fillStyle = PAL.white;
+      ell(0, 0, rx, ry);
+      g.fillStyle = PAL.ink;
+      circ(lookX * r * 0.06, lookY * r * 0.03, r * 0.074);
+      g.fillStyle = PAL.white;
+      circ(lookX * r * 0.06 - r * 0.026, lookY * r * 0.03 - r * 0.026, r * 0.024);
+      /* Palpebra superior firme */
+      g.fillStyle = PAL.skin;
+      g.fillRect(-rx - 2, -ry - 4, (rx + 2) * 2, ry * (ex === 'focus' ? 0.42 : 0.34));
     } else {
       g.fillStyle = PAL.white;
       ell(0, 0, r * 0.14, r * 0.15);
@@ -1036,8 +1100,9 @@ function drawEyes(cx, cy, r, ex, closed, lookX=0, lookY=0){
   }
 }
 
-function drawMouth(cx, cy, r, ex, smileProg=1){
+function drawMouth(cx, cy, r, ex, smileProg=1, talkAmt=0){
   const my = cy + r * 0.36;
+  const open = clamp(talkAmt);
   g.lineCap = 'round';
   if (ex === 'sinister_smile') {
     const sp = clamp(smileProg);
@@ -1061,14 +1126,48 @@ function drawMouth(cx, cy, r, ex, smileProg=1){
     return;
   }
   if (ex === 'shock') {
+    const rx = r * (0.14 + open * 0.05);
+    const ry = r * (0.18 + open * 0.07);
     g.fillStyle = '#190C0E';
-    ell(cx, my + r * 0.02, r * 0.16, r * 0.21);
+    ell(cx, my + r * 0.02, rx, ry);
     g.strokeStyle = PAL.ink;
     g.lineWidth = r * 0.042;
-    g.beginPath(); g.ellipse(cx, my + r * 0.02, r * 0.16, r * 0.21, 0, 0, Math.PI * 2); g.stroke();
-  } else if (ex === 'fear') {
+    g.beginPath(); g.ellipse(cx, my + r * 0.02, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+    return;
+  }
+  if (ex === 'fear') {
+    const rx = r * (0.13 + open * 0.05);
+    const ry = r * (0.09 + open * 0.07);
     g.fillStyle = '#1E1114';
-    ell(cx, my + r * 0.02, r * 0.14, r * 0.11);
+    ell(cx, my + r * 0.02, rx, ry);
+    if (open > 0.35) {
+      g.fillStyle = 'rgba(248,250,252,0.85)';
+      rr(cx - rx * 0.6, my - ry * 0.55, rx * 1.2, ry * 0.42, 3); g.fill();
+    }
+    return;
+  }
+  if (open > 0.14) {
+    /* Animacao natural de fala sincronizada durante as palavras */
+    const rx = r * lerp(0.11, 0.19, open);
+    const ry = r * lerp(0.045, 0.14, open);
+    g.fillStyle = '#1D0F12';
+    ell(cx, my + r * 0.02, rx, ry);
+    if (open > 0.40) {
+      g.fillStyle = 'rgba(248, 250, 252, 0.88)';
+      rr(cx - rx * 0.62, my - ry * 0.62, rx * 1.24, Math.max(2, ry * 0.42), 3); g.fill();
+    }
+    g.strokeStyle = PAL.ink;
+    g.lineWidth = r * 0.036;
+    g.beginPath(); g.ellipse(cx, my + r * 0.02, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+    return;
+  }
+  if (ex === 'smug') {
+    g.strokeStyle = PAL.ink;
+    g.lineWidth = r * 0.054;
+    g.beginPath();
+    g.moveTo(cx - r * 0.15, my + r * 0.02);
+    g.quadraticCurveTo(cx + r * 0.04, my + r * 0.10, cx + r * 0.19, my - r * 0.04);
+    g.stroke();
   } else if (ex === 'worry') {
     g.strokeStyle = PAL.ink;
     g.lineWidth = r * 0.052;
@@ -1076,12 +1175,19 @@ function drawMouth(cx, cy, r, ex, smileProg=1){
     g.moveTo(cx - r * 0.14, my + r * 0.03);
     g.quadraticCurveTo(cx, my - r * 0.06, cx + r * 0.14, my + r * 0.03);
     g.stroke();
+  } else if (ex === 'focus') {
+    g.strokeStyle = PAL.ink;
+    g.lineWidth = r * 0.054;
+    g.beginPath();
+    g.moveTo(cx - r * 0.14, my + r * 0.01);
+    g.lineTo(cx + r * 0.14, my - r * 0.01);
+    g.stroke();
   } else {
     g.strokeStyle = PAL.ink;
     g.lineWidth = r * 0.050;
     g.beginPath();
     g.moveTo(cx - r * 0.13, my);
-    g.lineTo(cx + r * 0.13, my);
+    g.quadraticCurveTo(cx, my + r * 0.04, cx + r * 0.13, my);
     g.stroke();
   }
 }
@@ -1089,7 +1195,8 @@ function drawMouth(cx, cy, r, ex, smileProg=1){
 function drawHeadProtagonista(cx, cy, r, ex, closed, opt={}){
   const {
     tilt = 0, rimA = 0.72, rimColor = PAL.cyan, rimAng = -0.35,
-    lookX = 0, lookY = 0, isReflection = false, smileProg = 1, sweat = false
+    lookX = 0, lookY = 0, isReflection = false, smileProg = 1, sweat = false,
+    talkAmt = 0, t = 0, tremble = false
   } = opt;
   g.save();
   g.translate(cx, cy);
@@ -1107,7 +1214,7 @@ function drawHeadProtagonista(cx, cy, r, ex, closed, opt={}){
   g.fillStyle = rgba(PAL.skinShadow, isReflection ? 0.34 : 0.24);
   circ(-r * 0.36, r * 0.18, r * 0.96);
 
-  /* Rim light alinhado estritamente dentro do contorno da cabeca (sem vazar deslocado a direita) */
+  /* Rim light alinhado estritamente dentro do contorno da cabeca */
   if (rimA > 0.01) {
     const rimW = Math.max(3, r * 0.044);
     g.strokeStyle = rgba(rimColor, rimA * 0.74);
@@ -1135,16 +1242,22 @@ function drawHeadProtagonista(cx, cy, r, ex, closed, opt={}){
   g.ellipse(-r * 0.30, -r * 0.64, r * 0.40, r * 0.21, -0.22, 0, Math.PI * 2);
   g.fill();
 
-  drawEyes(0, 0, r, ex, closed, lookX, lookY);
-  drawMouth(0, 0, r, ex, smileProg);
+  drawEyes(0, 0, r, ex, closed, lookX, lookY, t, tremble);
+  drawMouth(0, 0, r, ex, smileProg, talkAmt);
 
-  if (sweat || ex === 'shock') {
+  if (sweat || ex === 'shock' || ex === 'fear') {
+    const dropCycle = (t * 0.85) % 1;
+    const dropY = -r * 0.32 + dropCycle * r * 0.46;
+    const dropAlpha = dropCycle < 0.85 ? 0.92 : lerp(0.92, 0, (dropCycle - 0.85) / 0.15);
+    g.save();
+    g.globalAlpha = dropAlpha;
     g.fillStyle = PAL.sweat;
     g.beginPath();
-    g.moveTo(r * 0.58, -r * 0.28);
-    g.quadraticCurveTo(r * 0.68, -r * 0.08, r * 0.58, -r * 0.02);
-    g.quadraticCurveTo(r * 0.48, -r * 0.08, r * 0.58, -r * 0.28);
+    g.moveTo(r * 0.58, dropY);
+    g.quadraticCurveTo(r * 0.68, dropY + r * 0.18, r * 0.58, dropY + r * 0.24);
+    g.quadraticCurveTo(r * 0.48, dropY + r * 0.18, r * 0.58, dropY);
     g.fill();
+    g.restore();
   }
   g.restore();
 }
@@ -1165,7 +1278,7 @@ function drawSneaker(fx, fy, rot=0){
 function drawTorsoAndHead(shY, opt){
   const {
     topMain, rimColor, rimA, backView, isReflection, ex, closed,
-    headTilt, lookX, lookY, smileProg
+    headTilt, lookX, lookY, smileProg, talkAmt = 0, t = 0
   } = opt;
   g.fillStyle = topMain;
   rr(-66, shY - 12, 132, 214, 58); g.fill();
@@ -1201,21 +1314,182 @@ function drawTorsoAndHead(shY, opt){
   } else {
     drawHeadProtagonista(0, shY - 94, 68, ex, closed, {
       tilt: headTilt || 0, rimA, rimColor, rimAng: 0.14,
-      lookX, lookY, isReflection, smileProg, sweat: ex === 'shock'
+      lookX, lookY, isReflection, smileProg, sweat: ex === 'shock' || ex === 'fear',
+      talkAmt, t, tremble: ex === 'shock'
     });
   }
+}
+
+function canonicalPoseName(poseOrName){
+  if (typeof poseOrName === 'string') {
+    const n = poseOrName.toLowerCase().trim();
+    const map = {
+      idle: 'em_pe', standing: 'em_pe', em_pe: 'em_pe',
+      falando: 'falando', phone: 'falando', talking: 'falando',
+      apontando: 'apontando', press: 'apontando', reach: 'apontando', pointing: 'apontando',
+      assustado: 'assustado', panic: 'assustado', scared: 'assustado',
+      pensando: 'pensando', thinking: 'pensando',
+      correndo: 'correndo', walk: 'correndo', running: 'correndo',
+      pulando: 'pulando', jumping: 'pulando',
+      flutuando: 'flutuando', floating: 'flutuando', levitando: 'flutuando',
+      caindo: 'caindo', falling: 'caindo',
+      comemorando: 'comemorando', celebrating: 'comemorando',
+      segurando_mesa: 'segurando_mesa'
+    };
+    return map[n] || 'falando';
+  }
+  if (poseOrName && typeof poseOrName === 'object') {
+    if (poseOrName.name) return canonicalPoseName(poseOrName.name);
+    if (poseOrName.segurando_mesa) return 'segurando_mesa';
+    if (poseOrName.caindo) return 'caindo';
+    if (poseOrName.flutuando) return 'flutuando';
+    if (poseOrName.walk) return 'correndo';
+    if (poseOrName.panic) return 'assustado';
+    if (poseOrName.press || poseOrName.reach) return 'apontando';
+    if (poseOrName.phone) return 'falando';
+  }
+  return 'em_pe';
+}
+
+function computePoseTargets(name, t, localP, shY, talkAmt){
+  const sway = Math.sin(t * 2.2) * 5;
+  const base = {
+    liftX: 0, liftY: 0, bodyRot: 0, headTilt: Math.sin(t * 1.7) * 0.03,
+    lFootX: -32, lFootY: -12, rFootX: 32, rFootY: -12, lShoeRot: 0, rShoeRot: 0,
+    bHandX: -68 + sway, bHandY: shY + 184, bBend: 1,
+    fHandX: 68 - sway, fHandY: shY + 184, fBend: -1,
+    shadowScale: 1.0, shadowAlpha: 0.45, lookY: 0
+  };
+  if (name === 'falando') {
+    const gest = Math.sin(t * 7.2) * (0.55 + 0.45 * talkAmt);
+    const gest2 = Math.cos(t * 5.8) * (0.55 + 0.45 * talkAmt);
+    return {
+      ...base,
+      bodyRot: Math.sin(t * 2.6) * 0.028,
+      headTilt: Math.sin(t * 4.2) * 0.065,
+      bHandX: -96 + gest * 18, bHandY: shY + 62 - gest * 24, bBend: -1,
+      fHandX: 102 + gest2 * 22, fHandY: shY + 46 + gest2 * 26, fBend: 1
+    };
+  }
+  if (name === 'apontando') {
+    const pulse = Math.sin(t * 6.0) * 9;
+    return {
+      ...base,
+      bodyRot: 0.04, headTilt: -0.05,
+      bHandX: -76, bHandY: shY + 150, bBend: 1,
+      fHandX: 158 + pulse, fHandY: shY - 38 + Math.cos(t * 4.5) * 6, fBend: 1
+    };
+  }
+  if (name === 'assustado') {
+    const trem = Math.sin(t * 28) * 6;
+    return {
+      ...base,
+      liftY: 8 + Math.abs(Math.sin(t * 10)) * 5,
+      bodyRot: -0.06 + Math.sin(t * 22) * 0.02,
+      headTilt: -0.08 + Math.sin(t * 20) * 0.03,
+      lFootX: -44, rFootX: 44,
+      bHandX: -88 + trem, bHandY: shY - 12 - Math.abs(trem), bBend: -1,
+      fHandX: 88 - trem, fHandY: shY - 18 + trem * 0.5, fBend: 1
+    };
+  }
+  if (name === 'pensando') {
+    return {
+      ...base,
+      bodyRot: -0.03, headTilt: 0.09 + Math.sin(t * 1.6) * 0.03,
+      bHandX: 12, bHandY: shY + 86, bBend: -1,
+      fHandX: 28 + Math.sin(t * 2.4) * 4, fHandY: shY - 46 + Math.cos(t * 2.2) * 3, fBend: 1,
+      lookY: -0.18
+    };
+  }
+  if (name === 'correndo') {
+    const ph = t * 11.5;
+    const s = Math.sin(ph), c = Math.cos(ph);
+    return {
+      ...base,
+      liftX: Math.sin(ph * 0.5) * 8,
+      liftY: -18 - Math.abs(s) * 26,
+      bodyRot: 0.16 + c * 0.04,
+      headTilt: -0.08,
+      lFootX: -14 + s * 68, lFootY: -16 - Math.max(0, c) * 46, lShoeRot: s * 0.32,
+      rFootX: 14 - s * 68, rFootY: -16 - Math.max(0, -c) * 46, rShoeRot: -s * 0.32,
+      bHandX: -18 - s * 86, bHandY: shY + 56 - Math.max(0, -s) * 42, bBend: -1,
+      fHandX: 18 + s * 86, fHandY: shY + 56 - Math.max(0, s) * 42, fBend: 1,
+      shadowScale: 0.85, shadowAlpha: 0.32
+    };
+  }
+  if (name === 'pulando') {
+    const arc = Math.abs(Math.sin(t * 4.4));
+    return {
+      ...base,
+      liftY: -26 - arc * 124,
+      bodyRot: -0.05 + Math.sin(t * 4.4) * 0.08,
+      headTilt: -0.06,
+      lFootX: -48, lFootY: -24 - arc * 36, lShoeRot: 0.28,
+      rFootX: 48, rFootY: -18 - arc * 52, rShoeRot: -0.26,
+      bHandX: -124, bHandY: shY - 72 - arc * 26, bBend: -1,
+      fHandX: 124, fHandY: shY - 78 - arc * 26, fBend: 1,
+      shadowScale: lerp(0.95, 0.52, arc), shadowAlpha: lerp(0.42, 0.16, arc), lookY: -0.15
+    };
+  }
+  if (name === 'flutuando') {
+    return {
+      ...base,
+      liftX: Math.sin(t * 1.35) * 20,
+      liftY: -168 - Math.sin(t * 2.05) * 30,
+      bodyRot: -0.15 + Math.sin(t * 1.55) * 0.13,
+      headTilt: Math.sin(t * 1.9) * 0.09,
+      lFootX: -46 + Math.sin(t * 2.5) * 20, lFootY: -44 + Math.cos(t * 2.2) * 18, lShoeRot: 0.24 + Math.sin(t * 2.4) * 0.14,
+      rFootX: 52 + Math.cos(t * 2.3) * 18, rFootY: -74 + Math.sin(t * 2.6) * 18, rShoeRot: -0.22 + Math.cos(t * 2.1) * 0.14,
+      bHandX: -134 + Math.sin(t * 3.0) * 16, bHandY: shY - 22 + Math.cos(t * 2.7) * 22, bBend: -1,
+      fHandX: 136 + Math.cos(t * 2.8) * 16, fHandY: shY - 32 + Math.sin(t * 3.1) * 22, fBend: 1,
+      shadowScale: 1.22, shadowAlpha: 0.18, lookY: -0.20
+    };
+  }
+  if (name === 'caindo') {
+    const dp = clamp(localP);
+    const accel = dp * dp;
+    return {
+      ...base,
+      liftX: Math.sin(t * 24) * 5,
+      liftY: lerp(-220, -24, accel),
+      bodyRot: 0.20 + Math.sin(t * 18) * 0.05,
+      headTilt: -0.09,
+      lFootX: -58 + Math.sin(t * 20) * 10, lFootY: -62 + Math.cos(t * 18) * 10, lShoeRot: 0.36,
+      rFootX: 58 + Math.cos(t * 19) * 10, rFootY: -30 + Math.sin(t * 21) * 10, rShoeRot: -0.28,
+      bHandX: -118 + Math.sin(t * 24) * 12, bHandY: shY - 116 + Math.cos(t * 20) * 10, bBend: -1,
+      fHandX: 122 + Math.cos(t * 22) * 12, fHandY: shY - 112 + Math.sin(t * 23) * 10, fBend: 1,
+      shadowScale: lerp(1.3, 0.85, accel), shadowAlpha: lerp(0.16, 0.52, accel), lookY: 0.42
+    };
+  }
+  if (name === 'comemorando') {
+    const bounce = Math.abs(Math.sin(t * 7.0));
+    return {
+      ...base,
+      liftY: -10 - bounce * 36,
+      bodyRot: Math.sin(t * 5.2) * 0.06,
+      headTilt: Math.sin(t * 6.4) * 0.08,
+      lFootX: -38, lFootY: -14 - bounce * 10, rFootX: 38, rFootY: -14 - bounce * 10,
+      bHandX: -108 + Math.sin(t * 8.0) * 14, bHandY: shY - 118 - bounce * 18, bBend: -1,
+      fHandX: 108 - Math.sin(t * 8.0) * 14, fHandY: shY - 118 - bounce * 18, fBend: 1,
+      shadowScale: lerp(1.0, 0.78, bounce), shadowAlpha: lerp(0.45, 0.25, bounce)
+    };
+  }
+  /* em_pe: respiracao viva e micro-movimento natural */
+  return base;
 }
 
 function drawProtagonista(x, footY, sc, opt={}){
   const {
     t = 0, ex = 'neutral', closed = 0, face = 1, fastBreath = false,
-    pose = {}, rimColor = PAL.cyan, rimA = 0.75, lookX = 0, lookY = 0,
-    isReflection = false, smileProg = 1, backView = false, localP = 0
+    pose = {}, prevPose = null, shotAge = 1.0, rimColor = PAL.cyan, rimA = 0.75,
+    lookX = 0, lookY = 0, isReflection = false, smileProg = 1, backView = false, localP = 0
   } = opt;
 
-  const effEx = (pose.caindo && ex === 'sinister_smile') ? 'shock' : ex;
-  const breath = Math.sin(t * (fastBreath ? 6.8 : 2.3)) * (fastBreath ? 5.0 : 2.2);
-  const walk = pose.walk ? Math.sin(t * 9.0) : 0;
+  const poseName = canonicalPoseName(pose);
+  const prevName = prevPose ? canonicalPoseName(prevPose) : poseName;
+  const effEx = (poseName === 'caindo' && ex === 'sinister_smile') ? 'shock' : ex;
+  const talkAmt = backView ? 0 : speechMouthAt(t);
+  const breath = Math.sin(t * (fastBreath ? 6.8 : 2.6)) * (fastBreath ? 5.2 : 2.8);
   const pantsA = isReflection ? '#263448' : PAL.pantsDark;
   const pantsB = isReflection ? '#2F3F57' : PAL.pants;
   const topMain = isReflection ? mixHex(PAL.top, '#0F172A', 0.25) : PAL.top;
@@ -1225,8 +1499,8 @@ function drawProtagonista(x, footY, sc, opt={}){
   g.translate(x, footY);
   g.scale(sc * face, sc);
 
-  /* POSE ESPECIAL 1: segurando_mesa (maos presas a borda da mesa, corpo e pes flutuando sem gravidade) */
-  if (pose.segurando_mesa) {
+  /* POSE ESPECIAL LEGADA: segurando_mesa */
+  if (poseName === 'segurando_mesa') {
     const bob = Math.sin(t * 3.6);
     const trem = Math.sin(t * 28) * 1.6;
     const gripX = typeof opt.deskGripX === 'number' ? opt.deskGripX : -110;
@@ -1241,14 +1515,12 @@ function drawProtagonista(x, footY, sc, opt={}){
     }
 
     const bShX = shX - 18, bShY = shY0 + 14;
-    const bHandX = gripX, bHandY = gripY;
-    const bElbow = solveIK(bShX, bShY, bHandX, bHandY, 94, 94, 1);
+    const bElbow = solveIK(bShX, bShY, gripX, gripY, 94, 94, 1);
     drawCapsule(bShX, bShY, bElbow[0], bElbow[1], 30, topSh);
-    drawCapsule(bElbow[0], bElbow[1], bHandX, bHandY, 26, topSh);
+    drawCapsule(bElbow[0], bElbow[1], gripX, gripY, 26, topSh);
     g.fillStyle = isReflection ? '#C7A68E' : PAL.skinShadow;
-    circ(bHandX, bHandY, 16);
+    circ(gripX, gripY, 16);
 
-    /* Tronco, pernas flutuando para cima/direita e cabeca inclinada para a mesa */
     g.save();
     g.translate(shX, shY0);
     g.rotate(bodyTilt);
@@ -1259,17 +1531,15 @@ function drawProtagonista(x, footY, sc, opt={}){
     const rFootY = 340 + Math.sin(t * 4.2) * 18;
     const lKnee = solveIK(-24, localHipY, lFootX, lFootY, 102, 102, 1);
     const rKnee = solveIK(24, localHipY, rFootX, rFootY, 102, 102, 1);
-
     drawCapsule(-24, localHipY, lKnee[0], lKnee[1], 36, pantsA);
     drawCapsule(lKnee[0], lKnee[1], lFootX, lFootY, 32, pantsA);
     drawCapsule(24, localHipY, rKnee[0], rKnee[1], 36, pantsB);
     drawCapsule(rKnee[0], rKnee[1], rFootX, rFootY, 32, pantsB);
     drawSneaker(lFootX, lFootY, 0.25);
     drawSneaker(rFootX, rFootY, -0.18);
-
     drawTorsoAndHead(0, {
       topMain, rimColor, rimA, backView, isReflection, ex: effEx, closed,
-      headTilt: 0.48, lookX: -0.55, lookY: 0.25, smileProg
+      headTilt: 0.48, lookX: -0.55, lookY: 0.25, smileProg, talkAmt, t
     });
     g.restore();
 
@@ -1280,133 +1550,99 @@ function drawProtagonista(x, footY, sc, opt={}){
     drawCapsule(fElbow[0], fElbow[1], fHandX, fHandY, 26, topMain, rgba(PAL.topDeep, 0.25));
     g.fillStyle = isReflection ? '#CFAF96' : PAL.skin;
     circ(fHandX, fHandY, 17);
-
     g.restore();
     return;
-  }
-
-  /* POSE ESPECIAL 2 e 3: flutuando / caindo (sombra no chao + corpo suspenso ou em queda livre) */
-  let liftX = 0, liftY = 0, bodyRot = 0;
-  if (pose.flutuando) {
-    liftX = Math.sin(t * 1.35) * 20;
-    liftY = -178 - Math.sin(t * 2.05) * 30;
-    bodyRot = -0.15 + Math.sin(t * 1.55) * 0.13;
-    if (!isReflection) {
-      g.fillStyle = 'rgba(0,0,0,0.18)';
-      ell(liftX * 0.5, 6, 112, 20);
-    }
-  } else if (pose.caindo) {
-    const dp = clamp(localP);
-    const accel = dp * dp;
-    liftX = Math.sin(t * 24) * 5;
-    liftY = lerp(-235, -24, accel);
-    bodyRot = 0.20 + Math.sin(t * 18) * 0.05;
-    if (!isReflection) {
-      g.fillStyle = `rgba(0,0,0,${lerp(0.16, 0.52, accel).toFixed(2)})`;
-      ell(0, 6, lerp(124, 78, accel), lerp(22, 16, accel));
-    }
-    /* Linhas verticais de vento para velocidade de queda livre */
-    g.save();
-    g.strokeStyle = 'rgba(226, 232, 240, 0.28)';
-    g.lineCap = 'round';
-    for (let i = 0; i < 8; i++) {
-      const sx = -155 + i * 44 + Math.sin(i * 19) * 14;
-      const sy0 = liftY - 490 + ((t * 980 + i * 95) % 440);
-      g.lineWidth = 2.5 + (i % 3);
-      g.beginPath(); g.moveTo(sx, sy0); g.lineTo(sx, sy0 - 78 - (i % 3) * 24); g.stroke();
-    }
-    g.restore();
-  } else if (!isReflection) {
-    g.fillStyle = 'rgba(0,0,0,0.45)';
-    ell(0, 6, 84, 18);
-  }
-
-  g.save();
-  if (liftX || liftY || bodyRot) {
-    g.translate(liftX, liftY);
-    g.translate(0, -250);
-    g.rotate(bodyRot);
-    g.translate(0, 250);
   }
 
   const hipY = -205 + breath * 0.35;
   const shY = -395 + breath;
 
-  let lFootX = -32 + walk * 26, rFootX = 32 - walk * 26;
-  let lFootY = -12 - Math.max(0, walk * 16), rFootY = -12 - Math.max(0, -walk * 16);
-  let lShoeRot = 0, rShoeRot = 0;
-  if (pose.flutuando) {
-    lFootX = -46 + Math.sin(t * 2.5) * 20;
-    lFootY = -44 + Math.cos(t * 2.2) * 18;
-    rFootX = 52 + Math.cos(t * 2.3) * 18;
-    rFootY = -74 + Math.sin(t * 2.6) * 18;
-    lShoeRot = 0.24 + Math.sin(t * 2.4) * 0.14;
-    rShoeRot = -0.22 + Math.cos(t * 2.1) * 0.14;
-  } else if (pose.caindo) {
-    lFootX = -58 + Math.sin(t * 20) * 10;
-    lFootY = -62 + Math.cos(t * 18) * 10;
-    rFootX = 58 + Math.cos(t * 19) * 10;
-    rFootY = -30 + Math.sin(t * 21) * 10;
-    lShoeRot = 0.36;
-    rShoeRot = -0.28;
+  /* Interpolacao suave entre poses (0.24s de transicao) */
+  const curT = computePoseTargets(poseName, t, localP, shY, talkAmt);
+  let pt = curT;
+  if (prevName !== poseName && prevName !== 'segurando_mesa' && shotAge < 0.24) {
+    const prevT = computePoseTargets(prevName, t, 1.0, shY, talkAmt);
+    const k = ease(clamp(shotAge / 0.24));
+    pt = {
+      liftX: lerp(prevT.liftX, curT.liftX, k),
+      liftY: lerp(prevT.liftY, curT.liftY, k),
+      bodyRot: lerp(prevT.bodyRot, curT.bodyRot, k),
+      headTilt: lerp(prevT.headTilt, curT.headTilt, k),
+      lFootX: lerp(prevT.lFootX, curT.lFootX, k),
+      lFootY: lerp(prevT.lFootY, curT.lFootY, k),
+      rFootX: lerp(prevT.rFootX, curT.rFootX, k),
+      rFootY: lerp(prevT.rFootY, curT.rFootY, k),
+      lShoeRot: lerp(prevT.lShoeRot, curT.lShoeRot, k),
+      rShoeRot: lerp(prevT.rShoeRot, curT.rShoeRot, k),
+      bHandX: lerp(prevT.bHandX, curT.bHandX, k),
+      bHandY: lerp(prevT.bHandY, curT.bHandY, k),
+      bBend: curT.bBend,
+      fHandX: lerp(prevT.fHandX, curT.fHandX, k),
+      fHandY: lerp(prevT.fHandY, curT.fHandY, k),
+      fBend: curT.fBend,
+      shadowScale: lerp(prevT.shadowScale, curT.shadowScale, k),
+      shadowAlpha: lerp(prevT.shadowAlpha, curT.shadowAlpha, k),
+      lookY: lerp(prevT.lookY, curT.lookY, k)
+    };
   }
 
-  const lKnee = solveIK(-24, hipY, lFootX, lFootY, 102, 102, 1);
-  const rKnee = solveIK(24, hipY, rFootX, rFootY, 102, 102, 1);
+  if (!isReflection) {
+    g.fillStyle = `rgba(0,0,0,${pt.shadowAlpha.toFixed(2)})`;
+    ell(pt.liftX * 0.45, 6, 84 * pt.shadowScale, 18 * pt.shadowScale);
+  }
+
+  if (poseName === 'caindo') {
+    g.save();
+    g.strokeStyle = 'rgba(226, 232, 240, 0.28)';
+    g.lineCap = 'round';
+    for (let i = 0; i < 8; i++) {
+      const sx = -155 + i * 44 + Math.sin(i * 19) * 14;
+      const sy0 = pt.liftY - 490 + ((t * 980 + i * 95) % 440);
+      g.lineWidth = 2.5 + (i % 3);
+      g.beginPath(); g.moveTo(sx, sy0); g.lineTo(sx, sy0 - 78 - (i % 3) * 24); g.stroke();
+    }
+    g.restore();
+  }
+
+  g.save();
+  if (pt.liftX || pt.liftY || pt.bodyRot) {
+    g.translate(pt.liftX, pt.liftY);
+    g.translate(0, -250);
+    g.rotate(pt.bodyRot);
+    g.translate(0, 250);
+  }
+
+  const lKnee = solveIK(-24, hipY, pt.lFootX, pt.lFootY, 102, 102, 1);
+  const rKnee = solveIK(24, hipY, pt.rFootX, pt.rFootY, 102, 102, 1);
 
   drawCapsule(-24, hipY, lKnee[0], lKnee[1], 36, pantsA);
-  drawCapsule(lKnee[0], lKnee[1], lFootX, lFootY, 32, pantsA);
+  drawCapsule(lKnee[0], lKnee[1], pt.lFootX, pt.lFootY, 32, pantsA);
   drawCapsule(24, hipY, rKnee[0], rKnee[1], 36, pantsB);
-  drawCapsule(rKnee[0], rKnee[1], rFootX, rFootY, 32, pantsB);
+  drawCapsule(rKnee[0], rKnee[1], pt.rFootX, pt.rFootY, 32, pantsB);
 
-  drawSneaker(lFootX, lFootY, lShoeRot);
-  drawSneaker(rFootX, rFootY, rShoeRot);
+  drawSneaker(pt.lFootX, pt.lFootY, pt.lShoeRot);
+  drawSneaker(pt.rFootX, pt.rFootY, pt.rShoeRot);
 
-  let bHandX = pose.reach ? 116 : (pose.phone ? 64 : -68 - walk * 18);
-  let bHandY = pose.reach ? (shY + 12) : (pose.phone ? (shY + 86) : (shY + 188));
-  let bBend = (pose.reach || pose.phone) ? -1 : 1;
-  if (pose.flutuando) {
-    bHandX = -134 + Math.sin(t * 3.0) * 16;
-    bHandY = shY - 22 + Math.cos(t * 2.7) * 22;
-    bBend = -1;
-  } else if (pose.caindo) {
-    bHandX = -118 + Math.sin(t * 24) * 12;
-    bHandY = shY - 116 + Math.cos(t * 20) * 10;
-    bBend = -1;
-  }
-  const bElbow = solveIK(-48, shY + 18, bHandX, bHandY, 92, 92, bBend);
+  const bElbow = solveIK(-48, shY + 18, pt.bHandX, pt.bHandY, 92, 92, pt.bBend);
   drawCapsule(-48, shY + 18, bElbow[0], bElbow[1], 30, topSh);
-  drawCapsule(bElbow[0], bElbow[1], bHandX, bHandY, 26, topSh);
+  drawCapsule(bElbow[0], bElbow[1], pt.bHandX, pt.bHandY, 26, topSh);
   g.fillStyle = isReflection ? '#C7A68E' : PAL.skinShadow;
-  circ(bHandX, bHandY, 16);
+  circ(pt.bHandX, pt.bHandY, 16);
 
   drawTorsoAndHead(shY, {
     topMain, rimColor, rimA, backView, isReflection, ex: effEx, closed,
-    headTilt: pose.flutuando ? (Math.sin(t * 1.9) * 0.08) : (pose.caindo ? -0.08 : (pose.headTilt || 0)),
-    lookX, lookY: pose.caindo ? 0.45 : (pose.flutuando ? -0.20 : lookY), smileProg
+    headTilt: pt.headTilt, lookX, lookY: lookY || pt.lookY, smileProg, talkAmt, t
   });
 
-  let fHandX = pose.press ? 128 : (pose.phone ? 78 : (pose.panic ? 84 + Math.sin(t * 28) * 14 : 70 + walk * 16));
-  let fHandY = pose.press ? (shY + 8) : (pose.phone ? (shY + 74) : (pose.panic ? (shY - 18) : (shY + 188)));
-  let fBend = (pose.press || pose.phone || pose.panic) ? 1 : -1;
-  if (pose.flutuando) {
-    fHandX = 136 + Math.cos(t * 2.8) * 16;
-    fHandY = shY - 32 + Math.sin(t * 3.1) * 22;
-    fBend = 1;
-  } else if (pose.caindo) {
-    fHandX = 122 + Math.cos(t * 22) * 12;
-    fHandY = shY - 112 + Math.sin(t * 23) * 10;
-    fBend = 1;
-  }
-  const fElbow = solveIK(48, shY + 20, fHandX, fHandY, 92, 92, fBend);
+  const fElbow = solveIK(48, shY + 20, pt.fHandX, pt.fHandY, 92, 92, pt.fBend);
   drawCapsule(48, shY + 20, fElbow[0], fElbow[1], 30, topMain, rgba(PAL.topDeep, 0.25));
-  drawCapsule(fElbow[0], fElbow[1], fHandX, fHandY, 26, topMain, rgba(PAL.topDeep, 0.25));
+  drawCapsule(fElbow[0], fElbow[1], pt.fHandX, pt.fHandY, 26, topMain, rgba(PAL.topDeep, 0.25));
   g.fillStyle = isReflection ? '#CFAF96' : PAL.skin;
-  circ(fHandX, fHandY, 17);
+  circ(pt.fHandX, pt.fHandY, 17);
 
-  if (pose.phone && !backView) {
+  if (pose && pose.phone && !backView) {
     g.save();
-    g.translate(fHandX + 12, fHandY - 12);
+    g.translate(pt.fHandX + 12, pt.fHandY - 12);
     g.rotate(-0.22);
     g.fillStyle = PAL.phone;
     rr(-18, -32, 36, 64, 7); g.fill();
@@ -1420,15 +1656,8 @@ function drawProtagonista(x, footY, sc, opt={}){
 }
 
 function poseObjFromName(name){
-  const n = String(name || 'idle').toLowerCase().trim();
-  if (n === 'walk') return { walk: 1 };
-  if (n === 'phone') return { phone: 1 };
-  if (n === 'panic') return { panic: 1 };
-  if (n === 'press' || n === 'reach') return { press: 1, reach: 1 };
-  if (n === 'flutuando' || n === 'float' || n === 'floating' || n === 'levitando') return { flutuando: 1 };
-  if (n === 'segurando_mesa' || n === 'hold_desk' || n === 'segurando') return { segurando_mesa: 1 };
-  if (n === 'caindo' || n === 'falling' || n === 'queda') return { caindo: 1 };
-  return {};
+  const n = canonicalPoseName(name);
+  return { name: n };
 }
 
 /* ============================================================
@@ -2368,12 +2597,29 @@ function drawSalaCozinha(t, shot, f, localP){
   g.fillStyle = '#17110F';
   g.fillRect(102, 1144, 24, 190);
   g.fillRect(486, 1144, 24, 190);
-  /* Luminaria / objeto sobre a mesa */
+  /* Luminaria / abajur com oscilacao sutil de luz e xicara fumegante sobre a mesa */
+  const lampFlk = 0.86 + Math.sin(t * 11.5) * 0.08 + (isRed ? (Math.sin(t * 27) > 0.1 ? 0.08 : -0.25) : 0);
   g.fillStyle = '#334155';
   rr(180, 1064, 58, 46, 8); g.fill();
-  g.fillStyle = PAL.yellow;
+  g.fillStyle = isRed ? PAL.alert : PAL.yellow;
   rr(188, 1054, 42, 12, 5); g.fill();
-  glow(210, 1060, 140, PAL.yellow, 0.16);
+  glow(210, 1060, 165, isRed ? PAL.alert : PAL.yellow, Math.max(0.05, 0.20 * lampFlk));
+  /* Caneca com vapor animado subindo */
+  g.fillStyle = '#CBD5E1';
+  rr(320, 1076, 32, 34, 6); g.fill();
+  g.strokeStyle = 'rgba(226, 232, 240, 0.32)';
+  g.lineWidth = 3;
+  g.lineCap = 'round';
+  for (let st = 0; st < 2; st++) {
+    const syOff = ((t * 26 + st * 18) % 34);
+    g.beginPath();
+    g.moveTo(330 + st * 12, 1070 - syOff);
+    g.quadraticCurveTo(324 + st * 12 + Math.sin(t * 4 + st) * 6, 1054 - syOff, 332 + st * 12, 1040 - syOff);
+    g.stroke();
+  }
+
+  /* Relogio de parede analogico com ponteiro em movimento continuo */
+  drawWallClock(536, 456, 56, t, isRed);
 
   drawFloatingProps(t, zg, localP, { layer: 'back' });
 
@@ -2382,7 +2628,9 @@ function drawSalaCozinha(t, shot, f, localP){
   drawProtagonista(px, 1358, 1.02, {
     t, ex: shot.expressao || f.ex, closed: f.closed, localP,
     fastBreath: isRed,
-    pose: poseObjFromName(props.pose),
+    pose: shot.pose || poseObjFromName(props.pose),
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
     deskGripX: -112,
     deskGripY: -242,
     rimColor: isRed ? PAL.alert : PAL.cyan,
@@ -2393,7 +2641,7 @@ function drawSalaCozinha(t, shot, f, localP){
   drawFloatingProps(t, zg, localP, { layer: 'front' });
 }
 
-/* MODULO 10: escritorio (mesas, monitores, janelas panoramicas, teto de gesso + gravidade zero) */
+/* MODULO 10: escritorio (mesas, monitores vivos, janelas panoramicas, teto de gesso + relogio) */
 function drawEscritorio(t, shot, f, localP){
   const props = shot.props || {};
   const isRed = shot.mood === 'red';
@@ -2437,8 +2685,10 @@ function drawEscritorio(t, shot, f, localP){
     g.fillRect(-62, -10, 128, 26);
     g.restore();
   }
-  /* Luminarias LED embutidas no gesso */
-  const flk = isRed ? (Math.sin(t * 26) > -0.3 ? 0.85 : 0.28) : 0.90;
+  /* Luminarias LED embutidas no gesso com cintilacao sutil */
+  const flk = isRed
+    ? (Math.sin(t * 26) > -0.3 ? 0.88 : 0.24)
+    : (0.86 + 0.08 * Math.sin(t * 9.5) + (Math.sin(t * 37) > 0.96 ? -0.22 : 0));
   for (const lx of [165, 540, 915]) {
     g.fillStyle = flk > 0.45 ? (isRed ? '#FCA5A5' : '#E0F2FE') : '#334155';
     rr(lx - 108, 302, 216, 18, 6); g.fill();
@@ -2473,8 +2723,8 @@ function drawEscritorio(t, shot, f, localP){
 
   /* Nuvens sutis e horizonte de arranha-ceus */
   g.fillStyle = isRed ? 'rgba(254, 202, 202, 0.08)' : 'rgba(224, 242, 254, 0.09)';
-  ell(wx + 240 + Math.sin(t * 0.25) * 20, wy + 125, 190, 32);
-  ell(wx + 740 - Math.sin(t * 0.2) * 18, wy + 160, 220, 36);
+  ell(wx + 240 + Math.sin(t * 0.45) * 34, wy + 125, 190, 32);
+  ell(wx + 740 - Math.sin(t * 0.38) * 32, wy + 160, 220, 36);
 
   const bldgs = [
     [0, 120, 210], [108, 110, 290], [208, 130, 190], [326, 105, 325],
@@ -2520,6 +2770,9 @@ function drawEscritorio(t, shot, f, localP){
   g.moveTo(wx, wy + wh * 0.72); g.lineTo(wx + ww, wy + wh * 0.72);
   g.stroke();
 
+  /* Relogio corporativo no montante central superior */
+  drawWallClock(540, 444, 44, t, isRed);
+
   /* Parede baixa + piso acarpetado corporativo */
   g.fillStyle = '#0D1525';
   g.fillRect(-120, 916, W + 240, 386);
@@ -2536,7 +2789,7 @@ function drawEscritorio(t, shot, f, localP){
     g.beginPath(); g.moveTo(i * 150, 1304); g.lineTo(540 + (i - 3.6) * 260, H); g.stroke();
   }
 
-  /* Armario de arquivos a direita (inclina levemente no caos de gravidade zero) */
+  /* Armario de arquivos a direita */
   g.save();
   const cabTilt = (zg.active && isRed) ? (-0.08 + Math.sin(t * 2.4) * 0.03) : 0;
   const cabLift = (zg.active && isRed) ? -22 : 0;
@@ -2561,7 +2814,6 @@ function drawEscritorio(t, shot, f, localP){
   g.fillStyle = '#151B26';
   g.fillRect(740, 1120, 18, 188);
   g.fillRect(974, 1120, 18, 188);
-  /* Monitor direito */
   const rMonLift = zg.active ? (-10 - Math.sin(t * 2.0 + 1) * 8 + (zg.isFalling ? localP * localP * 14 : 0)) : 0;
   g.fillStyle = '#334155';
   g.fillRect(850, 1058 + rMonLift, 16, 36);
@@ -2572,19 +2824,21 @@ function drawEscritorio(t, shot, f, localP){
   rr(774, 960 + rMonLift, 168, 102, 9); g.stroke();
   g.fillStyle = isRed ? 'rgba(255, 59, 48, 0.28)' : 'rgba(56, 217, 255, 0.22)';
   rr(784, 970 + rMonLift, 148, 82, 4); g.fill();
+  /* Barras animadas no monitor direito */
   g.fillStyle = isRed ? PAL.alert : PAL.cyan;
-  g.fillRect(796, 986 + rMonLift, 72, 8);
-  g.fillRect(796, 1004 + rMonLift, 112, 6);
-  g.fillRect(796, 1018 + rMonLift, 94, 6);
+  for (let b = 0; b < 5; b++) {
+    const bh = 16 + Math.abs(Math.sin(t * 3.4 + b * 1.1)) * 42;
+    g.fillRect(796 + b * 25, 1042 + rMonLift - bh, 15, bh);
+  }
 
-  /* Cadeira de escritorio apoiada no piso se gravidade normal; flutuando se gravidade zero */
+  /* Cadeira de escritorio */
   if (!zg.active) {
     drawOfficeChair(256, 1230, 0.96, 0);
   } else {
     drawFloatingProps(t, zg, localP, { layer: 'back' });
   }
 
-  /* Mesa principal de trabalho a esquerda-centro + monitor widescreen */
+  /* Mesa principal + monitor widescreen com onda ao vivo */
   g.fillStyle = '#2A3343';
   rr(58, 1104, 412, 30, 8); g.fill();
   g.fillStyle = '#3B475C';
@@ -2592,7 +2846,6 @@ function drawEscritorio(t, shot, f, localP){
   g.fillStyle = '#151B26';
   g.fillRect(84, 1134, 22, 184);
   g.fillRect(422, 1134, 22, 184);
-  /* Monitor widescreen principal */
   g.fillStyle = '#334155';
   g.fillRect(216, 1064, 22, 40);
   rr(182, 1096, 90, 9, 4); g.fill();
@@ -2600,16 +2853,18 @@ function drawEscritorio(t, shot, f, localP){
   rr(120, 942, 214, 126, 10); g.fill();
   g.strokeStyle = isRed ? PAL.alert : '#64748B'; g.lineWidth = 5;
   rr(120, 942, 214, 126, 10); g.stroke();
-  g.fillStyle = isRed ? 'rgba(255, 59, 48, 0.24)' : 'rgba(56, 217, 255, 0.18)';
+  g.fillStyle = isRed ? 'rgba(255, 59, 48, 0.22)' : 'rgba(56, 217, 255, 0.16)';
   rr(132, 954, 190, 102, 5); g.fill();
   glow(227, 1005, 190, isRed ? PAL.alert : PAL.cyan, 0.18);
-  g.fillStyle = isRed ? PAL.alert : PAL.cyan;
-  g.fillRect(146, 972, 96, 9);
-  g.fillStyle = 'rgba(226, 232, 240, 0.55)';
-  g.fillRect(146, 992, 152, 6);
-  g.fillRect(146, 1006, 124, 6);
-  g.fillRect(146, 1020, 140, 6);
-  /* Teclado flutuando levemente sobre a mesa em gravidade zero */
+  g.strokeStyle = isRed ? PAL.alert : PAL.cyan;
+  g.lineWidth = 3.5;
+  g.beginPath();
+  for (let sx = 0; sx <= 172; sx += 8) {
+    const sy = 1006 + Math.sin(t * 7.2 + sx * 0.08) * 18 * Math.sin((sx / 172) * Math.PI);
+    if (sx === 0) g.moveTo(141 + sx, sy); else g.lineTo(141 + sx, sy);
+  }
+  g.stroke();
+  /* Teclado */
   const kbLift = zg.active ? (-18 - Math.sin(t * 2.5) * 9 + (zg.isFalling ? localP * localP * 20 : 0)) : 0;
   g.save();
   g.translate(310, 1097 + kbLift);
@@ -2620,13 +2875,15 @@ function drawEscritorio(t, shot, f, localP){
   rr(-54, -4, 108, 4, 2); g.fill();
   g.restore();
 
-  /* Protagonista com pose animada (flutuando, segurando_mesa, caindo ou normal) */
+  /* Protagonista com pose animada */
   const px = zg.poseName === 'segurando_mesa' ? 562 : 558;
   const py = zg.poseName === 'segurando_mesa' ? 1344 : 1348;
   drawProtagonista(px, py, 1.00, {
     t, ex: shot.expressao || f.ex, closed: f.closed, localP,
     fastBreath: isRed || zg.active,
-    pose: poseObjFromName(props.pose),
+    pose: shot.pose || poseObjFromName(props.pose),
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
     deskGripX: -108,
     deskGripY: -236,
     rimColor: isRed ? PAL.alert : PAL.cyan,
@@ -2634,21 +2891,39 @@ function drawEscritorio(t, shot, f, localP){
     lookX: zg.poseName === 'segurando_mesa' ? -0.55 : (zg.items.has('silhuetas_janela') ? 0.25 : -0.15)
   });
 
-  /* Props flutuantes em primeiro plano: lapiseira + xicara de cafe com gotas */
   drawFloatingProps(t, zg, localP, { layer: 'front' });
 }
 
-/* MODULO 8: big_face (close dramatico extremo no rosto do protagonista com suor/choque) */
-function drawBigFace(t, shot, f){
-  withBlur(8, () => {
-    drawBackdrop(t, 'red');
-    g.fillStyle = '#111827';
-    g.fillRect(120, 260, 840, 980);
+/* MODULO 8: big_face (close extremo com pupilas tremendo, suor caindo e ondas de choque) */
+function drawBigFace(t, shot, f, localP=0){
+  const isRed = shot.mood === 'red' || shot.expressao === 'shock' || shot.expressao === 'fear';
+  const accent = isRed ? PAL.alert : (shot.mood === 'yellow' ? PAL.yellow : PAL.cyan);
+  withBlur(7, () => {
+    drawBackdrop(t, isRed ? 'red' : (shot.mood || 'violet'));
+    g.fillStyle = isRed ? '#1A0B13' : '#111827';
+    g.fillRect(100, 250, 880, 1020);
   });
-  const jitX = noise(t * 48, 1) * 9;
-  const jitY = noise(t * 48, 2) * 9;
+
+  /* Ondas de choque concentricas expandindo atras do rosto */
   g.save();
-  g.translate(540 + jitX, 920 + jitY);
+  for (let k = 0; k < 4; k++) {
+    const phase = ((t * 1.35 + k * 0.25) % 1);
+    const rad = lerp(220, 720, easeOut(phase));
+    g.strokeStyle = rgba(accent, (1 - phase) * 0.42);
+    g.lineWidth = lerp(8, 2, phase);
+    g.beginPath(); g.arc(540, 885, rad, 0, Math.PI * 2); g.stroke();
+  }
+  drawSpeedLines(t, isRed ? 0.85 : 0.45, accent);
+  g.restore();
+
+  const amp = (shot.expressao === 'shock' || shot.acao_cena === 'explosao_choque') ? 10 : 4.5;
+  const jitX = noise(t * 48, 1) * amp;
+  const jitY = noise(t * 48, 2) * amp;
+  const talkAmt = speechMouthAt(t);
+  const faceEx = (shot.expressao && shot.expressao !== 'neutral') ? shot.expressao : 'shock';
+
+  g.save();
+  g.translate(540 + jitX, 915 + jitY);
   g.fillStyle = PAL.top;
   rr(-310, 265, 620, 880, 175); g.fill();
   g.save();
@@ -2659,16 +2934,19 @@ function drawBigFace(t, shot, f){
   g.fillStyle = PAL.skinShadow;
   rr(-64, 190, 128, 120, 40); g.fill();
 
-  drawHeadProtagonista(0, -15, 290, 'shock', f.closed, {
-    tilt: -0.04 + noise(t * 22, 3) * 0.016,
+  drawHeadProtagonista(0, -15, 290, faceEx, f.closed, {
+    tilt: -0.03 + noise(t * 22, 3) * 0.018,
     rimA: 0.98,
-    rimColor: PAL.alert,
+    rimColor: accent,
     rimAng: 0.12,
-    lookX: 0.12,
-    sweat: true
+    lookX: Math.sin(t * 2.1) * 0.14,
+    sweat: true,
+    talkAmt,
+    t,
+    tremble: true
   });
-  glow(0, 340, 380, PAL.cyan, 0.24);
-  glow(320, -20, 420, PAL.alert, 0.36);
+  glow(0, 340, 380, PAL.cyan, 0.22);
+  glow(320, -20, 420, accent, 0.36);
   g.restore();
 }
 
@@ -2679,14 +2957,12 @@ function drawBlecauteOlhos(t, shot, f, localP){
   const pulse = 0.5 + 0.5 * Math.sin(t * 8.5);
   const sc = lerp(0.84, 1.14, emerge);
 
-  /* Aura vermelha/fria sutil atras da silhueta */
   glow(540, 820, 460, PAL.alert, 0.16 + 0.12 * pulse);
 
   g.save();
   g.translate(540 + Math.sin(t * 32) * 2.5 * emerge, 940);
   g.scale(sc, sc);
 
-  /* Silhueta escura emergindo do breu */
   g.fillStyle = '#05070C';
   rr(-240, 130, 480, 920, 165); g.fill();
   circ(0, -70, 210);
@@ -2694,7 +2970,6 @@ function drawBlecauteOlhos(t, shot, f, localP){
   g.lineWidth = 5;
   g.beginPath(); g.arc(0, -70, 210, -0.75, 0.75); g.stroke();
 
-  /* Dois olhos penetrantes brilhando no escuro */
   const eyeY = -88;
   const eyeOff = 74;
   glow(-eyeOff, eyeY, 86, '#F8FAFC', 0.45 + 0.15 * pulse);
@@ -2709,7 +2984,6 @@ function drawBlecauteOlhos(t, shot, f, localP){
   circ(-eyeOff, eyeY, 3.5);
   circ(eyeOff, eyeY, 3.5);
 
-  /* Sorriso fino e sinistro surgindo no escuro se expressao for sinister_smile */
   if (shot.expressao === 'sinister_smile' || emerge > 0.35) {
     const sp = clamp((emerge - 0.25) / 0.65);
     if (sp > 0.05) {
@@ -2727,21 +3001,1124 @@ function drawBlecauteOlhos(t, shot, f, localP){
   g.restore();
 }
 
+/* ============================================================
+   PROPS E EFEITOS DINAMICOS 30FPS COMPARTILHADOS (MOTOR V7)
+   ============================================================ */
+function drawWallClock(cx, cy, r, t, isRed=false){
+  g.save();
+  g.translate(cx, cy);
+  g.fillStyle = '#0B1220';
+  circ(0, 0, r);
+  g.strokeStyle = isRed ? rgba(PAL.alert, 0.72) : '#475569';
+  g.lineWidth = 4;
+  g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke();
+  /* Marcadores de hora */
+  g.strokeStyle = 'rgba(226, 232, 240, 0.48)';
+  g.lineWidth = 2.5;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    g.beginPath();
+    g.moveTo(Math.cos(a) * r * 0.74, Math.sin(a) * r * 0.74);
+    g.lineTo(Math.cos(a) * r * 0.88, Math.sin(a) * r * 0.88);
+    g.stroke();
+  }
+  /* Ponteiros hora, minuto e segundo girando a cada frame */
+  const hAng = -Math.PI * 0.35 + t * 0.02;
+  const mAng = -Math.PI * 0.85 + t * 0.18;
+  const sAng = -Math.PI * 0.5 + t * (Math.PI * 2 / 12);
+  g.lineCap = 'round';
+  g.strokeStyle = '#E2E8F0'; g.lineWidth = 4;
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(hAng) * r * 0.44, Math.sin(hAng) * r * 0.44); g.stroke();
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(mAng) * r * 0.66, Math.sin(mAng) * r * 0.66); g.stroke();
+  g.strokeStyle = isRed ? PAL.alert : PAL.cyan; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(sAng) * r * 0.76, Math.sin(sAng) * r * 0.76); g.stroke();
+  g.fillStyle = isRed ? PAL.alert : PAL.cyan;
+  circ(0, 0, 4);
+  g.restore();
+}
+
+function drawSpeedLines(t, intensity=0.6, color='#38D9FF'){
+  g.save();
+  g.lineCap = 'round';
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2 + Math.sin(t * 5 + i) * 0.04;
+    const r0 = 390 + ((t * 480 + i * 73) % 140);
+    const r1 = r0 + 190 + (i % 3) * 55;
+    g.strokeStyle = rgba(color, intensity * (0.16 + 0.16 * hash(i * 19 + Math.floor(t * 15))));
+    g.lineWidth = 2 + (i % 3) * 1.4;
+    g.beginPath();
+    g.moveTo(540 + Math.cos(a) * r0, 920 + Math.sin(a) * r0);
+    g.lineTo(540 + Math.cos(a) * r1, 920 + Math.sin(a) * r1);
+    g.stroke();
+  }
+  g.restore();
+}
+
+function drawHelicopter(cx, cy, t, sc=1, dir=1, isRed=false){
+  g.save();
+  g.translate(cx, cy);
+  g.scale(sc * dir, sc);
+  const pitch = Math.sin(t * 2.8) * 0.07 - 0.06;
+  g.rotate(pitch);
+
+  /* Holofote varrendo a cena */
+  const beamAng = 0.42 + Math.sin(t * 2.4) * 0.28;
+  g.save();
+  g.translate(38, 22);
+  g.rotate(beamAng);
+  const bg = g.createLinearGradient(0, 0, 0, 560);
+  bg.addColorStop(0, rgba(isRed ? '#FECACA' : '#E0F2FE', 0.34));
+  bg.addColorStop(1, 'rgba(224,242,254,0)');
+  g.fillStyle = bg;
+  g.beginPath();
+  g.moveTo(-12, 0); g.lineTo(12, 0); g.lineTo(135, 560); g.lineTo(-135, 560);
+  g.closePath(); g.fill();
+  g.restore();
+
+  /* Cauda e rotor traseiro girando */
+  g.strokeStyle = '#1E293B';
+  g.lineWidth = 14;
+  g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-48, -6); g.lineTo(-148, -14); g.lineTo(-162, -38); g.stroke();
+  const tailSpin = t * 44;
+  g.strokeStyle = '#94A3B8'; g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(-156 + Math.cos(tailSpin) * 20, -24 + Math.sin(tailSpin) * 20);
+  g.lineTo(-156 - Math.cos(tailSpin) * 20, -24 - Math.sin(tailSpin) * 20);
+  g.stroke();
+
+  /* Esquis de pouso */
+  g.strokeStyle = '#475569'; g.lineWidth = 5;
+  g.beginPath();
+  g.moveTo(-42, 42); g.lineTo(54, 42);
+  g.moveTo(-24, 24); g.lineTo(-28, 42);
+  g.moveTo(28, 24); g.lineTo(32, 42);
+  g.stroke();
+
+  /* Fuselagem e cabine iluminada */
+  g.fillStyle = '#0F172A';
+  ell(6, 2, 74, 34);
+  g.strokeStyle = isRed ? rgba(PAL.alert, 0.72) : rgba(PAL.cyan, 0.65);
+  g.lineWidth = 3;
+  g.beginPath(); g.ellipse(6, 2, 74, 34, 0, -Math.PI * 0.6, Math.PI * 0.35); g.stroke();
+  g.fillStyle = isRed ? '#FCA5A5' : '#7DD3FC';
+  g.beginPath();
+  g.moveTo(24, -18); g.quadraticCurveTo(68, -16, 74, 6); g.lineTo(22, 8); g.closePath();
+  g.fill();
+
+  /* Luz anticolisao piscando */
+  if (Math.sin(t * 14) > 0) {
+    glow(-148, -14, 34, PAL.alert, 0.85);
+    g.fillStyle = PAL.alert;
+    circ(-148, -14, 5);
+  }
+
+  /* Mastro e helice principal girando em alta velocidade */
+  g.fillStyle = '#64748B';
+  g.fillRect(-5, -48, 10, 22);
+  const rotorW = 136 * (0.45 + 0.55 * Math.abs(Math.cos(t * 38)));
+  g.fillStyle = 'rgba(203, 213, 225, 0.22)';
+  ell(0, -48, 142, 9);
+  g.strokeStyle = '#E2E8F0';
+  g.lineWidth = 5;
+  g.beginPath();
+  g.moveTo(-rotorW, -48); g.lineTo(rotorW, -48);
+  g.stroke();
+  g.restore();
+}
+
+function drawArrowVolley(t, count=11, accent='#FF3B30'){
+  g.save();
+  for (let i = 0; i < count; i++) {
+    const spd = 1.15 + (i % 4) * 0.28;
+    const p = ((t * spd + i * 0.19) % 1.15);
+    const sx = 1120 - p * 1240 + (i % 3) * 40;
+    const sy = 340 + (i * 68) % 520 + p * 340;
+    const ang = Math.atan2(340, -1240);
+    g.save();
+    g.translate(sx, sy);
+    g.rotate(ang);
+    /* Trilha luminosa de velocidade */
+    const trG = g.createLinearGradient(0, 0, -135, 0);
+    trG.addColorStop(0, rgba(accent, 0.75));
+    trG.addColorStop(1, 'rgba(255,59,48,0)');
+    g.strokeStyle = trG;
+    g.lineWidth = 4;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(-135, 0); g.stroke();
+    /* Haste de madeira */
+    g.strokeStyle = '#D97706';
+    g.lineWidth = 4.5;
+    g.beginPath(); g.moveTo(-74, 0); g.lineTo(14, 0); g.stroke();
+    /* Ponta metalica afiada */
+    g.fillStyle = '#F8FAFC';
+    g.beginPath(); g.moveTo(26, 0); g.lineTo(8, -7); g.lineTo(12, 0); g.lineTo(8, 7); g.closePath(); g.fill();
+    /* Penas traseiras */
+    g.strokeStyle = PAL.yellow; g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(-64, 0); g.lineTo(-78, -9);
+    g.moveTo(-64, 0); g.lineTo(-78, 9);
+    g.stroke();
+    g.restore();
+  }
+  g.restore();
+}
+
+function drawRadarPulseRing(cx, cy, maxR, t, color='#FF3B30', label='5 KM'){
+  g.save();
+  for (let k = 0; k < 3; k++) {
+    const p = ((t * 0.72 + k * 0.33) % 1);
+    const r = lerp(45, maxR, easeOut(p));
+    g.strokeStyle = rgba(color, (1 - p) * 0.75);
+    g.lineWidth = lerp(5, 2, p);
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+  }
+  /* Anel limite tracejado + varredura giratoria */
+  g.strokeStyle = rgba(color, 0.62);
+  g.lineWidth = 3;
+  g.setLineDash([12, 10]);
+  g.beginPath(); g.arc(cx, cy, maxR * 0.84, 0, Math.PI * 2); g.stroke();
+  g.setLineDash([]);
+
+  const sw = t * 2.2;
+  g.fillStyle = rgba(color, 0.16);
+  g.beginPath();
+  g.moveTo(cx, cy);
+  g.arc(cx, cy, maxR * 0.84, sw, sw + 0.65);
+  g.closePath(); g.fill();
+
+  if (label) {
+    g.fillStyle = 'rgba(10, 15, 29, 0.82)';
+    rr(cx - 58, cy - maxR * 0.84 - 22, 116, 36, 10); g.fill();
+    g.strokeStyle = rgba(color, 0.75);
+    g.lineWidth = 2;
+    rr(cx - 58, cy - maxR * 0.84 - 22, 116, 36, 10); g.stroke();
+    g.fillStyle = color;
+    g.font = `900 22px ${MONO}`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(label, cx, cy - maxR * 0.84 - 3);
+  }
+  g.restore();
+}
+
+function drawExplosionShock(cx, cy, t, localP, color='#FF3B30'){
+  g.save();
+  const p = ((t * 1.4) % 1);
+  glow(cx, cy, lerp(140, 440, easeOut(p)), color, (1 - p) * 0.55);
+  for (let k = 0; k < 3; k++) {
+    const pk = ((t * 1.4 + k * 0.22) % 1);
+    g.strokeStyle = rgba(k === 0 ? PAL.yellow : color, (1 - pk) * 0.85);
+    g.lineWidth = lerp(10, 2, pk);
+    g.beginPath(); g.arc(cx, cy, lerp(30, 420, easeOut(pk)), 0, Math.PI * 2); g.stroke();
+  }
+  /* Faiscas radiais voando */
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2 + 0.2;
+    const dist = lerp(40, 390, easeOut((t * 1.6 + i * 0.09) % 1));
+    const px = cx + Math.cos(a) * dist;
+    const py = cy + Math.sin(a) * dist;
+    g.fillStyle = i % 2 === 0 ? PAL.yellow : color;
+    circ(px, py, 5.5 - (dist / 420) * 3.5);
+  }
+  g.restore();
+}
+
+/* ============================================================
+   7 NOVOS CENARIOS ILUSTRADOS E ANIMADOS 30FPS (MOTOR V7)
+   ============================================================ */
+
+/* CENARIO 1: oceano_ilha (ondas animadas, ilha + palmeiras, barco, radar 5KM, flechas, helicoptero, tsunami) */
+function drawOceanoIlha(t, shot, f, localP){
+  const isRed = shot.mood === 'red';
+  const acao = shot.acao_cena || 'barco_navegando';
+  drawBackdrop(t, shot.mood || 'navy');
+
+  /* Ceu oceanico dramatico com gradiente e nuvens deslizando */
+  const skyG = g.createLinearGradient(0, 0, 0, 980);
+  if (isRed) {
+    skyG.addColorStop(0, '#1B0712');
+    skyG.addColorStop(0.55, '#3A1120');
+    skyG.addColorStop(1, '#12182B');
+  } else if (shot.mood === 'yellow') {
+    skyG.addColorStop(0, '#0D172B');
+    skyG.addColorStop(0.55, '#2B241A');
+    skyG.addColorStop(1, '#0F223A');
+  } else {
+    skyG.addColorStop(0, '#061126');
+    skyG.addColorStop(0.58, '#0D294A');
+    skyG.addColorStop(1, '#133C5E');
+  }
+  g.fillStyle = skyG;
+  g.fillRect(-120, -100, W + 240, 1090);
+
+  /* Lua / brilho atmosferico no horizonte */
+  const moonX = 240 + Math.sin(t * 0.25) * 14;
+  const moonY = 390;
+  glow(moonX, moonY, 260, isRed ? PAL.alert : '#BAE6FD', 0.28);
+  g.fillStyle = isRed ? '#FCA5A5' : '#E0F2FE';
+  circ(moonX, moonY, 54);
+
+  /* Nuvens oceanicas em paralaxe */
+  g.fillStyle = isRed ? 'rgba(255, 130, 130, 0.10)' : 'rgba(186, 230, 253, 0.11)';
+  for (let i = 0; i < 4; i++) {
+    const cx = ((t * (18 + i * 7) + i * 310) % (W + 420)) - 210;
+    const cy = 320 + i * 95;
+    ell(cx, cy, 180 + i * 25, 34);
+    ell(cx + 85, cy - 16, 110, 28);
+  }
+
+  /* Aves marinhas distantes batendo asas */
+  g.strokeStyle = 'rgba(226, 232, 240, 0.45)';
+  g.lineWidth = 3;
+  for (let b = 0; b < 3; b++) {
+    const bx = ((t * 46 + b * 240) % (W + 180)) - 90;
+    const by = 460 + b * 42 + Math.sin(t * 3 + b) * 12;
+    const flap = Math.sin(t * 9 + b * 2.1) * 9;
+    g.beginPath();
+    g.moveTo(bx - 16, by + flap); g.quadraticCurveTo(bx - 6, by - 8, bx, by);
+    g.quadraticCurveTo(bx + 6, by - 8, bx + 16, by + flap);
+    g.stroke();
+  }
+
+  /* Onda gigante / tsunami atras da ilha se acao_cena === onda_gigante */
+  if (acao === 'onda_gigante') {
+    const waveRise = easeOut(clamp(localP * 1.15));
+    const crestY = lerp(740, 440, waveRise) + Math.sin(t * 5.2) * 18;
+    const wg = g.createLinearGradient(0, crestY, 0, 1080);
+    wg.addColorStop(0, '#38BDF8');
+    wg.addColorStop(0.25, '#0369A1');
+    wg.addColorStop(1, '#082F49');
+    g.fillStyle = wg;
+    g.beginPath();
+    g.moveTo(-120, 1080);
+    g.lineTo(-120, crestY + 120);
+    g.quadraticCurveTo(220, crestY - 120, 620, crestY + 15);
+    g.quadraticCurveTo(860, crestY + 90, W + 140, crestY - 30);
+    g.lineTo(W + 140, 1080);
+    g.closePath();
+    g.fill();
+    /* Espuma revolta na crista do tsunami */
+    g.strokeStyle = 'rgba(224, 242, 254, 0.85)';
+    g.lineWidth = 14;
+    g.beginPath();
+    g.moveTo(-80, crestY + 95);
+    g.quadraticCurveTo(220, crestY - 115, 620, crestY + 18);
+    g.stroke();
+    for (let sp = 0; sp < 14; sp++) {
+      const sx = 120 + sp * 62 + Math.sin(t * 8 + sp) * 18;
+      const sy = crestY - 25 + Math.cos(t * 7 + sp * 1.3) * 32;
+      g.fillStyle = 'rgba(224, 242, 254, 0.65)';
+      circ(sx, sy, 5 + (sp % 4) * 3);
+    }
+  }
+
+  /* Ilha tropical densa (Ilha Sentinela) ao fundo direito */
+  const islX = 760, islY = 965;
+  g.fillStyle = '#071520';
+  g.beginPath();
+  g.moveTo(430, islY);
+  g.quadraticCurveTo(560, islY - 165, 740, islY - 210);
+  g.quadraticCurveTo(890, islY - 245, 1060, islY - 110);
+  g.lineTo(1160, islY + 20);
+  g.lineTo(430, islY + 20);
+  g.closePath();
+  g.fill();
+  /* Faixa de areia escura na praia */
+  g.fillStyle = '#332C24';
+  ell(760, islY - 8, 280, 22);
+
+  /* 3 palmeiras balancando continuamente no vento */
+  const palms = [
+    { x: 610, y: islY - 118, h: 125, lean: -22, ph: 0.2 },
+    { x: 755, y: islY - 188, h: 150, lean: 14, ph: 1.4 },
+    { x: 890, y: islY - 148, h: 132, lean: 28, ph: 2.7 }
+  ];
+  for (const pm of palms) {
+    const sway = Math.sin(t * 2.6 + pm.ph) * 16;
+    const topX = pm.x + pm.lean + sway;
+    const topY = pm.y - pm.h;
+    g.strokeStyle = '#1E293B';
+    g.lineWidth = 10;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(pm.x, pm.y);
+    g.quadraticCurveTo(pm.x + pm.lean * 0.4, pm.y - pm.h * 0.55, topX, topY);
+    g.stroke();
+    /* Folhas de palmeira */
+    g.strokeStyle = isRed ? '#2F1B24' : '#0F3B3E';
+    g.lineWidth = 7;
+    for (let fr = -2; fr <= 2; fr++) {
+      const ang = -Math.PI * 0.5 + fr * 0.55 + sway * 0.012;
+      const fx = topX + Math.cos(ang) * 58;
+      const fy = topY + Math.sin(ang) * 42 + 16;
+      g.beginPath();
+      g.moveTo(topX, topY);
+      g.quadraticCurveTo(topX + Math.cos(ang) * 32, topY + Math.sin(ang) * 18 - 10, fx, fy);
+      g.stroke();
+    }
+  }
+
+  /* Radar pulsante de exclusao ao redor da ilha */
+  if (acao === 'radar_alerta' || acao === 'investigando_pista') {
+    const rLabel = (shot.hud_dado && shot.hud_dado.valor) ? String(shot.hud_dado.valor).slice(0, 10) : '5 KM';
+    drawRadarPulseRing(750, 860, 290, t, isRed ? PAL.alert : PAL.cyan, rLabel);
+  }
+
+  /* Helicoptero sobrevoando a ilha com helice girando */
+  if (acao === 'helicoptero_sobrevoando') {
+    const hx = 560 + Math.sin(t * 1.4) * 110;
+    const hy = 460 + Math.cos(t * 2.1) * 26;
+    drawHelicopter(hx, hy, t, 1.05, 1, isRed);
+  }
+
+  /* 3 camadas de ondas do oceano animadas em 30fps */
+  const waveLayers = [
+    { yBase: 965, amp: 14, freq: 0.012, spd: 2.2, col: '#0A2540', foam: 'rgba(125,211,252,0.22)' },
+    { yBase: 1085, amp: 20, freq: 0.010, spd: -2.8, col: '#071C33', foam: 'rgba(186,230,253,0.26)' },
+    { yBase: 1225, amp: 24, freq: 0.0085, spd: 3.4, col: '#041224', foam: 'rgba(56,217,255,0.20)' }
+  ];
+
+  for (let li = 0; li < waveLayers.length; li++) {
+    const wl = waveLayers[li];
+    /* Barco balancando nas ondas entre camada 1 e 2 (separado do protagonista para silhueta limpa) */
+    if (li === 1) {
+      const boatX = 705 + Math.sin(t * 0.9) * 34;
+      const boatY = 1048 + Math.sin(t * 2.8 + boatX * 0.01) * 18;
+      const boatPitch = Math.cos(t * 2.8 + boatX * 0.01) * 0.11;
+      g.save();
+      g.translate(boatX, boatY);
+      g.rotate(boatPitch);
+      /* Casco do barco */
+      g.fillStyle = '#3B2318';
+      g.beginPath();
+      g.moveTo(-105, -8); g.lineTo(105, -14); g.lineTo(76, 32); g.lineTo(-82, 32);
+      g.closePath(); g.fill();
+      g.strokeStyle = '#78350F'; g.lineWidth = 4; g.stroke();
+      /* Mastro e lanterna */
+      g.fillStyle = '#1E293B';
+      g.fillRect(-6, -110, 10, 102);
+      glow(24, -76, 72, PAL.yellow, 0.35 + 0.15 * Math.sin(t * 8));
+      g.fillStyle = PAL.yellow;
+      circ(24, -76, 7);
+      g.restore();
+    }
+
+    g.fillStyle = wl.col;
+    g.beginPath();
+    g.moveTo(-140, H + 120);
+    for (let x = -140; x <= W + 140; x += 36) {
+      const wy = wl.yBase + Math.sin(x * wl.freq + t * wl.spd) * wl.amp + Math.cos(x * wl.freq * 1.9 - t * wl.spd * 0.6) * (wl.amp * 0.4);
+      g.lineTo(x, wy);
+    }
+    g.lineTo(W + 140, H + 120);
+    g.closePath();
+    g.fill();
+
+    g.strokeStyle = wl.foam;
+    g.lineWidth = 5;
+    g.beginPath();
+    for (let x = -140; x <= W + 140; x += 36) {
+      const wy = wl.yBase + Math.sin(x * wl.freq + t * wl.spd) * wl.amp + Math.cos(x * wl.freq * 1.9 - t * wl.spd * 0.6) * (wl.amp * 0.4);
+      if (x === -140) g.moveTo(x, wy); else g.lineTo(x, wy);
+    }
+    g.stroke();
+  }
+
+  /* Piso de pier / proa de madeira em primeiro plano onde o protagonista se apoia */
+  g.fillStyle = '#141B29';
+  rr(-60, 1326, W + 120, 620, 0); g.fill();
+  g.fillStyle = '#1E293B';
+  g.fillRect(-60, 1326, W + 120, 14);
+
+  /* Protagonista animado */
+  drawProtagonista(280, 1352, 0.98, {
+    t, ex: shot.expressao || f.ex, closed: f.closed, localP,
+    fastBreath: isRed || acao === 'onda_gigante' || acao === 'chuva_flechas',
+    pose: shot.pose || 'falando',
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
+    rimColor: isRed ? PAL.alert : PAL.cyan,
+    rimA: 0.88,
+    lookX: 0.35
+  });
+
+  /* Chuva de flechas ou explosao na camada frontal */
+  if (acao === 'chuva_flechas') {
+    drawArrowVolley(t, 12, isRed ? PAL.alert : PAL.yellow);
+  } else if (acao === 'explosao_choque') {
+    drawExplosionShock(740, 740, t, localP, PAL.alert);
+  }
+}
+
+/* CENARIO 2: espaco_orbita (estrelas em paralaxe, planeta girando, satelite, asteroides, trajetorias) */
+function drawEspacoOrbita(t, shot, f, localP){
+  const isRed = shot.mood === 'red';
+  const acao = shot.acao_cena || 'flutuando_gravidade';
+  vgrad(isRed ? '#150612' : '#030714', '#02040A');
+
+  /* Nebulosa sutil animada */
+  glow(260 + Math.sin(t * 0.4) * 50, 520, 480, isRed ? PAL.alert : PAL.violet, 0.22);
+  glow(820 - Math.cos(t * 0.35) * 40, 760, 420, PAL.cyan, 0.16);
+
+  /* Campo de estrelas em 2 camadas de paralaxe continua */
+  for (let i = 0; i < 72; i++) {
+    const layer = i % 2 === 0 ? 1 : 2;
+    const sx = ((hash(i * 17.3) * W - t * (12 * layer)) % W + W) % W;
+    const sy = 140 + hash(i * 31.7) * 1240;
+    const tw = 0.45 + 0.55 * Math.sin(t * (2.5 + (i % 5)) + i * 1.7);
+    g.fillStyle = rgba(i % 7 === 0 ? '#7DD3FC' : '#F8FAFC', tw * (layer === 2 ? 0.9 : 0.55));
+    circ(sx, sy, layer === 2 ? 2.8 : 1.7);
+  }
+
+  /* Estrela cadente periodica */
+  const shP = (t * 0.65) % 1;
+  if (shP < 0.35) {
+    const k = shP / 0.35;
+    const x0 = lerp(960, 180, k), y0 = lerp(260, 540, k);
+    const sg = g.createLinearGradient(x0, y0, x0 + 130, y0 - 46);
+    sg.addColorStop(0, '#FFFFFF'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = sg; g.lineWidth = 3.5;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + 130, y0 - 46); g.stroke();
+  }
+
+  /* Planeta / Terra girando com atmosfera luminosa */
+  const px = 660, py = 680, pr = 255;
+  glow(px, py, pr * 1.55, isRed ? PAL.alert : PAL.cyan, 0.30);
+  g.save();
+  g.beginPath(); g.arc(px, py, pr, 0, Math.PI * 2); g.clip();
+  const pg = g.createRadialGradient(px - 80, py - 80, 30, px, py, pr);
+  pg.addColorStop(0, isRed ? '#7F1D1D' : '#1D4ED8');
+  pg.addColorStop(0.65, isRed ? '#3B0A14' : '#0B2856');
+  pg.addColorStop(1, '#030816');
+  g.fillStyle = pg;
+  g.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+
+  /* Continentes deslizando continuamente para simular rotacao planetaria */
+  const rotShift = (t * 48) % (pr * 2.6);
+  g.fillStyle = isRed ? 'rgba(248, 113, 113, 0.30)' : 'rgba(52, 211, 153, 0.38)';
+  for (let rep = -1; rep <= 1; rep++) {
+    const ox = px - pr + rotShift + rep * pr * 2.6;
+    ell(ox - 40, py - 55, 92, 46);
+    ell(ox + 95, py + 40, 110, 52);
+    ell(ox - 120, py + 75, 76, 36);
+  }
+  /* Faixas de nuvens girando ligeiramente mais rapido */
+  const clShift = (t * 66) % (pr * 2.4);
+  g.fillStyle = 'rgba(224, 242, 254, 0.22)';
+  for (let rep = -1; rep <= 1; rep++) {
+    const cx0 = px - pr + clShift + rep * pr * 2.4;
+    rr(cx0 - 80, py - 115, 165, 18, 9); g.fill();
+    rr(cx0 + 40, py + 15, 195, 16, 8); g.fill();
+    rr(cx0 - 110, py + 102, 140, 14, 7); g.fill();
+  }
+  /* Sombra noturna curva */
+  g.fillStyle = 'rgba(2, 6, 18, 0.52)';
+  circ(px + 135, py + 90, pr * 1.02);
+  g.restore();
+
+  /* Rim atmosferico do planeta */
+  g.strokeStyle = isRed ? rgba(PAL.alert, 0.72) : rgba(PAL.cyan, 0.78);
+  g.lineWidth = 5;
+  g.beginPath(); g.arc(px, py, pr + 2, Math.PI * 0.85, Math.PI * 1.95); g.stroke();
+
+  /* Arco de trajetoria orbital tracejado animado */
+  g.save();
+  g.translate(px, py);
+  g.rotate(-0.34);
+  g.strokeStyle = rgba(isRed ? PAL.alert : PAL.cyan, 0.45);
+  g.lineWidth = 3;
+  g.setLineDash([16, 12]);
+  g.lineDashOffset = -t * 58;
+  g.beginPath(); g.ellipse(0, 0, pr + 135, 95, 0, 0, Math.PI * 2); g.stroke();
+  g.setLineDash([]);
+
+  /* Satelite orbitando ao longo da elipse */
+  const satAng = t * 1.15;
+  const satX = Math.cos(satAng) * (pr + 135);
+  const satY = Math.sin(satAng) * 95;
+  g.save();
+  g.translate(satX, satY);
+  g.rotate(satAng * 0.4);
+  g.fillStyle = '#0284C7';
+  rr(-44, -10, 32, 20, 3); g.fill();
+  rr(12, -10, 32, 20, 3); g.fill();
+  g.fillStyle = '#E2E8F0';
+  rr(-11, -14, 22, 28, 4); g.fill();
+  if (Math.sin(t * 10) > 0) {
+    g.fillStyle = PAL.alert;
+    circ(0, -18, 4.5);
+  }
+  g.restore();
+  g.restore();
+
+  /* Asteroides girando em primeiro plano */
+  for (let a = 0; a < 4; a++) {
+    const ax = ((1160 - (t * (55 + a * 22) + a * 310)) % (W + 240) + (W + 240)) % (W + 240) - 120;
+    const ay = 360 + a * 210 + Math.sin(t * 1.5 + a) * 24;
+    g.save();
+    g.translate(ax, ay);
+    g.rotate(t * (0.8 + a * 0.35));
+    g.fillStyle = '#334155';
+    g.beginPath();
+    g.moveTo(-22, -10); g.lineTo(6, -24); g.lineTo(26, -6); g.lineTo(18, 20); g.lineTo(-14, 18);
+    g.closePath(); g.fill();
+    g.strokeStyle = '#64748B'; g.lineWidth = 2.5; g.stroke();
+    g.restore();
+  }
+
+  if (acao === 'radar_alerta') {
+    drawRadarPulseRing(px, py, 240, t, PAL.alert, 'ORBITA');
+  } else if (acao === 'explosao_choque') {
+    drawExplosionShock(px - 60, py - 40, t, localP, PAL.alert);
+  }
+
+  /* Plataforma espacial escura na base */
+  g.fillStyle = '#0A101E';
+  g.fillRect(-120, 1340, W + 240, 620);
+  g.strokeStyle = rgba(PAL.cyan, 0.38); g.lineWidth = 4;
+  g.beginPath(); g.moveTo(-120, 1342); g.lineTo(W + 120, 1342); g.stroke();
+
+  const isFloat = shot.pose === 'flutuando' || acao === 'flutuando_gravidade';
+  drawProtagonista(310, isFloat ? 1270 : 1352, 0.98, {
+    t, ex: shot.expressao || f.ex, closed: f.closed, localP,
+    fastBreath: isRed,
+    pose: isFloat ? 'flutuando' : (shot.pose || 'apontando'),
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
+    rimColor: isRed ? PAL.alert : PAL.cyan,
+    rimA: 0.92,
+    lookX: 0.35
+  });
+}
+
+/* CENARIO 3: cidade_rua (skyline em paralaxe, postes luminosos, asfalto molhado e farois) */
+function drawCidadeRua(t, shot, f, localP){
+  const isRed = shot.mood === 'red';
+  const acao = shot.acao_cena || 'corrida_fuga';
+  const scrollSpd = (acao === 'corrida_fuga' || shot.pose === 'correndo') ? 160 : 42;
+  drawBackdrop(t, shot.mood || 'navy');
+
+  /* Ceu urbano noturno */
+  vgrad(isRed ? '#210A15' : '#081226', '#0D1B33', 0, 1160);
+
+  /* Skyline traseiro em paralaxe lenta */
+  const backShift = (t * scrollSpd * 0.25) % 900;
+  for (let rep = -1; rep <= 2; rep++) {
+    const bx0 = rep * 900 - backShift;
+    const heights = [360, 520, 410, 610, 470, 540, 390];
+    for (let i = 0; i < heights.length; i++) {
+      const x = bx0 + i * 130;
+      const h = heights[i];
+      g.fillStyle = isRed ? '#1A0C16' : '#0A1629';
+      g.fillRect(x, 1160 - h, 116, h);
+      /* Antena piscante no topo dos predios mais altos */
+      if (h > 500) {
+        g.strokeStyle = '#475569'; g.lineWidth = 3;
+        g.beginPath(); g.moveTo(x + 58, 1160 - h); g.lineTo(x + 58, 1160 - h - 46); g.stroke();
+        if (Math.sin(t * 7 + i) > 0) {
+          g.fillStyle = PAL.alert;
+          circ(x + 58, 1160 - h - 48, 5);
+        }
+      }
+      /* Janelas iluminadas */
+      g.fillStyle = isRed ? 'rgba(255, 130, 130, 0.20)' : 'rgba(250, 204, 21, 0.22)';
+      for (let wy = 1160 - h + 28; wy < 1120; wy += 34) {
+        for (let wx = x + 16; wx < x + 98; wx += 24) {
+          if (hash(wx * 5 + wy * 3) > 0.42) g.fillRect(wx, wy, 12, 16);
+        }
+      }
+    }
+  }
+
+  /* Postes de rua em paralaxe mais rapida com cone de luz */
+  const lampShift = (t * scrollSpd) % 520;
+  for (let rep = -1; rep <= 3; rep++) {
+    const lx = rep * 520 - lampShift;
+    g.strokeStyle = '#334155'; g.lineWidth = 9;
+    g.beginPath(); g.moveTo(lx, 1210); g.lineTo(lx, 760); g.lineTo(lx + 42, 760); g.stroke();
+    g.fillStyle = isRed ? '#FCA5A5' : '#FEF08A';
+    rr(lx + 24, 756, 30, 10, 4); g.fill();
+    const lg = g.createLinearGradient(lx + 38, 766, lx + 38, 1220);
+    lg.addColorStop(0, rgba(isRed ? PAL.alert : PAL.yellow, 0.24));
+    lg.addColorStop(1, 'rgba(255,212,0,0)');
+    g.fillStyle = lg;
+    g.beginPath();
+    g.moveTo(lx + 22, 766); g.lineTo(lx + 54, 766); g.lineTo(lx + 160, 1220); g.lineTo(lx - 84, 1220);
+    g.closePath(); g.fill();
+  }
+
+  /* Rua asfaltada + faixas passando + rastros de farol */
+  g.fillStyle = '#090E19';
+  g.fillRect(-120, 1160, W + 240, 820);
+  g.fillStyle = '#1E293B';
+  g.fillRect(-120, 1160, W + 240, 12);
+  /* Faixas da pista correndo */
+  const laneShift = (t * scrollSpd * 1.45) % 210;
+  g.fillStyle = 'rgba(255, 212, 0, 0.48)';
+  for (let x = -220; x < W + 260; x += 210) {
+    rr(x - laneShift, 1244, 110, 12, 5); g.fill();
+  }
+  /* Rastros luminosos de carros ao fundo */
+  for (let c = 0; c < 3; c++) {
+    const cx = ((t * (380 + c * 110) + c * 420) % (W + 460)) - 230;
+    const cy = 1192 + c * 16;
+    const cg = g.createLinearGradient(cx, cy, cx - 180, cy);
+    cg.addColorStop(0, c % 2 === 0 ? PAL.alert : '#E0F2FE');
+    cg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.strokeStyle = cg; g.lineWidth = 6;
+    g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx - 180, cy); g.stroke();
+  }
+
+  /* Helicoptero ou sirene / linhas de velocidade em corrida */
+  if (acao === 'helicoptero_sobrevoando') {
+    drawHelicopter(720 + Math.sin(t * 1.3) * 90, 420 + Math.cos(t * 2) * 20, t, 0.95, -1, isRed);
+  }
+  if (acao === 'corrida_fuga') {
+    const sirenRed = Math.sin(t * 13) > 0;
+    glow(sirenRed ? 160 : 920, 1080, 320, sirenRed ? PAL.alert : '#3B82F6', 0.24);
+    drawSpeedLines(t, 0.55, isRed ? PAL.alert : PAL.cyan);
+  } else if (acao === 'explosao_choque') {
+    drawExplosionShock(760, 760, t, localP, PAL.alert);
+  }
+
+  drawProtagonista(420, 1358, 1.00, {
+    t, ex: shot.expressao || f.ex, closed: f.closed, localP,
+    fastBreath: isRed || acao === 'corrida_fuga',
+    pose: shot.pose || (acao === 'corrida_fuga' ? 'correndo' : 'falando'),
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
+    rimColor: isRed ? PAL.alert : PAL.cyan,
+    rimA: 0.85,
+    lookX: 0.22
+  });
+}
+
+/* CENARIO 4: ceu_nuvens (nuvens em paralaxe, raios, aeronave/helicoptero e linhas de vento) */
+function drawCeuNuvens(t, shot, f, localP){
+  const isRed = shot.mood === 'red';
+  const acao = shot.acao_cena || 'flutuando_gravidade';
+  const skyG = g.createLinearGradient(0, 0, 0, H);
+  if (isRed) {
+    skyG.addColorStop(0, '#1D0812');
+    skyG.addColorStop(0.55, '#3F1426');
+    skyG.addColorStop(1, '#090D18');
+  } else {
+    skyG.addColorStop(0, '#071734');
+    skyG.addColorStop(0.55, '#13345F');
+    skyG.addColorStop(1, '#091122');
+  }
+  g.fillStyle = skyG;
+  g.fillRect(-140, -140, W + 280, H + 280);
+
+  /* Relampago animado atravessando as nuvens */
+  const boltPulse = Math.sin(t * 7.8) * Math.sin(t * 19.3);
+  if (boltPulse > 0.55 || acao === 'explosao_choque') {
+    const bx = 260 + ((Math.floor(t * 2) * 290) % 580);
+    glow(bx, 560, 420, '#E0F2FE', 0.32);
+    g.strokeStyle = '#F8FAFC';
+    g.lineWidth = 7;
+    g.beginPath();
+    g.moveTo(bx, 180);
+    g.lineTo(bx - 42, 410);
+    g.lineTo(bx + 26, 540);
+    g.lineTo(bx - 35, 790);
+    g.stroke();
+  }
+
+  /* 3 camadas de nuvens volumetricas deslizando continuamente */
+  const cloudBands = [
+    { y: 420, spd: 28, col: isRed ? 'rgba(254, 202, 202, 0.14)' : 'rgba(186, 230, 253, 0.16)', r: 150 },
+    { y: 760, spd: 54, col: isRed ? 'rgba(159, 18, 57, 0.28)' : 'rgba(56, 189, 248, 0.20)', r: 185 },
+    { y: 1180, spd: 86, col: isRed ? 'rgba(30, 12, 22, 0.78)' : 'rgba(12, 28, 54, 0.80)', r: 230 }
+  ];
+  for (let bi = 0; bi < cloudBands.length; bi++) {
+    const cb = cloudBands[bi];
+    g.fillStyle = cb.col;
+    for (let i = 0; i < 4; i++) {
+      const cx = ((t * cb.spd + i * 380) % (W + 520)) - 260;
+      const cy = cb.y + Math.sin(t * 0.9 + i + bi) * 18;
+      ell(cx, cy, cb.r, cb.r * 0.34);
+      ell(cx - cb.r * 0.48, cy + 16, cb.r * 0.65, cb.r * 0.26);
+      ell(cx + cb.r * 0.52, cy + 12, cb.r * 0.70, cb.r * 0.28);
+    }
+  }
+
+  /* Helicoptero ou jato cortando as nuvens */
+  if (acao === 'helicoptero_sobrevoando') {
+    drawHelicopter(540 + Math.sin(t * 1.6) * 140, 500 + Math.cos(t * 2.2) * 32, t, 1.15, 1, isRed);
+  } else {
+    const jx = ((t * 190) % (W + 380)) - 190;
+    const jy = 460 + Math.sin(t * 1.4) * 28;
+    const trG = g.createLinearGradient(jx, jy, jx - 240, jy);
+    trG.addColorStop(0, 'rgba(224,242,254,0.55)');
+    trG.addColorStop(1, 'rgba(224,242,254,0)');
+    g.strokeStyle = trG; g.lineWidth = 6;
+    g.beginPath(); g.moveTo(jx, jy - 8); g.lineTo(jx - 240, jy - 8); g.stroke();
+    g.beginPath(); g.moveTo(jx, jy + 8); g.lineTo(jx - 240, jy + 8); g.stroke();
+    g.fillStyle = '#E2E8F0';
+    g.beginPath();
+    g.moveTo(jx + 34, jy); g.lineTo(jx - 18, jy - 18); g.lineTo(jx - 8, jy); g.lineTo(jx - 18, jy + 18);
+    g.closePath(); g.fill();
+  }
+
+  /* Linhas de vento verticais para sensacao de altitude / queda */
+  g.strokeStyle = 'rgba(224, 242, 254, 0.22)';
+  g.lineWidth = 3;
+  for (let w = 0; w < 14; w++) {
+    const wx = 80 + ((w * 97) % (W - 160));
+    const wy = ((H - (t * 620 + w * 180)) % H + H) % H;
+    g.beginPath(); g.moveTo(wx, wy); g.lineTo(wx, wy + 120); g.stroke();
+  }
+
+  /* Base escura para contraste de legendas */
+  const botG = g.createLinearGradient(0, 1280, 0, H);
+  botG.addColorStop(0, 'rgba(5, 9, 18, 0)');
+  botG.addColorStop(0.35, 'rgba(5, 9, 18, 0.82)');
+  botG.addColorStop(1, '#040710');
+  g.fillStyle = botG;
+  g.fillRect(-120, 1280, W + 240, 680);
+
+  drawProtagonista(520, (shot.pose === 'caindo' || shot.pose === 'flutuando') ? 1265 : 1345, 1.00, {
+    t, ex: shot.expressao || f.ex, closed: f.closed, localP,
+    fastBreath: true,
+    pose: shot.pose || 'flutuando',
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
+    rimColor: isRed ? PAL.alert : '#7DD3FC',
+    rimA: 0.92,
+    lookY: -0.25
+  });
+}
+
+/* CENARIO 5: floresta_noite (arvores balancando no vento, neblina, vagalumes e olhos ocultos) */
+function drawFlorestaNoite(t, shot, f, localP){
+  const isRed = shot.mood === 'red';
+  const acao = shot.acao_cena || 'investigando_pista';
+  drawBackdrop(t, shot.mood || 'navy');
+
+  vgrad(isRed ? '#1A0812' : '#05111B', '#030810', 0, 1340);
+
+  /* Lua cheia brilhando atras das copas */
+  glow(760, 420, 320, isRed ? PAL.alert : '#BAE6FD', 0.28);
+  g.fillStyle = isRed ? '#FECACA' : '#E0F2FE';
+  circ(760, 420, 74);
+
+  /* 2 camadas de arvores altas balancando continuamente no vento */
+  const treeLayers = [
+    { count: 9, col: '#071821', baseY: 1320, hMin: 560, hMax: 840, swayAmp: 12, spd: 1.5 },
+    { count: 6, col: '#040E14', baseY: 1360, hMin: 680, hMax: 940, swayAmp: 22, spd: 2.1 }
+  ];
+  const runShift = (acao === 'corrida_fuga' || shot.pose === 'correndo') ? (t * 145) : 0;
+  for (let li = 0; li < treeLayers.length; li++) {
+    const tl = treeLayers[li];
+    g.fillStyle = tl.col;
+    for (let i = 0; i < tl.count; i++) {
+      const tx = (((i * (W + 240) / tl.count) - runShift * (li === 1 ? 1.4 : 0.7)) % (W + 240) + (W + 240)) % (W + 240) - 120;
+      const th = lerp(tl.hMin, tl.hMax, hash(i * 13 + li * 7));
+      const sway = Math.sin(t * tl.spd + i * 1.4) * tl.swayAmp;
+      /* Tronco curvo */
+      g.beginPath();
+      g.moveTo(tx - 18, tl.baseY);
+      g.lineTo(tx + 18, tl.baseY);
+      g.lineTo(tx + 6 + sway, tl.baseY - th);
+      g.lineTo(tx - 6 + sway, tl.baseY - th);
+      g.closePath(); g.fill();
+      /* Copas em triangulos organicos */
+      for (let tier = 0; tier < 3; tier++) {
+        const ty = tl.baseY - th * (0.45 + tier * 0.22);
+        const tw = 115 - tier * 24;
+        const ts = sway * (0.55 + tier * 0.22);
+        g.beginPath();
+        g.moveTo(tx + ts, ty - 145);
+        g.lineTo(tx + ts - tw, ty + 30);
+        g.lineTo(tx + ts + tw, ty + 30);
+        g.closePath(); g.fill();
+      }
+    }
+  }
+
+  /* Olhos brilhantes ocultos na mata piscando periodicamente */
+  const eyeBlink = Math.sin(t * 2.1) > -0.82;
+  if (eyeBlink) {
+    const ex0 = 835, ey0 = 965;
+    glow(ex0, ey0, 64, isRed ? PAL.alert : PAL.yellow, 0.35);
+    g.fillStyle = isRed ? PAL.alert : PAL.yellow;
+    ell(ex0 - 16, ey0, 8, 4.5);
+    ell(ex0 + 16, ey0, 8, 4.5);
+  }
+
+  /* Neblina rasteira deslizando */
+  for (let fg = 0; fg < 4; fg++) {
+    const fx = ((t * (28 + fg * 10) + fg * 340) % (W + 540)) - 270;
+    const fy = 1150 + fg * 42;
+    g.fillStyle = isRed ? 'rgba(254, 202, 202, 0.08)' : 'rgba(186, 230, 253, 0.09)';
+    ell(fx, fy, 290, 56);
+  }
+
+  /* Vagalumes brilhantes flutuando em curvas organicas */
+  for (let ff = 0; ff < 16; ff++) {
+    const fx = 120 + hash(ff * 23) * (W - 240) + Math.sin(t * (1.2 + (ff % 4) * 0.3) + ff) * 46;
+    const fy = 520 + hash(ff * 41) * 740 + Math.cos(t * (1.4 + (ff % 3) * 0.35) + ff * 1.7) * 38;
+    const pulse = 0.35 + 0.65 * Math.sin(t * 5.2 + ff * 2.1);
+    const col = isRed ? PAL.alert : (ff % 2 === 0 ? '#A3E635' : PAL.cyan);
+    glow(fx, fy, 26, col, pulse * 0.55);
+    g.fillStyle = rgba(col, pulse);
+    circ(fx, fy, 3.6);
+  }
+
+  /* Chao escuro da trilha */
+  g.fillStyle = '#04080E';
+  g.fillRect(-120, 1324, W + 240, 640);
+
+  /* Lanterna varrendo a mata em investigando_pista */
+  if (acao === 'investigando_pista') {
+    const flAng = -0.18 + Math.sin(t * 2.3) * 0.24;
+    g.save();
+    g.translate(450, 1085);
+    g.rotate(flAng);
+    const flG = g.createLinearGradient(0, 0, 520, 0);
+    flG.addColorStop(0, 'rgba(254, 249, 195, 0.34)');
+    flG.addColorStop(1, 'rgba(254, 249, 195, 0)');
+    g.fillStyle = flG;
+    g.beginPath(); g.moveTo(0, -14); g.lineTo(520, -145); g.lineTo(520, 145); g.lineTo(0, 14); g.closePath(); g.fill();
+    g.restore();
+  }
+
+  drawProtagonista(365, 1356, 1.00, {
+    t, ex: shot.expressao || f.ex, closed: f.closed, localP,
+    fastBreath: isRed || acao === 'corrida_fuga',
+    pose: shot.pose || 'assustado',
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
+    rimColor: isRed ? PAL.alert : '#A3E635',
+    rimA: 0.86,
+    lookX: 0.35
+  });
+
+  if (acao === 'chuva_flechas') {
+    drawArrowVolley(t, 10, PAL.alert);
+  } else if (acao === 'radar_alerta') {
+    drawRadarPulseRing(780, 920, 220, t, PAL.alert, 'ALERTA');
+  }
+}
+
+/* CENARIO 6: laboratorio (tubos com bolhas, monitor de onda/ECG ao vivo e radar giratorio) */
+function drawLaboratorio(t, shot, f, localP){
+  const isRed = shot.mood === 'red';
+  const accent = isRed ? PAL.alert : PAL.cyan;
+  drawBackdrop(t, shot.mood || 'navy');
+
+  vgrad(isRed ? '#1A0A12' : '#081222', '#050914', 0, 1340);
+
+  /* Painel metalico tecnico de fundo */
+  g.strokeStyle = 'rgba(148, 163, 184, 0.12)'; g.lineWidth = 2;
+  for (let x = 90; x < W; x += 180) { g.beginPath(); g.moveTo(x, 220); g.lineTo(x, 1320); g.stroke(); }
+  for (let y = 320; y < 1320; y += 200) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+
+  /* 2 tubos de vidro iluminados com bolhas subindo a 30fps */
+  const tubes = [{ x: 118, col: isRed ? PAL.alert : '#22D3EE' }, { x: 962, col: isRed ? '#FB7185' : '#34D399' }];
+  for (let ti = 0; ti < tubes.length; ti++) {
+    const tb = tubes[ti];
+    g.fillStyle = '#0F172A';
+    rr(tb.x - 56, 390, 112, 46, 10); g.fill();
+    rr(tb.x - 56, 1050, 112, 54, 10); g.fill();
+    g.fillStyle = rgba(tb.col, 0.16);
+    rr(tb.x - 44, 436, 88, 614, 14); g.fill();
+    glow(tb.x, 740, 190, tb.col, 0.22);
+    /* Bolhas subindo continuamente */
+    for (let b = 0; b < 9; b++) {
+      const bp = ((t * (0.42 + (b % 3) * 0.15) + b * 0.17 + ti * 0.4) % 1);
+      const bx = tb.x + Math.sin(t * 2.5 + b * 2.1) * 22;
+      const by = lerp(1030, 460, bp);
+      g.fillStyle = rgba(tb.col, 0.65 * (1 - bp * 0.4));
+      circ(bx, by, 4 + (b % 4) * 2.4);
+    }
+    g.strokeStyle = rgba(tb.col, 0.55); g.lineWidth = 3.5;
+    rr(tb.x - 44, 436, 88, 614, 14); g.stroke();
+  }
+
+  /* Monitor central widescreen de telemetria + onda ao vivo + radar */
+  const mx = 200, my = 365, mw = 680, mh = 430;
+  g.fillStyle = '#070E1C';
+  rr(mx, my, mw, mh, 18); g.fill();
+  g.strokeStyle = rgba(accent, 0.68); g.lineWidth = 4;
+  rr(mx, my, mw, mh, 18); g.stroke();
+
+  /* Grade interna do monitor */
+  g.strokeStyle = rgba(accent, 0.14); g.lineWidth = 1.5;
+  for (let gx = mx + 40; gx < mx + mw; gx += 48) { g.beginPath(); g.moveTo(gx, my + 20); g.lineTo(gx, my + mh - 20); g.stroke(); }
+  for (let gy = my + 40; gy < my + mh; gy += 48) { g.beginPath(); g.moveTo(mx + 20, gy); g.lineTo(mx + mw - 20, gy); g.stroke(); }
+
+  /* Onda ECG / sinal oscilando ao vivo a esquerda do monitor */
+  g.strokeStyle = accent; g.lineWidth = 4.5;
+  g.beginPath();
+  for (let sx = 0; sx <= 370; sx += 6) {
+    const phase = (sx * 0.045) - t * 6.8;
+    const spike = Math.pow(Math.max(0, Math.sin(phase)), 9) * (isRed ? 74 : 52);
+    const wave = Math.sin(phase * 2.3) * 14 - spike + Math.sin(phase * 5) * 6;
+    const x = mx + 34 + sx, y = my + 160 + wave;
+    if (sx === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
+  g.stroke();
+
+  /* Radar circular giratorio a direita do monitor */
+  const rcx = mx + 545, rcy = my + 175, rr0 = 102;
+  g.strokeStyle = rgba(accent, 0.50); g.lineWidth = 2.5;
+  for (const frac of [0.35, 0.68, 1.0]) { g.beginPath(); g.arc(rcx, rcy, rr0 * frac, 0, Math.PI * 2); g.stroke(); }
+  const swA = t * 2.8;
+  g.fillStyle = rgba(accent, 0.24);
+  g.beginPath(); g.moveTo(rcx, rcy); g.arc(rcx, rcy, rr0, swA, swA + 0.75); g.closePath(); g.fill();
+  g.fillStyle = PAL.yellow;
+  circ(rcx + Math.cos(1.1) * 58, rcy + Math.sin(1.1) * 58, 5 + Math.sin(t * 9) * 2);
+
+  /* Barras de frequencia animadas na base do monitor */
+  for (let b = 0; b < 14; b++) {
+    const bh = 22 + Math.abs(Math.sin(t * 5.2 + b * 0.85)) * 78;
+    g.fillStyle = (b > 10 && isRed) ? PAL.alert : rgba(accent, 0.78);
+    rr(mx + 34 + b * 44, my + mh - 32 - bh, 28, bh, 5); g.fill();
+  }
+
+  /* Bancada de laboratorio e piso */
+  g.fillStyle = '#0A101E';
+  g.fillRect(-120, 1320, W + 240, 640);
+  g.fillStyle = '#1E293B';
+  rr(120, 1110, 840, 28, 8); g.fill();
+  g.fillStyle = '#0F172A';
+  g.fillRect(156, 1138, 22, 186);
+  g.fillRect(902, 1138, 22, 186);
+
+  if (shot.acao_cena === 'explosao_choque') {
+    drawExplosionShock(540, 610, t, localP, PAL.alert);
+  }
+
+  drawProtagonista(510, 1356, 1.00, {
+    t, ex: shot.expressao || f.ex, closed: f.closed, localP,
+    fastBreath: isRed,
+    pose: shot.pose || 'pensando',
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
+    rimColor: accent,
+    rimA: 0.90,
+    lookX: 0.15
+  });
+}
+
+/* CENARIO 7: arena_comparacao (palco em perspectiva, holofotes, barras crescendo e regua de escala) */
+function drawArenaComparacao(t, shot, f, localP){
+  const isRed = shot.mood === 'red';
+  const accent = isRed ? PAL.alert : (shot.mood === 'yellow' ? PAL.yellow : PAL.cyan);
+  drawBackdrop(t, shot.mood || 'violet');
+  vgrad(isRed ? '#1C0A15' : '#0B1024', '#050812', 0, 1340);
+
+  /* Holofotes cruzados varrendo o topo da arena */
+  for (let sp = 0; sp < 2; sp++) {
+    const ox = sp === 0 ? 180 : 900;
+    const ang = (sp === 0 ? 0.34 : -0.34) + Math.sin(t * 1.4 + sp * 2.2) * 0.14;
+    g.save();
+    g.translate(ox, 120);
+    g.rotate(ang);
+    const sg = g.createLinearGradient(0, 0, 0, 1180);
+    sg.addColorStop(0, rgba(sp === 0 ? PAL.cyan : accent, 0.22));
+    sg.addColorStop(1, 'rgba(56,217,255,0)');
+    g.fillStyle = sg;
+    g.beginPath(); g.moveTo(-26, 0); g.lineTo(26, 0); g.lineTo(190, 1180); g.lineTo(-190, 1180); g.closePath(); g.fill();
+    g.restore();
+  }
+
+  /* Piso de palco com grade em perspectiva animada */
+  g.fillStyle = '#070C18';
+  g.fillRect(-120, 1120, W + 240, 860);
+  g.strokeStyle = rgba(accent, 0.22); g.lineWidth = 2;
+  for (let i = -5; i <= 5; i++) {
+    g.beginPath(); g.moveTo(540 + i * 110, 1120); g.lineTo(540 + i * 280, 1700); g.stroke();
+  }
+  const gridShift = (t * 42) % 48;
+  for (let r = 0; r < 8; r++) {
+    const gy = 1125 + r * 48 + gridShift * 0.5;
+    if (gy < 1460) { g.beginPath(); g.moveTo(-80, gy); g.lineTo(W + 80, gy); g.stroke(); }
+  }
+
+  /* Barras de comparacao animadas crescendo suavemente no palco direito */
+  const grow = easeOut(clamp(prog(t, shot.sceneStart || shot.start, (shot.sceneStart || shot.start) + 1.1)));
+  const bars = [
+    { x: 545, hMax: 240, col: '#38BDF8', lbl: 'BASE' },
+    { x: 675, hMax: 430, col: PAL.yellow, lbl: '2X' },
+    { x: 805, hMax: 650, col: isRed ? PAL.alert : '#A855F7', lbl: 'MAX' }
+  ];
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i];
+    const pulse = 1 + Math.sin(t * 4.2 + i * 1.1) * 0.035;
+    const h = b.hMax * clamp(grow * (1.15 - i * 0.12)) * pulse;
+    const y0 = 1190 - h;
+    const bg = g.createLinearGradient(0, y0, 0, 1190);
+    bg.addColorStop(0, b.col);
+    bg.addColorStop(1, rgba(b.col, 0.16));
+    g.fillStyle = bg;
+    rr(b.x, y0, 96, h, 14); g.fill();
+    g.strokeStyle = rgba('#F8FAFC', 0.45); g.lineWidth = 2.5;
+    rr(b.x, y0, 96, h, 14); g.stroke();
+    glow(b.x + 48, y0, 96, b.col, 0.28);
+    g.fillStyle = '#F8FAFC';
+    g.font = `900 24px ${MONO}`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(b.lbl, b.x + 48, Math.max(380, y0 - 22));
+  }
+
+  /* Regua vertical de escala animada a extrema direita */
+  const rx = 968, rTop = 420, rBot = 1190;
+  g.strokeStyle = 'rgba(226, 232, 240, 0.48)'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(rx, rTop); g.lineTo(rx, rBot); g.stroke();
+  for (let tk = 0; tk <= 10; tk++) {
+    const ty = lerp(rBot, rTop, tk / 10);
+    g.beginPath(); g.moveTo(rx - (tk % 2 === 0 ? 22 : 12), ty); g.lineTo(rx, ty); g.stroke();
+  }
+  const markerP = clamp(grow * (shot.hud_dado ? Number(shot.hud_dado.progresso || 0.78) : 0.78) + Math.sin(t * 3.0) * 0.03, 0.08, 0.96);
+  const my = lerp(rBot, rTop, markerP);
+  g.fillStyle = accent;
+  g.beginPath(); g.moveTo(rx - 28, my); g.lineTo(rx - 52, my - 13); g.lineTo(rx - 52, my + 13); g.closePath(); g.fill();
+  g.strokeStyle = rgba(accent, 0.45); g.lineWidth = 2; g.setLineDash([10, 8]);
+  g.beginPath(); g.moveTo(520, my); g.lineTo(rx - 28, my); g.stroke();
+  g.setLineDash([]);
+
+  if (shot.acao_cena === 'explosao_choque') {
+    drawExplosionShock(852, 560, t, localP, PAL.alert);
+  }
+
+  drawProtagonista(305, 1354, 1.00, {
+    t, ex: shot.expressao || f.ex, closed: f.closed, localP,
+    fastBreath: isRed,
+    pose: shot.pose || 'apontando',
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
+    rimColor: accent,
+    rimA: 0.90,
+    lookX: 0.42
+  });
+}
+
 function drawScene(shot, t){
   const f = faceAt(t);
   const localP = prog(t, shot.start, shot.end);
-  switch (shot.modulo) {
+  const cen = shot.cenario || shot.modulo;
+  switch (cen) {
+    case 'oceano_ilha':         drawOceanoIlha(t, shot, f, localP); break;
+    case 'espaco_orbita':       drawEspacoOrbita(t, shot, f, localP); break;
+    case 'cidade_rua':          drawCidadeRua(t, shot, f, localP); break;
+    case 'ceu_nuvens':          drawCeuNuvens(t, shot, f, localP); break;
+    case 'floresta_noite':      drawFlorestaNoite(t, shot, f, localP); break;
+    case 'laboratorio':         drawLaboratorio(t, shot, f, localP); break;
+    case 'arena_comparacao':    drawArenaComparacao(t, shot, f, localP); break;
+    case 'escritorio':          drawEscritorio(t, shot, f, localP); break;
+    case 'sala_cozinha':        drawSalaCozinha(t, shot, f, localP); break;
+    case 'big_face':            drawBigFace(t, shot, f, localP); break;
     case 'quarto_noturno':      drawQuartoNoturno(t, shot, f, localP); break;
     case 'corredor_escuro':     drawCorredorEscuro(t, shot, f, localP); break;
     case 'celular_notificacao': drawCelularNotificacao(t, shot, f, localP); break;
     case 'camera_cctv':         drawCameraCctv(t, shot, f, localP); break;
     case 'elevador_cabine':     drawElevadorCabine(t, shot, f, localP); break;
     case 'carro_noite':         drawCarroNoite(t, shot, f, localP); break;
-    case 'sala_cozinha':        drawSalaCozinha(t, shot, f, localP); break;
-    case 'escritorio':          drawEscritorio(t, shot, f, localP); break;
-    case 'big_face':            drawBigFace(t, shot, f); break;
     case 'blecaute_olhos':      drawBlecauteOlhos(t, shot, f, localP); break;
-    default:                    drawQuartoNoturno(t, shot, f, localP); break;
+    default:                    drawOceanoIlha(t, shot, f, localP); break;
   }
 }
 
@@ -2786,6 +4163,7 @@ function drawParteBadge(t){
 }
 
 function drawClock(t, shot){
+  if (shot && shot.hud_dado) return;
   if (DEVICE_SCENES.has(shot.modulo)) return;
   if (katanaStateAt(t) !== null) return;
   if (isFullScreenCtaActive(t)) return;
@@ -2802,6 +4180,89 @@ function drawClock(t, shot){
 
   g.fillStyle = isRed ? PAL.alert : PAL.text;
   drawFittedText(CENAS.horario || '02:47', 0, 2, 205, 52, MONO, '900', 'center');
+  g.restore();
+}
+
+function formatAnimatedHudValue(rawVal, k){
+  const str = String(rawVal || '').trim();
+  if (!str) return '';
+  const m = str.match(/^(.*?)(\d+(?:[.,]\d+)?)(.*)$/);
+  if (!m) return toPtUpper(str);
+  const pre = m[1], numStr = m[2], suf = m[3];
+  const hasComma = numStr.includes(',');
+  const hasDot = numStr.includes('.');
+  const target = parseFloat(numStr.replace(',', '.'));
+  if (!isFinite(target)) return toPtUpper(str);
+  const decimals = (hasComma || hasDot) ? (numStr.split(/[.,]/)[1] || '').length : 0;
+  /* Para anos (1900..2099), inicia proximo para contagem rapida e nitida */
+  const startVal = (decimals === 0 && target >= 1900 && target <= 2099) ? Math.max(1900, target - 24) : 0;
+  const curVal = lerp(startVal, target, easeOut(clamp(k)));
+  let formatted = decimals > 0 ? curVal.toFixed(decimals) : String(Math.round(curVal));
+  if (hasComma) formatted = formatted.replace('.', ',');
+  return toPtUpper(`${pre}${formatted}${suf}`);
+}
+
+function drawHudDado(t, shot){
+  if (!shot || !shot.hud_dado) return;
+  if (katanaStateAt(t) !== null) return;
+  if (isFullScreenCtaActive(t)) return;
+
+  const hud = shot.hud_dado;
+  const rotulo = toPtUpper(String(hud.rotulo || 'DADO').trim());
+  const rawValor = String(hud.valor || '').trim();
+  if (!rawValor) return;
+
+  const sceneAge = Math.max(0, t - (shot.sceneStart ?? shot.start));
+  const enterK = easeOut(clamp(sceneAge / 0.24));
+  const countK = clamp(sceneAge / 0.85);
+  const targetProg = clamp(Number(hud.progresso ?? 0.75), 0.08, 1.0);
+  const barProg = clamp(targetProg * easeOut(countK), 0.04, 1.0);
+  const isRed = (shot.mood === 'red' || shot.acao_cena === 'radar_alerta' || shot.acao_cena === 'explosao_choque');
+  const accent = isRed ? PAL.alert : (shot.mood === 'yellow' ? PAL.yellow : PAL.cyan);
+  const dispValor = formatAnimatedHudValue(rawValor, countK);
+
+  const bw = 500, bh = 118;
+  const bx = 540 - bw / 2, by = 148 - (1 - enterK) * 18;
+
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = clamp(enterK * 1.15);
+
+  /* Cartao com borda completa em hairline (nunca borda lateral unica) */
+  g.fillStyle = 'rgba(8, 13, 26, 0.88)';
+  rr(bx, by, bw, bh, 18); g.fill();
+  g.strokeStyle = rgba(accent, 0.62);
+  g.lineWidth = 2.5;
+  rr(bx, by, bw, bh, 18); g.stroke();
+
+  /* Indicador luminoso pulsante + rotulo */
+  const dotPulse = 0.55 + 0.45 * Math.sin(t * 7.5);
+  glow(bx + 30, by + 30, 22, accent, 0.35 * dotPulse);
+  g.fillStyle = accent;
+  circ(bx + 30, by + 30, 6);
+
+  g.fillStyle = 'rgba(203, 213, 225, 0.90)';
+  drawFittedText(rotulo, bx + 48, by + 31, bw - 250, 22, SANS, '800', 'left');
+
+  /* Valor numerico animado (count-up) alinhado a direita */
+  g.fillStyle = isRed ? '#FCA5A5' : '#FFFFFF';
+  drawFittedText(dispValor, bx + bw - 24, by + 46, 225, 48, MONO, '900', 'right');
+
+  /* Barra de progresso / gauge animada */
+  const gx = bx + 24, gy = by + 84, gw = bw - 48, gh = 14;
+  g.fillStyle = 'rgba(148, 163, 184, 0.18)';
+  rr(gx, gy, gw, gh, 7); g.fill();
+  const fillW = Math.max(18, gw * barProg);
+  const gg = g.createLinearGradient(gx, gy, gx + fillW, gy);
+  gg.addColorStop(0, rgba(accent, 0.72));
+  gg.addColorStop(1, accent);
+  g.fillStyle = gg;
+  rr(gx, gy, fillW, gh, 7); g.fill();
+  /* Pulso de luz percorrendo a ponta da barra */
+  glow(gx + fillW, gy + gh / 2, 26, accent, 0.38 + 0.16 * Math.sin(t * 6.5));
+  g.fillStyle = '#FFFFFF';
+  circ(gx + fillW - 4, gy + gh / 2, 4.5);
+
   g.restore();
 }
 
@@ -2836,8 +4297,21 @@ function cameraFor(shot, t){
   const cx = lerp(shot.cam0[1], shot.cam1[1], k);
   const cy = lerp(shot.cam0[2], shot.cam1[2], k);
 
-  let sx = noise(t * 2.1, 11) * 4.0;
-  let sy = noise(t * 1.9, 29) * 4.0;
+  let sx = noise(t * 2.1, 11) * 4.5;
+  let sy = noise(t * 1.9, 29) * 4.5;
+
+  const camName = shot.cameraName || '';
+  if (camName === 'shake_impact') {
+    const dtShot = Math.max(0, t - shot.start);
+    const env = Math.exp(-dtShot * 4.2);
+    z += 0.045 * Math.exp(-dtShot * 5.8);
+    sx += Math.sin(dtShot * 96) * 20 * env + noise(t * 24, 5) * 3.5;
+    sy += Math.cos(dtShot * 84) * 16 * env + noise(t * 24, 9) * 3.5;
+  } else if (camName === 'float_cam') {
+    sx += Math.sin(t * 1.45) * 16;
+    sy += Math.cos(t * 1.15) * 18;
+    z += Math.sin(t * 1.10) * 0.018;
+  }
 
   for (let i = 0; i < KATANA_HITS.length; i++) {
     const kh = KATANA_HITS[i];
@@ -2872,18 +4346,19 @@ function finish(vig){
 }
 
 /* ============================================================
-   LEGENDAS ANTI-COLISAO V5.1 (ZERO COLAGEM + ZERO VAZAMENTO P1->P2)
+   LEGENDAS ANTI-COLISAO V7 (ZERO COLAGEM + ANOS 2004/2006 INTACTOS)
    ============================================================ */
 function buildPreviewCaptions(){
   const lines = [
-    [0.2, 4.2, 'Duas e quarenta e sete da manhã no quarto escuro.'],
-    [4.4, 9.2, 'O celular vibra com uma mensagem de número oculto.'],
-    [9.4, 14.2, 'No corredor vazio, uma cadeira aparece de frente pra porta.'],
-    [14.4, 18.8, 'Na câmera de segurança, alguém encara a lente sem piscar.'],
-    [22.8, 27.6, 'O elevador desce sozinho até um andar que não existe.'],
-    [27.8, 32.6, 'O GPS recalcula a rota para dentro da própria casa.'],
-    [32.8, 37.4, 'A luz apaga e o silêncio toma a sala inteira.'],
-    [37.6, 41.6, 'No escuro total, dois olhos abrem atrás de você.']
+    [0.1, 4.2, 'Existe uma ilha onde nenhum barco pode chegar a menos de 5 km.'],
+    [4.4, 8.8, 'Em 2004, um tsunami gigante atingiu o oceano inteiro.'],
+    [9.0, 13.4, 'Um helicóptero sobrevoou a ilha e levou uma chuva de flechas.'],
+    [13.6, 18.2, 'Em 2006, dois pescadores entraram lá e nunca voltaram.'],
+    [18.4, 23.0, 'Até satélites em órbita monitoram o perímetro isolado.'],
+    [23.2, 27.6, 'Nuvens de tempestade escondem a costa da Ilha Sentinela.'],
+    [27.8, 32.0, 'Cientistas analisam os dados em laboratório há décadas.'],
+    [32.2, 36.2, 'Mesmo hoje, o isolamento chega a 100% do território.'],
+    [36.4, 41.4, 'E se você pousasse lá agora? Comente aqui embaixo.']
   ];
   const groups = [];
   for (const [t0, t1, txt] of lines) {
@@ -2897,6 +4372,14 @@ function buildPreviewCaptions(){
     while (i < timed.length) {
       const rem = timed.length - i;
       let sz = rem <= 3 ? rem : (rem === 4 ? 2 : 3);
+      /* Mantem anos (2004/2006) e medidas (5 km) unidos com a palavra anterior */
+      if (i + sz < timed.length) {
+        const lastW = timed[i + sz - 1].palavra.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nextW = timed[i + sz].palavra.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if ((/^(em|de|ate|no|na)$/.test(lastW) && /^\d{4}$/.test(nextW)) || (/^\d+$/.test(lastW) && /^(km|m|kg|h|s)$/.test(nextW))) {
+          if (sz > 1) sz -= 1;
+        }
+      }
       const sl = timed.slice(i, i + sz);
       groups.push({ inicio: sl[0].inicio, fim: sl[sl.length - 1].fim, palavras: sl });
       i += sz;
@@ -3038,7 +4521,7 @@ window.measureCaptionAt = t => {
 };
 
 /* ============================================================
-   INICIALIZACAO DE TIMELINE + RENDER DETERMINISTICO
+   INICIALIZACAO DE TIMELINE + RENDER DETERMINISTICO 30FPS
    ============================================================ */
 function rebuildTimeline(cenasData, evData, audioDur){
   CENAS = (cenasData && Array.isArray(cenasData.cenas) && cenasData.cenas.length)
@@ -3069,9 +4552,9 @@ function rebuildTimeline(cenasData, evData, audioDur){
     if (typeof lbl === 'string' && lbl.trim()) parteLabel = lbl.trim();
   }
 
-  document.title = `${CENAS.titulo || 'Short V6'}: Player Universal V6`;
+  document.title = `${CENAS.titulo || 'Short V7'}: Estudio 2D Animado 30fps`;
   const h1 = document.getElementById('pageTitle');
-  if (h1) h1.textContent = `Previa do Short V6: ${CENAS.titulo || 'Player Universal'}`;
+  if (h1) h1.textContent = `Previa 2D 30fps: ${CENAS.titulo || 'Estudio Animado V7'}`;
 
   SHOTS = buildShotsFromConfig(CENAS, EV, duration);
   KATANA_HITS = buildKatanaHitsFromConfig(CENAS, EV, duration);
@@ -3087,9 +4570,10 @@ function rebuildTimeline(cenasData, evData, audioDur){
   }
   if (!EXPR_CUES.length) EXPR_CUES.push([0, 'neutral']);
 
+  /* Piscada automatica natural a cada ~2.5s */
   const bl = [];
   let bt = 0.85, bi = 0;
-  while (bt < duration + 1) { bl.push(bt); bt += 2.6 + hash(bi++ * 11.3) * 1.6; }
+  while (bt < duration + 1) { bl.push(bt); bt += 2.2 + hash(bi++ * 11.3) * 0.6; }
   for (const [ct] of EXPR_CUES) if (ct > 0.2) bl.push(Math.max(0.05, ct - 0.067));
   BLINKS = bl.sort((a, b) => a - b);
 }
@@ -3121,7 +4605,11 @@ function renderAt(t){
     g.restore();
 
     finish(shot.vig || 0.60);
-    drawClock(t, shot);
+    if (shot.hud_dado) {
+      drawHudDado(t, shot);
+    } else {
+      drawClock(t, shot);
+    }
 
     const cutAge = t - shot.start;
     if (shot.id > 1 && cutAge >= 0 && cutAge < 0.06) {
@@ -3137,10 +4625,24 @@ function renderAt(t){
 
 window.renderAt = renderAt;
 window.getDuration = () => duration;
-window.getShots = () => SHOTS.map(s => ({ id: s.id, cenaId: s.cenaId, scene: s.modulo, modulo: s.modulo, mood: s.mood, start: s.start, end: s.end, dur: s.dur }));
+window.getShots = () => SHOTS.map(s => ({
+  id: s.id,
+  cenaId: s.cenaId,
+  cenario: s.cenario,
+  scene: s.modulo,
+  modulo: s.modulo,
+  acao_cena: s.acao_cena,
+  pose: s.pose,
+  camera: s.cameraName,
+  hud_dado: s.hud_dado,
+  mood: s.mood,
+  start: s.start,
+  end: s.end,
+  dur: s.dur
+}));
 window.getKatanaHits = () => KATANA_HITS.map(h => ({ id: h.id, lines: h.lines, start: h.start, end: h.end, dur: h.dur }));
 window.getMidCta = () => ({
-  modo: EV.cta_modo || 'pausa_meio',
+  modo: EV.cta_modo || 'final',
   inicio: EV.cta_meio_inicio,
   fim: EV.cta_meio_fim,
   texto: EV.cta_texto || 'COMENTE EU QUERO'
@@ -3153,10 +4655,12 @@ window.getParteLabel = t => (typeof t === 'number' ? getActiveParteLabel(t) : pa
 window.setParteLabel = v => { parteLabel = String(v ?? '').trim(); renderAt(cur); };
 window.getLoadedConfig = () => ({
   schema_version: CENAS.schema_version,
+  motor: CENAS.motor || 'canvas_2d_30fps',
   video_id: CENAS.video_id,
   titulo: CENAS.titulo,
   horario: CENAS.horario,
   tem_parte_2: Boolean(window.getCorteParte2()),
+  cenarios: (CENAS.cenas || []).map(c => c.cenario || c.modulo),
   modulos: (CENAS.cenas || []).map(c => c.modulo)
 });
 
@@ -3236,11 +4740,11 @@ async function load(){
   const cP2 = window.getCorteParte2();
   const corteTxt = cP2 ? `Corte P2 em ${fmt(cP2)} s` : 'Short unico';
   if (audio && evData) {
-    status.textContent = `Motor Universal V6 (${CENAS.titulo}): ${audioSrc} sincronizado (${fmt(duration)} s | ${SHOTS.length} cortes | ${corteTxt}).`;
+    status.textContent = `Motor 2D Animado V7 (${CENAS.titulo}): ${audioSrc} sincronizado (${fmt(duration)} s | ${SHOTS.length} cortes | ${corteTxt}).`;
   } else if (cenasData) {
-    status.textContent = `Modo Previa V6 (${CENAS.titulo}): cenas.json carregado sem audio (${fmt(duration)} s | ${SHOTS.length} cortes).`;
+    status.textContent = `Modo Previa 2D V7 (${CENAS.titulo}): cenas.json carregado sem audio (${fmt(duration)} s | ${SHOTS.length} cortes).`;
   } else {
-    status.textContent = `Modo Previa V6 padrao: sem cenas.json e sem audio (${fmt(duration)} s | 10 modulos demonstrativos).`;
+    status.textContent = `Modo Previa 2D V7 padrao: sem cenas.json e sem audio (${fmt(duration)} s | 10 cenarios animados).`;
   }
   seek.max = duration;
   btn.disabled = false; seek.disabled = false; btn.removeAttribute('aria-busy');

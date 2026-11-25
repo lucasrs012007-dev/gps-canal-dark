@@ -3,9 +3,9 @@
 Este repositorio funciona como um motor completo e reutilizavel de producao e publicacao automatica de videos curtos verticais (1080x1920, 9:16). Toda a identidade do canal fica centralizada em um unico arquivo: `config_canal.json`.
 
 Em cada execucao na nuvem (GitHub Actions), a fabrica:
-1. Cria um roteiro inedito sem repetir temas anteriores (`pipeline/diretor_ia.py`).
+1. Cria um roteiro inedito sem repetir temas anteriores e dirige animacao 2D unica por fala (`pipeline/diretor_ia.py`).
 2. Gera a narracao natural com a velocidade configurada (`audio/gerar_narracao.py`) e aplica trilha ambiente com ducking automatico e normalizacao `-14 LUFS` (`audio/trilha_mix.py`).
-3. Gera uma imagem 9:16 exclusiva por cena (`gerar_cenas_visuais.py`) e renderiza o MP4 Full HD com movimento de camera e legendas sincronizadas (`render/renderizar.py`).
+3. Renderiza animacao 2D real quadro a quadro em 1080x1920 @ 30fps no HTML5 Canvas (`player_universal.html` + `render/renderizar.py`) com cenarios animados, personagem vivo, HUD de dados e legendas sincronizadas.
 4. Publica automaticamente nos canais habilitados (YouTube Shorts, Instagram Reels, TikTok) e entrega o pacote pronto no Telegram.
 
 ---
@@ -159,14 +159,14 @@ No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions 
 ## Passo 4: Rodar o primeiro teste manual
 
 1. No GitHub, abra a aba **Actions**.
-2. Selecione o workflow **Fabrica Dark V6 (Render na Nuvem + Telegram)**.
+2. Selecione o workflow **Fabrica Dark V7 (Animacao 2D 30fps + Telegram)**.
 3. Clique em **Run workflow** e preencha para o teste rapido:
    - `usar_video_atual`: desmarcado (`false`)
-   - `modo_teste`: marcado (`true`, gera apenas 2 cenas e 2 segundos para validar tudo rapido)
+   - `modo_teste`: marcado (`true`, renderiza apenas 3 segundos / 90 quadros @ 30fps para validar tudo rapido)
    - `youtube_privacidade`: `unlisted` (ou `config` para usar `config_canal.json`)
    - `tiktok_modo`: `inbox`
 4. Clique em **Run workflow** e acompanhe os logs passo a passo.
-5. Quando tudo ficar verde, rode novamente com `modo_teste` desmarcado (`false`) para gerar seu primeiro video completo em 1080p.
+5. Quando tudo ficar verde, rode novamente com `modo_teste` desmarcado (`false`) para gerar seu primeiro video completo em 1080p @ 30fps.
 
 ---
 
@@ -208,5 +208,5 @@ O workflow usa `repository_dispatch` (`novo_roteiro`) para disparos pontuais sem
 
 ```bash
 python3 -c "from pipeline.config_canal import carregar_config_canal; print(carregar_config_canal()['nome_canal'])"
-python3 render/testar_storyboard.py --somente-comando
+python3 render/testar_animacao_2d.py
 ```

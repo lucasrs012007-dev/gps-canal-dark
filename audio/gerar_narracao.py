@@ -1382,7 +1382,12 @@ def alinhar_palavras_na_frase(
     pesos = []
     for tok in tokens:
         limpa = re.sub(r"[^\wÀ-ÿ]", "", tok)
-        peso = max(2.0, float(len(limpa))) + 1.2
+        if re.fullmatch(r"(?:1\d{3}|20\d{2})", limpa):
+            peso = 12.5
+        elif limpa.isdigit() and len(limpa) >= 2:
+            peso = max(6.0, float(len(limpa)) * 2.4)
+        else:
+            peso = max(2.0, float(len(limpa))) + 1.2
         if tok.endswith((":", ",", ";", "...")):
             peso += 1.5
         pesos.append(peso)
@@ -1439,7 +1444,12 @@ def _distribuir_duracao_no_grupo(
     pesos = []
     for _, it in itens_grupo:
         tks = it["texto"].split()
-        peso = sum(max(2.0, float(len(re.sub(r"[^\wÀ-ÿ]", "", tok)))) + 1.2 for tok in tks)
+        peso = sum(
+            12.5
+            if re.fullmatch(r"(?:1\d{3}|20\d{2})", re.sub(r"[^\wÀ-ÿ]", "", tok))
+            else (max(2.0, float(len(re.sub(r"[^\wÀ-ÿ]", "", tok)))) + 1.2)
+            for tok in tks
+        )
         pesos.append(max(2.0, peso))
     soma = sum(pesos) or 1.0
     cursor = t_inicio_bloco
@@ -1456,8 +1466,32 @@ def _tamanho_texto_grupo(lista_palavras: list[dict]) -> int:
     return sum(len(str(p["palavra"])) for p in lista_palavras) + max(0, len(lista_palavras) - 1)
 
 
+_PREPOSICOES_ANTES_NUMERO = frozenset({"em", "de", "no", "na", "por", "ate", "ha", "com", "a", "aos", "entre"})
+_UNIDADES_APOS_NUMERO = frozenset({
+    "km", "m", "cm", "mm", "metros", "metro", "quilometros", "quilometro", "milhas",
+    "horas", "hora", "minutos", "minuto", "segundos", "segundo", "dias", "dia",
+    "anos", "ano", "graus", "milhoes", "milhao", "bilhoes", "bilhao", "mil", "vezes",
+})
+
+
+def _eh_token_numerico(palavra: str) -> bool:
+    limpa = re.sub(r"[^\w%]", "", str(palavra or ""))
+    return bool(re.search(r"\d", limpa))
+
+
+def _evita_corte_entre(pal_esq: str, pal_dir: str) -> bool:
+    """Impede quebrar 'em 2004', 'de 2006' ou '5 km' em blocos separados de legenda."""
+    esq = normalizar_chave(re.sub(r"[^\wÀ-ÿ]", "", str(pal_esq or "")))
+    dir_limpa = normalizar_chave(re.sub(r"[^\wÀ-ÿ%]", "", str(pal_dir or "")))
+    if esq in _PREPOSICOES_ANTES_NUMERO and _eh_token_numerico(pal_dir):
+        return True
+    if _eh_token_numerico(pal_esq) and (dir_limpa in _UNIDADES_APOS_NUMERO or dir_limpa.startswith("%")):
+        return True
+    return False
+
+
 def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
-    """Agrupa palavras de UMA unica frase em blocos legiveis (max 3 palavras e teto de caracteres V5.1/V5.2)."""
+    """Agrupa palavras de UMA unica frase em blocos legiveis (max 3 palavras, preservando anos/numeros)."""
     if not palavras_frase:
         return []
 
@@ -1489,6 +1523,18 @@ def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
                 tam = 2
             if tam == 2 and _tamanho_texto_grupo(clausula[i : i + 2]) > MAX_CHARS_GRUPO_2:
                 tam = 1
+
+            # Nunca separar preposicao+ano ('EM 2004') ou numero+unidade ('5 KM') na fronteira do bloco
+            if i + tam < n and tam >= 2:
+                if _evita_corte_entre(clausula[i + tam - 1]["palavra"], clausula[i + tam]["palavra"]):
+                    if tam == 2 and falta >= 3 and _tamanho_texto_grupo(clausula[i : i + 3]) <= MAX_CHARS_GRUPO_3 + 4:
+                        tam = 3
+                    else:
+                        tam -= 1
+            elif i + tam < n and tam == 1:
+                if _evita_corte_entre(clausula[i]["palavra"], clausula[i + 1]["palavra"]):
+                    if _tamanho_texto_grupo(clausula[i : i + 2]) <= MAX_CHARS_GRUPO_2 + 4:
+                        tam = 2
 
             grupos.append(clausula[i : i + tam])
             i += tam

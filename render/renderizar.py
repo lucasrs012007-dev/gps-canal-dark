@@ -1,17 +1,19 @@
-"""Estacao 3 (Motor Hibrido V7): Storyboard por IA + movimento de camera FFmpeg em 1080x1920 @ 30fps.
+"""Estacao 3 (Motor de Animacao 2D Real V7): HTML5 Canvas 1080x1920 @ 30fps via Chromium + FFmpeg.
 
 Uso (na raiz do repositorio):
     python3 render/renderizar.py --legendas          # render completo (output/short_NN.mp4 + parte1 + parte2)
-    python3 render/renderizar.py --legendas --teste  # render rapido de 2s para validacao
+    python3 render/renderizar.py --legendas --teste  # render rapido de 3s (90 quadros @ 30fps) para validacao
     python3 render/renderizar.py --legendas --dry-run-ffmpeg
-    python3 render/renderizar.py --motor canvas      # motor HTML5 Canvas legado (opcional)
 
-Recursos V7:
-- Sincroniza cada imagem `output/cenas/cena_NN.jpg` com a duracao exata da cena no audio (`audio/eventos.json`).
-- Aplica movimentos cinematograficos alternados com `zoompan` (zoom-in, zoom-out, pan horizontal e vertical),
-  transicoes suaves (`xfade`), vinheta escura (`vignette`) e legendas ASS sincronizadas na area segura de Shorts/Reels.
-- Exporta em Full HD vertical 1080x1920 (`-c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -r 30`),
-  mantendo compatibilidade total com `upload_youtube.py`, `automacao/enviar_telegram.py` e corte Parte 1 / Parte 2.
+Recursos V7 (zero imagens paradas / zero slideshow):
+- Renderiza exclusivamente em modo `canvas` (`player_universal.html` quadro a quadro a 30fps em 1080x1920).
+- Cada fala de `cenas.json` aciona cenario 2D animado proprio, personagem com respiracao/piscada/lip-sync,
+  acao dinamica da cena, movimentacao continua de camera e HUD animado de dados.
+- Mixa audio profissional via `audio/trilha_mix.py` (trilha aleatoria em loop ou sintese dark FFmpeg,
+  ducking automatico `sidechaincompress` em -22dB..-26dB e normalizacao social `-14 LUFS`).
+- Exporta MP4 Full HD vertical 1080x1920 (`libx264 -preset medium -crf 18 -pix_fmt yuv420p -r 30`),
+  mantendo compatibilidade total com `upload_youtube.py`, `upload_instagram.py`, `upload_tiktok.py`,
+  `automacao/enviar_telegram.py` e corte automatico Parte 1 / Parte 2.
 """
 
 from __future__ import annotations
@@ -54,9 +56,12 @@ PASTA_AUDIO = RAIZ / "audio"
 AUDIO_MIX = PASTA_AUDIO / "mix_final.mp3"
 AUDIO_MP3 = PASTA_AUDIO / "narracao.mp3"
 AUDIO_VOZ_LIMPA = PASTA_AUDIO / "voz_limpa.mp3"
+PLAYER_PADRAO = "player_universal.html"
+MOTOR_EXCLUSIVO = "canvas"
 LARGURA = 1080
 ALTURA = 1920
-DURACAO_PREVIA = 109.0
+DURACAO_PREVIA = 42.0
+DURACAO_TESTE_S = 3.0
 FOLGA_AUDIO = 0.3
 
 
@@ -86,6 +91,28 @@ def iniciar_servidor() -> tuple[http.server.ThreadingHTTPServer, int]:
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     return srv, porta
+
+
+def _descobrir_chromium_playwright() -> str | None:
+    """Fallback para localizar binario Chromium instalado pelo Playwright, se disponivel."""
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as pw:
+            exe = pw.chromium.executable_path
+            if exe and Path(exe).is_file():
+                return str(exe)
+    except Exception:
+        pass
+
+    cache_pw = Path.home() / ".cache" / "ms-playwright"
+    if cache_pw.is_dir():
+        for padrao in ("chromium-*/chrome-linux/chrome", "chromium_headless_shell-*/chrome-linux/headless_shell"):
+            achados = sorted(cache_pw.glob(padrao), reverse=True)
+            for p in achados:
+                if p.is_file():
+                    return str(p)
+    return None
 
 
 def encontrar_navegador(explicit: str | None = None) -> str:
@@ -122,6 +149,7 @@ def encontrar_navegador(explicit: str | None = None) -> str:
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
         "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
         "/usr/bin/chromium",
         "/usr/bin/chromium-browser",
     ]
@@ -129,8 +157,13 @@ def encontrar_navegador(explicit: str | None = None) -> str:
         if c and Path(c).is_file():
             return c
 
+    pw_bin = _descobrir_chromium_playwright()
+    if pw_bin:
+        return pw_bin
+
     raise SystemExit(
-        "Nenhum Chrome, Chromium ou Edge encontrado. Instale um deles ou passe --navegador <caminho>."
+        "Nenhum Chrome, Chromium ou Playwright Chromium encontrado. "
+        "Instale google-chrome/chromium ou passe --navegador <caminho>."
     )
 
 
@@ -451,7 +484,7 @@ def avaliar_js(cdp: ClienteCDP, expressao: str):
         {"expression": expressao, "returnByValue": True, "awaitPromise": True},
     )
     if "exceptionDetails" in res:
-        raise RuntimeError(f"Erro JS no player.html: {res['exceptionDetails']}")
+        raise RuntimeError(f"Erro JS no player_universal.html: {res['exceptionDetails']}")
     return res.get("result", {}).get("value")
 
 
@@ -461,9 +494,13 @@ def montar_comando_ffmpeg(
     audio_alvo: Path | None,
     duracao: float,
     usar_png: bool = False,
+    *,
+    trilha_audio: Path | None = None,
+    usar_mix_profissional: bool = True,
 ) -> list[str]:
+    """Monta comando FFmpeg 1080x1920 @ 30fps recebendo quadros Canvas via pipe + trilha/ducking/-14 LUFS."""
     vcodec_pipe = "png" if usar_png else "mjpeg"
-    cmd = [
+    cmd: list[str] = [
         "ffmpeg",
         "-y",
         "-loglevel",
@@ -473,12 +510,27 @@ def montar_comando_ffmpeg(
         "-vcodec",
         vcodec_pipe,
         "-framerate",
-        str(fps),
+        str(int(fps)),
         "-i",
         "pipe:0",
     ]
+
+    fc_audio: str | None = None
     if audio_alvo is not None:
-        cmd.extend(["-i", str(audio_alvo), "-map", "0:v:0", "-map", "1:a:0", "-af", "apad"])
+        cmd.extend(["-i", str(audio_alvo)])
+        if usar_mix_profissional:
+            inputs_extras, fc_audio, out_lbl, _origem = montar_filtro_mixagem_audio(
+                voice_input_idx=1,
+                duracao=duracao,
+                trilha_path=trilha_audio,
+                trilha_input_idx=2,
+                label_saida="aout",
+            )
+            cmd.extend(inputs_extras)
+            filter_complex = f"[0:v]noise=alls=3:allf=t[vout];{fc_audio}"
+            cmd.extend(["-filter_complex", filter_complex, "-map", "[vout]", "-map", f"[{out_lbl}]"])
+        else:
+            cmd.extend(["-map", "0:v:0", "-map", "1:a:0", "-vf", "noise=alls=3:allf=t", "-af", "apad"])
     else:
         cmd.extend(
             [
@@ -490,430 +542,10 @@ def montar_comando_ffmpeg(
                 "0:v:0",
                 "-map",
                 "1:a:0",
+                "-vf",
+                "noise=alls=3:allf=t",
             ]
         )
-    cmd.extend(
-        [
-            "-vf",
-            "noise=alls=3:allf=t",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "medium",
-            "-crf",
-            "18",
-            "-pix_fmt",
-            "yuv420p",
-            "-r",
-            str(fps),
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k" if audio_alvo is not None else "128k",
-            "-ar",
-            "44100",
-            "-ac",
-            "2",
-            "-shortest",
-            "-t",
-            f"{duracao:.3f}",
-            "-movflags",
-            "+faststart",
-            str(saida),
-        ]
-    )
-    return cmd
-
-
-# ============================================================
-# MOTOR HIBRIDO V7: STORYBOARD POR IA + MOVIMENTO DE CAMERA FFMPEG
-# ============================================================
-
-PASTA_CENAS_VISUAIS = RAIZ / "output" / "cenas"
-ARQUIVO_CENAS_JSON = RAIZ / "cenas.json"
-TRANSICAO_XFADE_PADRAO_S = 0.25
-OVERSAMPLE_LARGURA = 1296
-OVERSAMPLE_ALTURA = 2304
-MOVIMENTOS_CAMERA: tuple[str, ...] = (
-    "zoom_in",
-    "pan_lr",
-    "zoom_out",
-    "pan_ud",
-    "zoom_in",
-    "pan_rl",
-    "zoom_out",
-    "pan_du",
-)
-MAPA_CAMERA_MOVIMENTO: dict[str, str] = {
-    "push_in": "zoom_in",
-    "tight_close": "zoom_in",
-    "pull_out": "zoom_out",
-    "pan_right": "pan_lr",
-    "pan_left": "pan_rl",
-    "wide_still": "pan_ud",
-}
-
-
-def _normalizar_chave_palavra(texto: str) -> str:
-    import re
-    import unicodedata
-
-    sem_acento = "".join(
-        ch for ch in unicodedata.normalize("NFD", str(texto or "")) if unicodedata.category(ch) != "Mn"
-    )
-    return re.sub(r"[^a-z0-9]+", "", sem_acento.lower())
-
-
-def _escapar_texto_ass(texto: str) -> str:
-    return (
-        str(texto or "")
-        .replace("\\", r"\\")
-        .replace("{", r"\{")
-        .replace("}", r"\}")
-        .replace("\n", " ")
-        .strip()
-    )
-
-
-def _formatar_tempo_ass(segundos: float) -> str:
-    s = max(0.0, float(segundos))
-    horas = int(s // 3600)
-    minutos = int((s % 3600) // 60)
-    segs = int(s % 60)
-    centesimos = int(round((s - int(s)) * 100))
-    if centesimos >= 100:
-        centesimos = 0
-        segs += 1
-        if segs >= 60:
-            segs = 0
-            minutos += 1
-            if minutos >= 60:
-                minutos = 0
-                horas += 1
-    return f"{horas}:{minutos:02d}:{segs:02d}.{centesimos:02d}"
-
-
-def _escapar_caminho_filtro_ffmpeg(caminho: Path) -> str:
-    txt = caminho.resolve().as_posix()
-    return (
-        txt.replace("\\", r"\\")
-        .replace(":", r"\:")
-        .replace("'", r"\'")
-        .replace("[", r"\[")
-        .replace("]", r"\]")
-    )
-
-
-def gerar_legenda_ass(
-    timestamps_dados: dict,
-    destino_ass: Path,
-    *,
-    duracao_max: float | None = None,
-    palavras_vermelhas: list[str] | set[str] | None = None,
-    fonte: str = "DejaVu Sans",
-) -> Path | None:
-    """Gera arquivo ASS 1080x1920 com legendas grandes, centralizadas e destaque palavra por palavra."""
-    grupos = timestamps_dados.get("grupos") if isinstance(timestamps_dados, dict) else None
-    if not isinstance(grupos, list) or not grupos:
-        return None
-
-    destaques_vermelhos = {
-        _normalizar_chave_palavra(w) for w in (palavras_vermelhas or ()) if _normalizar_chave_palavra(w)
-    }
-
-    cabecalho = [
-        "[Script Info]",
-        "ScriptType: v4.00+",
-        f"PlayResX: {LARGURA}",
-        f"PlayResY: {ALTURA}",
-        "WrapStyle: 2",
-        "ScaledBorderAndShadow: yes",
-        "",
-        "[V4+ Styles]",
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
-        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
-        "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        # Fonte limpa branca, contorno preto grosso (6px), sombra suave, centralizada dentro da area segura Shorts/Reels
-        f"Style: Shorts,{fonte},74,&H00FFFFFF,&H0000D4FF,&H00000000,&H90000000,-1,0,0,0,100,100,1,0,1,6,3,2,96,96,480,1",
-        "",
-        "[Events]",
-        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-    ]
-
-    eventos_ass: list[str] = []
-    for grp in grupos:
-        if not isinstance(grp, dict):
-            continue
-        palavras = grp.get("palavras")
-        if not isinstance(palavras, list) or not palavras:
-            g_ini = float(grp.get("inicio", 0.0))
-            g_fim = float(grp.get("fim", g_ini + 0.4))
-            if duracao_max is not None:
-                if g_ini >= duracao_max:
-                    continue
-                g_fim = min(g_fim, duracao_max)
-            if g_fim - g_ini < 0.04:
-                continue
-            texto_grp = _escapar_texto_ass(str(grp.get("texto", "")).upper())
-            if texto_grp:
-                eventos_ass.append(
-                    f"Dialogue: 0,{_formatar_tempo_ass(g_ini)},{_formatar_tempo_ass(g_fim)},Shorts,,0,0,0,,{texto_grp}"
-                )
-            continue
-
-        for idx_p, pal in enumerate(palavras):
-            t_ini = float(pal.get("inicio", grp.get("inicio", 0.0)))
-            if idx_p + 1 < len(palavras):
-                t_fim = float(palavras[idx_p + 1].get("inicio", pal.get("fim", t_ini + 0.15)))
-            else:
-                t_fim = float(pal.get("fim", grp.get("fim", t_ini + 0.18)))
-            if duracao_max is not None:
-                if t_ini >= duracao_max:
-                    continue
-                t_fim = min(t_fim, duracao_max)
-            if t_fim <= t_ini + 0.02:
-                t_fim = min(duracao_max if duracao_max is not None else t_ini + 0.08, t_ini + 0.08)
-            if t_fim <= t_ini + 0.01:
-                continue
-
-            partes_txt: list[str] = []
-            for j, item_w in enumerate(palavras):
-                palavra_up = _escapar_texto_ass(str(item_w.get("palavra", "")).upper())
-                if not palavra_up:
-                    continue
-                chave_w = _normalizar_chave_palavra(palavra_up)
-                if j == idx_p:
-                    if chave_w in destaques_vermelhos:
-                        partes_txt.append(r"{\c&H00303BFF&\fscx108\fscy108}" + palavra_up + r"{\c&H00FFFFFF&\fscx100\fscy100}")
-                    else:
-                        partes_txt.append(r"{\c&H0000D4FF&\fscx106\fscy106}" + palavra_up + r"{\c&H00FFFFFF&\fscx100\fscy100}")
-                else:
-                    partes_txt.append(palavra_up)
-            linha_txt = " ".join(partes_txt).strip()
-            if linha_txt:
-                eventos_ass.append(
-                    f"Dialogue: 0,{_formatar_tempo_ass(t_ini)},{_formatar_tempo_ass(t_fim)},Shorts,,0,0,0,,{linha_txt}"
-                )
-
-    if not eventos_ass:
-        return None
-
-    destino_ass.parent.mkdir(parents=True, exist_ok=True)
-    destino_ass.write_text("\n".join(cabecalho + eventos_ass) + "\n", encoding="utf-8")
-    return destino_ass
-
-
-def escolher_movimento_cena(camera_hint: str | None, idx: int, anterior: str | None) -> str:
-    """Alterna zoom-in, zoom-out e pan horizontal/vertical evitando repetir o mesmo movimento em sequencia."""
-    sugerido = MAPA_CAMERA_MOVIMENTO.get(str(camera_hint or "").strip().lower())
-    if sugerido and sugerido != anterior:
-        return sugerido
-    for desloc in range(len(MOVIMENTOS_CAMERA)):
-        cand = MOVIMENTOS_CAMERA[(idx + desloc) % len(MOVIMENTOS_CAMERA)]
-        if cand != anterior:
-            return cand
-    return "zoom_in"
-
-
-def expressao_zoompan_cena(movimento: str, total_frames: int, fps: int) -> str:
-    """Constroi filtro zoompan suave com oversampling 1296x2304 -> 1080x1920."""
-    n_frames = max(2, int(total_frames))
-    denom = max(1, n_frames - 1)
-    if movimento == "zoom_out":
-        expr = f"z='1.12-0.12*(on/{denom})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
-    elif movimento == "pan_lr":
-        expr = f"z='1.12':x='(iw-iw/zoom)*(on/{denom})':y='ih/2-(ih/zoom/2)'"
-    elif movimento == "pan_rl":
-        expr = f"z='1.12':x='(iw-iw/zoom)*(1-on/{denom})':y='ih/2-(ih/zoom/2)'"
-    elif movimento == "pan_ud":
-        expr = f"z='1.12':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*(on/{denom})'"
-    elif movimento == "pan_du":
-        expr = f"z='1.12':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*(1-on/{denom})'"
-    else:
-        expr = f"z='1+0.12*(on/{denom})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
-
-    return (
-        f"scale={OVERSAMPLE_LARGURA}:{OVERSAMPLE_ALTURA}:force_original_aspect_ratio=increase,"
-        f"crop={OVERSAMPLE_LARGURA}:{OVERSAMPLE_ALTURA},"
-        f"zoompan={expr}:d={n_frames}:s={LARGURA}x{ALTURA}:fps={int(fps)}"
-    )
-
-
-def construir_timeline_cenas(
-    cenas_dados: dict,
-    eventos_dados: dict | None,
-    duracao_total: float,
-    pasta_cenas: Path = PASTA_CENAS_VISUAIS,
-) -> list[dict]:
-    """Sincroniza exatamente cada imagem output/cenas/cena_NN.jpg com a duracao do audio daquela cena."""
-    lista = cenas_dados.get("cenas") if isinstance(cenas_dados, dict) else None
-    if not isinstance(lista, list) or not lista:
-        raise RuntimeError("cenas.json nao possui lista valida em 'cenas'.")
-
-    ev = eventos_dados if isinstance(eventos_dados, dict) else {}
-    dur = max(0.5, float(duracao_total))
-    n = len(lista)
-
-    inicios: list[float] = []
-    for idx, c in enumerate(lista):
-        chave = str(c.get("evento_inicio") or c.get("id") or f"cena_{idx + 1:02d}")
-        val = ev.get(chave)
-        if isinstance(val, (int, float)) and val >= 0.0:
-            inicios.append(float(val))
-        else:
-            dur_ref = max(dur, float(ev.get("duracao_total") or dur))
-            inicios.append((idx / n) * dur_ref)
-
-    inicios[0] = 0.0
-    for i in range(1, n):
-        if inicios[i] <= inicios[i - 1] + 0.25:
-            inicios[i] = inicios[i - 1] + 0.45
-
-    imagens_disponiveis = sorted(pasta_cenas.glob("cena_*.jpg"))
-    if not imagens_disponiveis:
-        raise FileNotFoundError(
-            f"Nenhuma imagem cena_*.jpg encontrada em {pasta_cenas}. Rode python3 gerar_cenas_visuais.py primeiro."
-        )
-
-    timeline: list[dict] = []
-    mov_anterior: str | None = None
-
-    for idx, c in enumerate(lista):
-        t_ini = inicios[idx]
-        if t_ini >= dur - 0.15:
-            break
-        t_fim = inicios[idx + 1] if idx + 1 < n else dur
-        t_fim = min(dur, max(t_ini + 0.15, t_fim))
-        dur_cena = round(t_fim - t_ini, 4)
-        if dur_cena < 0.10:
-            continue
-
-        img_esperada = pasta_cenas / f"cena_{idx + 1:02d}.jpg"
-        if img_esperada.is_file() and img_esperada.stat().st_size > 0:
-            img_path = img_esperada
-        else:
-            img_path = imagens_disponiveis[idx % len(imagens_disponiveis)]
-
-        mov = escolher_movimento_cena(c.get("camera"), idx, mov_anterior)
-        mov_anterior = mov
-        timeline.append(
-            {
-                "indice": idx + 1,
-                "id": str(c.get("id") or f"cena_{idx + 1:02d}"),
-                "imagem": img_path,
-                "inicio": round(t_ini, 4),
-                "fim": round(t_fim, 4),
-                "duracao": dur_cena,
-                "movimento": mov,
-                "mood": str(c.get("mood", "navy")),
-            }
-        )
-
-    if not timeline:
-        raise RuntimeError("Timeline de cenas vazia apos sincronizacao com a duracao do audio.")
-
-    # Garante fechamento exato na duracao total do video
-    timeline[-1]["fim"] = round(dur, 4)
-    timeline[-1]["duracao"] = round(max(0.15, dur - timeline[-1]["inicio"]), 4)
-    return timeline
-
-
-def montar_comando_ffmpeg_storyboard(
-    timeline: list[dict],
-    saida: Path,
-    fps: int,
-    audio_alvo: Path | None,
-    duracao: float,
-    *,
-    arquivo_ass: Path | None = None,
-    transicao_s: float = TRANSICAO_XFADE_PADRAO_S,
-    trilha_audio: Path | None = None,
-    usar_mix_profissional: bool = True,
-) -> list[str]:
-    """Monta comando FFmpeg 1080x1920: zoompan + xfade + vinheta + ASS + trilha/ducking/loudnorm -14 LUFS."""
-    if not timeline:
-        raise ValueError("Timeline de cenas vazia.")
-
-    cmd: list[str] = ["ffmpeg", "-y", "-loglevel", "error"]
-    for item in timeline:
-        cmd.extend(["-i", str(item["imagem"])])
-
-    audio_input_idx = len(timeline)
-    inputs_audio_extras: list[str] = []
-    fc_audio_mix: str | None = None
-    audio_map_spec = f"{audio_input_idx}:a:0"
-
-    if audio_alvo is not None:
-        cmd.extend(["-i", str(audio_alvo)])
-        if usar_mix_profissional:
-            inputs_audio_extras, fc_audio_mix, audio_out_lbl, _origem = montar_filtro_mixagem_audio(
-                voice_input_idx=audio_input_idx,
-                duracao=duracao,
-                trilha_path=trilha_audio,
-                trilha_input_idx=audio_input_idx + 1,
-                label_saida="aout",
-            )
-            cmd.extend(inputs_audio_extras)
-            audio_map_spec = f"[{audio_out_lbl}]"
-    else:
-        cmd.extend(
-            [
-                "-f",
-                "lavfi",
-                "-i",
-                "anullsrc=channel_layout=stereo:sample_rate=44100",
-            ]
-        )
-
-    n = len(timeline)
-    transicoes: list[float] = []
-    for i in range(n - 1):
-        d_atual = float(timeline[i]["duracao"])
-        d_prox = float(timeline[i + 1]["duracao"])
-        if transicao_s > 0.0 and min(d_atual, d_prox) >= max(0.85, transicao_s * 2.5):
-            transicoes.append(round(transicao_s, 3))
-        else:
-            transicoes.append(0.0)
-
-    partes_fc: list[str] = []
-    for i, item in enumerate(timeline):
-        sobreposicao = transicoes[i] if i < n - 1 else 0.0
-        dur_clip = float(item["duracao"]) + sobreposicao
-        total_frames = max(2, int(round(dur_clip * fps)) + 1)
-        zp = expressao_zoompan_cena(item["movimento"], total_frames=total_frames, fps=fps)
-        partes_fc.append(
-            f"[{i}:v]{zp},format=yuv420p,setsar=1,settb=AVTB,"
-            f"trim=duration={dur_clip:.4f},setpts=PTS-STARTPTS[v{i}]"
-        )
-
-    label_atual = "v0"
-    tempo_acum = float(timeline[0]["duracao"])
-    for i in range(1, n):
-        t_xf = transicoes[i - 1]
-        prox_label = f"xf{i}"
-        if t_xf > 0.0:
-            tipo_xf = "fadeblack" if (i == n - 1 and n >= 3) else "fade"
-            partes_fc.append(
-                f"[{label_atual}][v{i}]xfade=transition={tipo_xf}:duration={t_xf:.3f}:offset={tempo_acum:.4f}[{prox_label}]"
-            )
-        else:
-            partes_fc.append(f"[{label_atual}][v{i}]concat=n=2:v=1:a=0[{prox_label}]")
-        label_atual = prox_label
-        tempo_acum += float(timeline[i]["duracao"])
-
-    pos_filtros = ["vignette=PI/4.4"]
-    if arquivo_ass is not None and arquivo_ass.is_file():
-        ass_esc = _escapar_caminho_filtro_ffmpeg(arquivo_ass)
-        pos_filtros.append(f"ass=filename='{ass_esc}'")
-    partes_fc.append(f"[{label_atual}]{','.join(pos_filtros)}[vout]")
-
-    if fc_audio_mix is not None:
-        partes_fc.append(fc_audio_mix)
-
-    filter_complex = ";".join(partes_fc)
-    cmd.extend(["-filter_complex", filter_complex, "-map", "[vout]", "-map", audio_map_spec])
-    if audio_alvo is not None and fc_audio_mix is None:
-        cmd.extend(["-af", "apad"])
 
     cmd.extend(
         [
@@ -935,7 +567,7 @@ def montar_comando_ffmpeg_storyboard(
             "44100",
             "-ac",
             "2",
-            *([] if fc_audio_mix is not None else ["-shortest"]),
+            *([] if fc_audio is not None else ["-shortest"]),
             "-t",
             f"{duracao:.3f}",
             "-movflags",
@@ -1035,38 +667,26 @@ def fatiar_partes_ffmpeg(
     return p1, p2
 
 
-def _garantir_imagens_storyboard(
-    cenas_path: Path,
-    pasta_cenas: Path,
-    *,
-    usar_mock: bool = False,
-    max_cenas: int | None = None,
-) -> None:
-    """Gera automaticamente output/cenas/cena_NN.jpg se ainda nao estiverem presentes."""
-    cenas_dados = json.loads(cenas_path.read_text(encoding="utf-8"))
-    total_esperado = len(cenas_dados.get("cenas") or [])
-    if max_cenas is not None and max_cenas > 0:
-        total_esperado = min(total_esperado, int(max_cenas))
-    existentes = [
-        pasta_cenas / f"cena_{i:02d}.jpg"
-        for i in range(1, total_esperado + 1)
-        if (pasta_cenas / f"cena_{i:02d}.jpg").is_file()
-        and (pasta_cenas / f"cena_{i:02d}.jpg").stat().st_size > 20 * 1024
-    ]
-    if total_esperado > 0 and len(existentes) >= total_esperado:
-        return
-
-    from gerar_cenas_visuais import gerar_todas_cenas_visuais
-
-    gerar_todas_cenas_visuais(
-        cenas_path=cenas_path,
-        saida_dir=pasta_cenas,
-        usar_mock=usar_mock,
-        max_cenas=max_cenas,
-    )
+def resolver_player_html(args_player: str | None, video_ativo: dict) -> tuple[Path, str]:
+    """Resolve o player HTML5 Canvas (padrao estrito: player_universal.html)."""
+    player_rel = (args_player or str(video_ativo.get("player") or PLAYER_PADRAO)).strip() or PLAYER_PADRAO
+    player_path = Path(player_rel)
+    if not player_path.is_absolute():
+        player_path = (RAIZ / player_path).resolve()
+    if not player_path.is_file():
+        fallback = (RAIZ / PLAYER_PADRAO).resolve()
+        if not args_player and fallback.is_file():
+            player_path = fallback
+        else:
+            raise SystemExit(f"Player HTML nao encontrado: {player_path}")
+    try:
+        player_url_rel = player_path.relative_to(RAIZ).as_posix()
+    except ValueError as exc:
+        raise SystemExit(f"Player HTML precisa estar dentro do repositorio ({RAIZ}): {player_path}") from exc
+    return player_path, player_url_rel
 
 
-def renderizar_storyboard_ffmpeg(
+def renderizar_animacao_canvas(
     args: argparse.Namespace,
     video_ativo: dict,
     saida: Path,
@@ -1074,41 +694,9 @@ def renderizar_storyboard_ffmpeg(
     cta_modo: str,
     corte_parte_2: float | None,
     eventos_dados: dict,
-    timestamps_dados: dict,
 ) -> None:
-    """Executa o Motor Hibrido de Storyboard por IA + FFmpeg (1080x1920 @ 30fps)."""
-    cenas_path = args.cenas if args.cenas.is_absolute() else (RAIZ / args.cenas)
-    pasta_cenas = args.pasta_cenas if args.pasta_cenas.is_absolute() else (RAIZ / args.pasta_cenas)
-
-    if not cenas_path.is_file():
-        raise SystemExit(
-            f"Arquivo cenas.json nao encontrado ({cenas_path}). Rode a Estacao 1 ou use --motor canvas."
-        )
-
-    cenas_dados = json.loads(cenas_path.read_text(encoding="utf-8"))
-    if audio_alvo is not None:
-        folga = 0.05 if cta_modo in ("meio", "pausa_meio") else FOLGA_AUDIO
-        duracao_real = duracao_audio_ffprobe(audio_alvo) + folga
-        modo_audio = f"com audio ({audio_alvo.name}, {duracao_real:.2f}s incluindo folga de {folga}s)"
-    else:
-        duracao_real = float(eventos_dados.get("duracao_total") or 36.0)
-        modo_audio = f"mudo / Modo Previa ({duracao_real:.1f}s)"
-
-    duracao = min(2.0, duracao_real) if args.teste else duracao_real
-
-    _garantir_imagens_storyboard(
-        cenas_path=cenas_path,
-        pasta_cenas=pasta_cenas,
-        usar_mock=bool(args.mock_cenas),
-        max_cenas=2 if args.teste else None,
-    )
-
-    timeline = construir_timeline_cenas(
-        cenas_dados=cenas_dados,
-        eventos_dados=eventos_dados,
-        duracao_total=duracao,
-        pasta_cenas=pasta_cenas,
-    )
+    """Executa o Motor Exclusivo de Animacao 2D em 30fps (HTML5 Canvas 1080x1920 + Chromium + FFmpeg)."""
+    _player_path, player_url_rel = resolver_player_html(args.player, video_ativo)
 
     usar_mix_prof = (audio_alvo is not None) and (not bool(getattr(args, "sem_trilha", False)))
     trilha_escolhida: Path | None = None
@@ -1123,114 +711,32 @@ def renderizar_storyboard_ffmpeg(
             pasta_tr = pasta_tr if pasta_tr.is_absolute() else (RAIZ / pasta_tr)
             trilha_escolhida = selecionar_trilha_aleatoria(pasta_tr)
 
-    print(
-        f"Estacao 3 (Motor Hibrido Storyboard IA + FFmpeg): Video {int(video_ativo['id']):02d} "
-        f"'{video_ativo['titulo']}' -> "
-        f"{saida.relative_to(RAIZ).as_posix() if saida.is_relative_to(RAIZ) else saida}",
-        flush=True,
-    )
-    print(
-        f"  Modo: {modo_audio}{' [TESTE 2s]' if args.teste else ''} | "
-        f"Cenas={len(timeline)} | 1080x1920 @ {args.fps}fps | libx264 preset=medium crf=18",
-        flush=True,
-    )
-    if usar_mix_prof:
-        origem_tr = (
-            f"loop aleatoria ({trilha_escolhida.name})"
-            if trilha_escolhida is not None
-            else "sintese ambiente dark/suspense FFmpeg (anoisesrc + sine)"
-        )
-        print(
-            f"  Audio profissional: {origem_tr} | ducking sidechaincompress (-22dB..-26dB) | voz loudnorm (-14 LUFS)",
-            flush=True,
-        )
-    for item in timeline:
-        print(
-            f"  - {item['id']}: {item['imagem'].name} [{item['inicio']:.2f}s..{item['fim']:.2f}s, "
-            f"dur={item['duracao']:.2f}s, camera={item['movimento']}]",
-            flush=True,
-        )
-
-    inicio = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix="render-storyboard-") as tmp:
-        tmp_dir = Path(tmp)
-        arquivo_ass: Path | None = None
-        if args.legendas and timestamps_dados:
-            palavras_verm = cenas_dados.get("palavras_vermelhas") or []
-            arquivo_ass = gerar_legenda_ass(
-                timestamps_dados=timestamps_dados,
-                destino_ass=tmp_dir / "legendas.ass",
-                duracao_max=duracao,
-                palavras_vermelhas=palavras_verm,
-            )
-            if arquivo_ass is not None:
-                print(f"  Legendas ASS sincronizadas: {arquivo_ass.name} (area segura Shorts/Reels)", flush=True)
-
-        cmd_ff = montar_comando_ffmpeg_storyboard(
-            timeline=timeline,
+    if args.dry_run_ffmpeg:
+        if audio_alvo is not None:
+            folga = 0.05 if cta_modo in ("meio", "pausa_meio") else FOLGA_AUDIO
+            dur_base = duracao_audio_ffprobe(audio_alvo) + folga
+        else:
+            dur_base = float(eventos_dados.get("duracao_total") or DURACAO_PREVIA)
+        duracao = min(DURACAO_TESTE_S, dur_base) if args.teste else dur_base
+        cmd_ff = montar_comando_ffmpeg(
             saida=saida,
             fps=args.fps,
             audio_alvo=audio_alvo,
             duracao=duracao,
-            arquivo_ass=arquivo_ass,
+            usar_png=args.png,
             trilha_audio=trilha_escolhida,
             usar_mix_profissional=usar_mix_prof,
         )
-
-        if args.dry_run_ffmpeg:
-            print("[DRY-RUN FFMPEG] Comando gerado:")
-            print(" ".join(cmd_ff))
-            return
-
-        res = subprocess.run(cmd_ff, capture_output=True, text=True)
-        if res.returncode != 0:
-            raise RuntimeError(f"ffmpeg storyboard falhou (codigo {res.returncode}): {res.stderr.strip()}")
-
-    print(
-        f"Concluido em {time.monotonic() - inicio:.1f}s: {saida} ({saida.stat().st_size / 1024:.1f} KB)",
-        flush=True,
-    )
-
-    if (not args.teste) and (corte_parte_2 is not None) and (0.5 < corte_parte_2 < duracao - 0.5):
-        saidas_partes = caminhos_partes_atual() if args.saida is None else None
-        t_fat = time.monotonic()
-        p1, p2 = fatiar_partes_ffmpeg(saida, corte_parte_2, saidas_partes=saidas_partes)
-        d1 = duracao_audio_ffprobe(p1)
-        d2 = duracao_audio_ffprobe(p2)
-        print(
-            f"Corte automatico Parte 1 / Parte 2 concluido em {time.monotonic() - t_fat:.1f}s "
-            f"(corte={corte_parte_2:.3f}s):",
-            flush=True,
-        )
-        print(f"  Parte 1: {p1} ({d1:.2f}s, {p1.stat().st_size / 1024:.1f} KB)", flush=True)
-        print(f"  Parte 2: {p2} ({d2:.2f}s, {p2.stat().st_size / 1024:.1f} KB)", flush=True)
-
-
-def renderizar_canvas_legado(
-    args: argparse.Namespace,
-    video_ativo: dict,
-    saida: Path,
-    audio_alvo: Path | None,
-    cta_modo: str,
-    corte_parte_2: float | None,
-) -> None:
-    """Motor legado em HTML5 Canvas via Chromium CDP (mantido apenas via --motor canvas)."""
-    player_rel = (args.player or str(video_ativo.get("player", "player.html"))).strip() or "player.html"
-    player_path = Path(player_rel)
-    if not player_path.is_absolute():
-        player_path = (RAIZ / player_path).resolve()
-    if not player_path.is_file():
-        raise SystemExit(f"Player HTML nao encontrado: {player_path}")
-    try:
-        player_url_rel = player_path.relative_to(RAIZ).as_posix()
-    except ValueError as exc:
-        raise SystemExit(f"Player HTML precisa estar dentro do repositorio ({RAIZ}): {player_path}") from exc
+        print(f"[DRY-RUN FFMPEG] Motor=canvas | Player={player_url_rel} | Duracao={duracao:.2f}s | FPS={args.fps}")
+        print(" ".join(cmd_ff))
+        return
 
     navegador = encontrar_navegador(args.navegador)
     print(
-        f"Historico validado (Motor Canvas Legado): Video {int(video_ativo['id']):02d} "
+        f"Estacao 3 (Motor Animacao 2D 30fps - Canvas Exclusivo): Video {int(video_ativo['id']):02d} "
         f"'{video_ativo['titulo']}' [player={player_url_rel}] -> "
-        f"{saida.relative_to(RAIZ).as_posix() if saida.is_relative_to(RAIZ) else saida}"
+        f"{saida.relative_to(RAIZ).as_posix() if saida.is_relative_to(RAIZ) else saida}",
+        flush=True,
     )
 
     srv, porta_http = iniciar_servidor()
@@ -1253,7 +759,7 @@ def renderizar_canvas_legado(
         cdp.chamar("Page.navigate", {"url": f"http://127.0.0.1:{porta_http}/{player_url_rel}"})
 
         pronto = False
-        for _ in range(100):
+        for _ in range(120):
             pronto = avaliar_js(
                 cdp,
                 "typeof window.renderAt === 'function' && "
@@ -1278,7 +784,7 @@ def renderizar_canvas_legado(
             if corte_js is not None:
                 corte_parte_2 = float(corte_js)
 
-        dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 109"))
+        dur_player = float(avaliar_js(cdp, "typeof window.getDuration === 'function' ? window.getDuration() : 42"))
         if audio_alvo is not None:
             folga = 0.05 if cta_modo in ("meio", "pausa_meio") else FOLGA_AUDIO
             duracao_real = duracao_audio_ffprobe(audio_alvo) + folga
@@ -1287,13 +793,26 @@ def renderizar_canvas_legado(
             duracao_real = dur_player or DURACAO_PREVIA
             modo = f"mudo / Modo Previa ({duracao_real:.1f}s)"
 
-        duracao = min(2.0, duracao_real) if args.teste else duracao_real
+        duracao = min(DURACAO_TESTE_S, duracao_real) if args.teste else duracao_real
         total_quadros = max(1, int(round(duracao * args.fps)))
         pipe_fmt = "PNG" if args.png else "MJPEG q=0.96"
 
-        print(f"Navegador: {navegador}")
-        print(f"Modo: {modo}{' [TESTE 2s]' if args.teste else ''} | Pipe: {pipe_fmt}")
-        print(f"Renderizando {total_quadros} quadros ({LARGURA}x{ALTURA} @ {args.fps} fps) -> {saida}")
+        print(f"Navegador: {navegador}", flush=True)
+        print(
+            f"Modo: {modo}{' [TESTE 3s]' if args.teste else ''} | Pipe: {pipe_fmt} | "
+            f"{LARGURA}x{ALTURA} @ {args.fps}fps ({total_quadros} quadros)",
+            flush=True,
+        )
+        if usar_mix_prof:
+            origem_tr = (
+                f"loop aleatoria ({trilha_escolhida.name})"
+                if trilha_escolhida is not None
+                else "sintese ambiente dark/suspense FFmpeg (anoisesrc + sine)"
+            )
+            print(
+                f"Audio profissional: {origem_tr} | ducking sidechaincompress (-22dB..-26dB) | voz loudnorm (-14 LUFS)",
+                flush=True,
+            )
 
         if args.legendas:
             avaliar_js(cdp, "document.getElementById('cc').click()")
@@ -1301,6 +820,13 @@ def renderizar_canvas_legado(
         dims = avaliar_js(cdp, "(() => { const c = document.getElementById('c'); return [c.width, c.height]; })()")
         if dims != [LARGURA, ALTURA]:
             raise RuntimeError(f"Canvas com resolucao inesperada: {dims} (esperado {[LARGURA, ALTURA]}).")
+
+        shots_info = avaliar_js(cdp, "typeof window.getShots === 'function' ? window.getShots() : []") or []
+        cenarios_unicos = sorted({str(s.get("cenario") or s.get("modulo") or "") for s in shots_info if isinstance(s, dict)})
+        print(
+            f"Timeline 2D carregada: {len(shots_info)} planos | cenarios={', '.join(cenarios_unicos) or 'n/a'}",
+            flush=True,
+        )
 
         avaliar_js(
             cdp,
@@ -1312,7 +838,15 @@ def renderizar_canvas_legado(
             ),
         )
 
-        cmd_ff = montar_comando_ffmpeg(saida, args.fps, audio_alvo, duracao, usar_png=args.png)
+        cmd_ff = montar_comando_ffmpeg(
+            saida=saida,
+            fps=args.fps,
+            audio_alvo=audio_alvo,
+            duracao=duracao,
+            usar_png=args.png,
+            trilha_audio=trilha_escolhida,
+            usar_mix_profissional=usar_mix_prof,
+        )
         ff = subprocess.Popen(cmd_ff, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         assert ff.stdin is not None
 
@@ -1335,7 +869,10 @@ def renderizar_canvas_legado(
         if ret != 0:
             raise RuntimeError(f"ffmpeg falhou (codigo {ret}): {stderr_ff}")
 
-        print(f"Concluido em {time.monotonic() - inicio:.1f}s: {saida} ({saida.stat().st_size / 1024:.1f} KB)")
+        print(
+            f"Concluido em {time.monotonic() - inicio:.1f}s: {saida} ({saida.stat().st_size / 1024:.1f} KB)",
+            flush=True,
+        )
 
         if (not args.teste) and (corte_parte_2 is not None) and (0.5 < corte_parte_2 < duracao - 0.5):
             saidas_partes = caminhos_partes_atual() if args.saida is None else None
@@ -1345,10 +882,11 @@ def renderizar_canvas_legado(
             d2 = duracao_audio_ffprobe(p2)
             print(
                 f"Corte automatico Parte 1 / Parte 2 concluido em {time.monotonic() - t_fat:.1f}s "
-                f"(corte={corte_parte_2:.3f}s):"
+                f"(corte={corte_parte_2:.3f}s):",
+                flush=True,
             )
-            print(f"  Parte 1: {p1} ({d1:.2f}s, {p1.stat().st_size / 1024:.1f} KB)")
-            print(f"  Parte 2: {p2} ({d2:.2f}s, {p2.stat().st_size / 1024:.1f} KB)")
+            print(f"  Parte 1: {p1} ({d1:.2f}s, {p1.stat().st_size / 1024:.1f} KB)", flush=True)
+            print(f"  Parte 2: {p2} ({d2:.2f}s, {p2.stat().st_size / 1024:.1f} KB)", flush=True)
     finally:
         if ff and ff.poll() is None:
             ff.kill()
@@ -1363,15 +901,19 @@ def renderizar_canvas_legado(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Estacao 3: renderiza Short 9:16 (1080x1920 @ 30fps) via Storyboard IA + FFmpeg."
+        description="Estacao 3: renderiza Short 9:16 (1080x1920 @ 30fps) via Motor 2D Animado Canvas + FFmpeg."
     )
     parser.add_argument(
         "--motor",
-        choices=("storyboard", "canvas"),
-        default="storyboard",
-        help="Motor de renderizacao (padrao: 'storyboard' IA + FFmpeg zoompan; 'canvas' para player HTML legado).",
+        choices=(MOTOR_EXCLUSIVO,),
+        default=MOTOR_EXCLUSIVO,
+        help="Motor de renderizacao travado exclusivamente em 'canvas' (animacao 2D real 30fps, zero imagens paradas).",
     )
-    parser.add_argument("--teste", action="store_true", help="Renderiza apenas os 2 primeiros segundos.")
+    parser.add_argument(
+        "--teste",
+        action="store_true",
+        help="Renderiza apenas os 3 primeiros segundos (90 quadros @ 30fps) para validacao rapida.",
+    )
     parser.add_argument("--fps", type=int, default=30, help="Quadros por segundo (padrao: 30).")
     parser.add_argument(
         "--saida",
@@ -1381,14 +923,6 @@ def main() -> None:
         help="Arquivo MP4 de saida (padrao: output/short_NN.mp4 conforme historico_videos.json).",
     )
     parser.add_argument("--legendas", action="store_true", help="Ativa legendas sincronizadas grandes e centralizadas.")
-    parser.add_argument("--cenas", type=Path, default=ARQUIVO_CENAS_JSON, help="Caminho de cenas.json.")
-    parser.add_argument(
-        "--pasta-cenas",
-        type=Path,
-        default=PASTA_CENAS_VISUAIS,
-        help="Pasta das imagens cena_NN.jpg (padrao: output/cenas).",
-    )
-    parser.add_argument("--mock-cenas", action="store_true", help="Usa geracao local de imagens ao testar sem rede.")
     parser.add_argument(
         "--trilha",
         type=Path,
@@ -1409,12 +943,20 @@ def main() -> None:
     parser.add_argument(
         "--dry-run-ffmpeg",
         action="store_true",
-        help="Apenas imprime o comando FFmpeg montado sem executar a renderizacao.",
+        help="Apenas imprime o comando FFmpeg montado sem abrir navegador ou renderizar.",
     )
-    parser.add_argument("--png", action="store_true", help="Apenas --motor canvas: usa PNG lossless no pipe.")
-    parser.add_argument("--navegador", type=str, default=None, help="Apenas --motor canvas: caminho do Chrome/Chromium.")
-    parser.add_argument("--player", type=str, default=None, help="Apenas --motor canvas: arquivo HTML do player.")
+    parser.add_argument("--png", action="store_true", help="Usa PNG lossless no pipe em vez de MJPEG q=0.96.")
+    parser.add_argument("--navegador", type=str, default=None, help="Caminho explicito do Chrome/Chromium.")
+    parser.add_argument(
+        "--player",
+        type=str,
+        default=None,
+        help=f"Arquivo HTML do player Canvas (padrao: {PLAYER_PADRAO}).",
+    )
     args = parser.parse_args()
+
+    if args.motor != MOTOR_EXCLUSIVO:
+        raise SystemExit("Renderizacao por imagens estaticas proibida: apenas --motor canvas (30fps) e permitido.")
 
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise SystemExit("ffmpeg e ffprobe precisam estar instalados e no PATH.")
@@ -1428,21 +970,20 @@ def main() -> None:
     cta_modo = str(video_ativo.get("cta_modo", "final")).strip().lower() or "final"
     corte_parte_2: float | None = None
     eventos_dados: dict = {}
-    timestamps_dados: dict = {}
 
     if audio_alvo is not None or tem_artefato_json:
         val = validar_artefatos_audio(PASTA_AUDIO)
         c = val["carimbo"]
         cta_modo = c["cta_modo"]
         eventos_dados = val["eventos"]
-        timestamps_dados = val["timestamps"]
         ev_corte = eventos_dados.get("corte_parte_2")
         if ev_corte is not None:
             corte_parte_2 = float(ev_corte)
         extra_p2 = f", corte_parte_2={corte_parte_2:.2f}s" if corte_parte_2 is not None else ""
         print(
             f"Trava de audio OK: Video {c['video_id']:02d} '{c['titulo']}' "
-            f"(sha256={c['roteiro_sha256'][:12]}, CTA confirmada [modo={cta_modo}{extra_p2}])."
+            f"(sha256={c['roteiro_sha256'][:12]}, CTA confirmada [modo={cta_modo}{extra_p2}]).",
+            flush=True,
         )
 
     saida_padrao = caminho_saida_atual()
@@ -1451,18 +992,7 @@ def main() -> None:
         saida = RAIZ / saida
     saida.parent.mkdir(parents=True, exist_ok=True)
 
-    if args.motor == "canvas":
-        renderizar_canvas_legado(
-            args=args,
-            video_ativo=video_ativo,
-            saida=saida,
-            audio_alvo=audio_alvo,
-            cta_modo=cta_modo,
-            corte_parte_2=corte_parte_2,
-        )
-        return
-
-    renderizar_storyboard_ffmpeg(
+    renderizar_animacao_canvas(
         args=args,
         video_ativo=video_ativo,
         saida=saida,
@@ -1470,7 +1000,6 @@ def main() -> None:
         cta_modo=cta_modo,
         corte_parte_2=corte_parte_2,
         eventos_dados=eventos_dados,
-        timestamps_dados=timestamps_dados,
     )
 
 

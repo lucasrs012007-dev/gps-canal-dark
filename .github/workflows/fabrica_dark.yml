@@ -1,4 +1,4 @@
-name: Fabrica Dark V6 (Render na Nuvem + Telegram)
+name: Fabrica Dark V7 (Animacao 2D 30fps + Telegram)
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
         default: true
         type: boolean
       modo_teste:
-        description: "Renderiza apenas 2 segundos de teste rapido"
+        description: "Renderiza apenas 3 segundos (90 quadros @ 30fps) de teste rapido"
         required: false
         default: false
         type: boolean
@@ -160,16 +160,21 @@ jobs:
           python3 -m pip install --upgrade pip --no-cache-dir
           python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS Pillow google-genai google-api-python-client google-auth google-auth-oauthlib
 
-      - name: Garantir FFmpeg e fontes para legendas ASS
+      - name: Garantir FFmpeg, Chrome headless e fontes
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1 || ! fc-list : family 2>/dev/null | grep -qi "DejaVu Sans"; then
             sudo apt-get update -qq
-            sudo apt-get install -y -qq ffmpeg fontconfig fonts-dejavu-core
+            sudo apt-get install -y -qq ffmpeg fontconfig fonts-dejavu-core fonts-liberation
             fc-cache -f
           fi
+          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq chromium-browser || sudo apt-get install -y -qq chromium
+          fi
           ffmpeg -version | head -n 1
+          (google-chrome --version || chromium --version || chromium-browser --version)
 
-      - name: Estacao 1 - Diretor IA V6 (gera episodio novo quando usar_video_atual=false)
+      - name: Estacao 1 - Diretor IA V7 (gera episodio novo + direcao de animacao 2D 30fps)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -205,7 +210,7 @@ jobs:
           id_antes = int(hist_antes.get("video_atual", 0))
 
           if roteiro:
-              arq = Path("/tmp/roteiro_entrada_v6.txt")
+              arq = Path("/tmp/roteiro_entrada_v7.txt")
               arq.write_text(roteiro, encoding="utf-8")
               cmd = [sys.executable, "pipeline/diretor_ia.py", "--arquivo", str(arq), "--exigir-gemini"]
               print(f"Estacao 1: roteiro fornecido -> gerando proximo episodio acima do Video {id_antes:02d} via Gemini...")
@@ -244,7 +249,7 @@ jobs:
 
           print(
               f"Estacao 1 confirmada: Video {id_depois:02d} registrado em historico_videos.json "
-              f"(anterior: {id_antes:02d}, roteiro={roteiro_novo.name}, cenas=cenas.json)."
+              f"(anterior: {id_antes:02d}, roteiro={roteiro_novo.name}, cenas=cenas.json, motor={cenas_dados.get('motor')})."
           )
           PY
 
@@ -265,18 +270,14 @@ jobs:
           python3 audio/sound_design.py
           python3 pipeline/historico.py validar-audio
 
-      - name: Estacao 3 - Storyboard IA 9:16 + Render FFmpeg 1080p (30fps) + Corte Parte 1 / Parte 2
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - name: Estacao 3 - Motor 2D Animado 30fps (Canvas 1080x1920 + FFmpeg) + Corte Parte 1 / Parte 2
         run: |
           if [ "${MODO_TESTE}" = "true" ]; then
-            python3 gerar_cenas_visuais.py --max-cenas 2
-            python3 render/renderizar.py --legendas --teste
+            python3 render/renderizar.py --motor canvas --legendas --teste
           else
-            python3 gerar_cenas_visuais.py
-            python3 render/renderizar.py --legendas
+            python3 render/renderizar.py --motor canvas --legendas
           fi
-          ls -lh output/cenas/*.jpg output/*.mp4
+          ls -lh output/*.mp4
 
       - name: Publicar no YouTube Shorts
         if: ${{ success() }}
