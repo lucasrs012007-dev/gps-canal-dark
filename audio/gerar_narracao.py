@@ -1,24 +1,24 @@
-"""Estacao 2 (V5.2): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
+"""Estacao 2 (V6.1): gera audio/voz_limpa.mp3, audio/timestamps.json e audio/eventos.json.
 
 Uso (na raiz do repositorio):
     python3 audio/gerar_narracao.py          # Gemini 2.5 TTS -> ElevenLabs -> edge-tts -> gTTS
     python3 audio/gerar_narracao.py --mock   # teste automatizado local sem rede
 
-Regras aplicadas (skill audio-sound-design-suspense V5.2):
-- Regra de Ritmo 2x (Zero Voz Lenta): instrucoes ageis/urgentes no Gemini 2.5 TTS,
-  corte de silencios mortos nas pontas e internos (silenceremove max 0.09s),
-  aceleracao atempo=1.14 (VELOCIDADE_VOZ) preservando timbre grave e pausas curtas (0.10s a 0.18s).
-- Novo perfil vocal canonico `voz_telefone` (Fenrir no Gemini TTS + filtro telefonico no sound_design.py).
+Regras aplicadas:
+- Ritmo natural e envolvente: velocidade atempo=1.02 (VELOCIDADE_VOZ) menos corrida e mais humana,
+  remocao de silencios longos demais entre falas (>0.22s comprimidos preservando 0.06s de respiro
+  para manter ~0.27s de respiracao natural sem cortar pausas curtas).
+- Perfil vocal canonico `voz_telefone` (Fenrir no Gemini TTS + filtro telefonico no sound_design.py).
 - Blindagem Gemini TTS: agrupa falas contiguas do mesmo perfil em uma unica requisicao,
   cadencia entre chamadas (GEMINI_TTS_MIN_INTERVAL_S, padrao 21.0s), ate 4 retries em HTTP 429/503
   (22s, 35s, 50s, 65s respeitando Retry-After) e log explicito sem jamais expor a chave.
 - Trava de Consistencia Vocal: proibido misturar provedores no mesmo video; se qualquer bloco
   falhar definitivamente no provedor atual, descarta tudo e reinicia do bloco 1 no proximo fallback.
 - Blindagem contra edge_tts.exceptions.NoAudioReceived: sanitizacao estrita de texto,
-  taxas rapidas validas (+14% a +22%), retry escalonado em 3 niveis (perfil -> rate sem pitch -> puro)
-  e 4o nivel de emergencia gTTS (lang="pt", tld="com.br") + aceleracao FFmpeg.
+  taxas naturais (+0% a +8%), retry escalonado em 3 niveis (perfil -> rate sem pitch -> puro)
+  e 4o nivel de emergencia gTTS (lang="pt", tld="com.br") + ajuste FFmpeg.
 - Grava carimbo de integridade (video_id, titulo, roteiro_sha256), provedor_voz,
-  blocos_api_chamadas, voz_blocos, janela da CTA e corte_parte_2 em timestamps.json e eventos.json.
+  blocos_api_chamadas, voz_blocos, modo de CTA e corte_parte_2 em timestamps.json e eventos.json.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ EVENTOS_JSON = PASTA_AUDIO / "eventos.json"
 TEXTO_TXT = PASTA_AUDIO / "narracao.txt"
 ARQUIVO_ENV = RAIZ / ".env"
 
-# Perfis vocais canonicos V5.2
+# Perfis vocais canonicos
 PERFIL_VOZ_PADRAO = "narrador_tenso"
 PERFIS_VOZ_CANONICOS = (
     "narrador_tenso",
@@ -72,13 +72,14 @@ PERFIS_VOZ_CANONICOS = (
     "sussurro_twist",
 )
 
-# Velocidade e blindagem V5.2
-VELOCIDADE_VOZ_PADRAO = 1.14
-SILENCIO_INTERNO_MAX_S = 0.09
+# Velocidade natural (1.02x) e limpeza de silencios longos preservando respiracao humana
+VELOCIDADE_VOZ_PADRAO = 1.02
+SILENCIO_INTERNO_MAX_S = 0.22
+SILENCIO_INTERNO_MANTER_S = 0.06
 GEMINI_TTS_MIN_INTERVAL_PADRAO = 21.0
 GEMINI_RETRY_ESPERAS: tuple[float, ...] = (22.0, 35.0, 50.0, 65.0)
 
-# Configuracoes de voz: Gemini 2.5 TTS (Principal V5.2)
+# Configuracoes de voz: Gemini 2.5 TTS (Principal)
 GEMINI_TTS_MODELO = "gemini-2.5-flash-preview-tts"
 GEMINI_VOZ_NARRADOR = "Charon"
 GEMINI_VOZ_PORTEIRO = "Fenrir"
@@ -88,29 +89,29 @@ GEMINI_TAXA_PCM_PADRAO = 24000
 
 INSTRUCOES_ATUACAO_GEMINI: dict[str, str] = {
     "narrador_tenso": (
-        "Direcao vocal (portugues do Brasil): narrador masculino de voz grave, firme e ritmo agil "
-        "de suspense urgente. Diccao nitida, ataque rapido em cada frase, zero silabas arrastadas "
-        "e pausas curtissimas entre oracoes."
+        "Direcao vocal (portugues do Brasil): narrador masculino de voz grave, natural e envolvente, "
+        "como alguem contando uma historia viciante de perto. Diccao nitida, ritmo fluido sem correria "
+        "e sem tom robotico, mantendo respiracao natural e evitando pausas longas demais."
     ),
     "panico": (
-        "Direcao vocal (portugues do Brasil): narrador em ritmo bem acelerado, urgente e ofegante, "
-        "respiracao curta, senso imediato de perigo real mantendo diccao nitida e sem pausas longas."
+        "Direcao vocal (portugues do Brasil): narrador tenso, urgente e alterado por perigo real, "
+        "ritmo firme e expressivo mantendo diccao clara, respiracao natural e sem correria exagerada."
     ),
     "interfone_porteiro": (
-        "Direcao vocal (portugues do Brasil): outro personagem masculino falando rapido, assustado "
-        "e apressado pelo interfone, diccao nitida, urgencia imediata e zero lentidao."
+        "Direcao vocal (portugues do Brasil): outro personagem masculino falando tenso e apressado "
+        "pelo interfone, voz natural e alarmada com diccao clara e sem pausas arrastadas."
     ),
     "voz_telefone": (
-        "Direcao vocal (portugues do Brasil): outro personagem masculino falando rapido, alarmado e "
-        "urgente por ligacao telefonica, voz direta e tensa com diccao nitida, sem arrastar silabas."
+        "Direcao vocal (portugues do Brasil): outro personagem masculino falando alarmado e direto "
+        "por ligacao telefonica, voz natural e tensa com diccao nitida."
     ),
     "cta_comercial": (
-        "Direcao vocal (portugues do Brasil): locutor comercial limpo, firme, energico e rapido, "
-        "ritmo agil e confiante com enfase nitida no chamado final."
+        "Direcao vocal (portugues do Brasil): locutor natural, proximo e direto, falando em tom "
+        "conversacional e claro, sem exageros artificiais."
     ),
     "sussurro_twist": (
-        "Direcao vocal (portugues do Brasil): voz baixa, seca, proxima do microfone, fria e precisa, "
-        "mantendo ritmo firme e tenso sem arrastar palavras ao entregar o golpe final."
+        "Direcao vocal (portugues do Brasil): voz baixa, proxima do microfone, fria e precisa, "
+        "mantendo naturalidade e impacto ao entregar a revelacao final sem arrastar demais."
     ),
 }
 
@@ -157,28 +158,28 @@ PERFIS_ELEVENLABS: dict[str, dict[str, float | bool]] = {
     },
 }
 
-# Configuracoes de voz: edge-tts multi-bloco agil (Fallback 2, taxas rapidas validas +14% a +22%)
+# Configuracoes de voz: edge-tts multi-bloco natural (Fallback 2, taxas equilibradas +0% a +8%)
 EDGE_VOZ = "pt-BR-AntonioNeural"
 EDGE_VOZ_SECUNDARIA = "pt-BR-FabioNeural"
 EDGE_VOZ_PORTEIRO = EDGE_VOZ_SECUNDARIA
 EDGE_PITCH = "-4Hz"
-EDGE_RATE = "+16%"
+EDGE_RATE = "+4%"
 
 PERFIS_EDGE_TTS: dict[str, dict[str, str]] = {
-    "narrador_tenso": {"voice": EDGE_VOZ, "pitch": "-5Hz", "rate": "+16%"},
-    "panico": {"voice": EDGE_VOZ, "pitch": "-2Hz", "rate": "+22%"},
-    "interfone_porteiro": {"voice": EDGE_VOZ_SECUNDARIA, "pitch": "+2Hz", "rate": "+20%"},
-    "voz_telefone": {"voice": EDGE_VOZ_SECUNDARIA, "pitch": "+2Hz", "rate": "+20%"},
-    "cta_comercial": {"voice": EDGE_VOZ, "pitch": "-1Hz", "rate": "+18%"},
-    "sussurro_twist": {"voice": EDGE_VOZ, "pitch": "-8Hz", "rate": "+14%"},
+    "narrador_tenso": {"voice": EDGE_VOZ, "pitch": "-5Hz", "rate": "+4%"},
+    "panico": {"voice": EDGE_VOZ, "pitch": "-2Hz", "rate": "+8%"},
+    "interfone_porteiro": {"voice": EDGE_VOZ_SECUNDARIA, "pitch": "+2Hz", "rate": "+6%"},
+    "voz_telefone": {"voice": EDGE_VOZ_SECUNDARIA, "pitch": "+2Hz", "rate": "+6%"},
+    "cta_comercial": {"voice": EDGE_VOZ, "pitch": "-1Hz", "rate": "+4%"},
+    "sussurro_twist": {"voice": EDGE_VOZ, "pitch": "-8Hz", "rate": "+0%"},
 }
 
-# Ritmo cinematografico agil V5.2 (pausas curtas de 0.10s a 0.18s)
-PAUSA_PANICO = 0.10
-PAUSA_PADRAO = 0.12
-PAUSA_VIRADA_PERFIL = 0.15
-PAUSA_ANTES_TWIST = 0.18
-PAUSA_DRAMATICA = 0.18
+# Ritmo natural entre blocos (evita silencios mortos longos sem cortar respiracao humana)
+PAUSA_PANICO = 0.12
+PAUSA_PADRAO = 0.16
+PAUSA_VIRADA_PERFIL = 0.18
+PAUSA_ANTES_TWIST = 0.22
+PAUSA_DRAMATICA = 0.22
 DURACAO_BATIDAS_PORTA = 2.10
 CAUDA_FINAL = 0.35
 
@@ -560,13 +561,13 @@ def agrupar_blocos_fala(itens: list[dict]) -> list[dict]:
 
 
 def pausa_antes_do_item(itens: list[dict], idx: int) -> float:
-    """Define a pausa exata antes de cada item (ritmo agil V5.2: 0.10s a 0.18s)."""
+    """Define a pausa natural entre blocos (0.12s a 0.22s, teto 0.28s sem silencios longos demais)."""
     if idx == 0:
         return 0.0
     anterior = itens[idx - 1]
     atual = itens[idx]
     if atual.get("pausa_antes") is not None:
-        return min(0.24, max(0.0, float(atual["pausa_antes"])))
+        return min(0.28, max(0.0, float(atual["pausa_antes"])))
     if anterior["tipo"] in ("silencio", "corte_parte_2"):
         return 0.0
     if atual["tipo"] == "corte_parte_2":
@@ -1151,18 +1152,18 @@ def sintetizar_gtts(
 
 
 # ============================================================
-# LIMPEZA DE SILENCIOS INTERNOS + ACELERACAO ATEMPO (RITMO 2X)
+# LIMPEZA DE SILENCIOS LONGOS + VELOCIDADE NATURAL (ATEMPO 1.02X)
 # ============================================================
 
 def montar_filtro_limpeza_voz(velocidade: float = VELOCIDADE_VOZ_PADRAO) -> str:
-    """Monta filtro FFmpeg V5.2: corta pontas + silencios internos (>0.09s) + atempo preservando timbre."""
+    """Monta filtro FFmpeg: remove silencios longos (>0.22s) mantendo respiracao natural + atempo 1.02x."""
     v = max(0.5, min(2.0, float(velocidade)))
     return (
-        "silenceremove=start_periods=1:start_duration=0:start_threshold=-42dB:detection=peak:"
-        f"stop_periods=-1:stop_duration={SILENCIO_INTERNO_MAX_S:.2f}:stop_silence=0.04:"
-        "stop_threshold=-40dB:detection=peak,"
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-46dB:start_silence=0.02:"
+        f"stop_periods=-1:stop_duration={SILENCIO_INTERNO_MAX_S:.2f}:"
+        f"stop_silence={SILENCIO_INTERNO_MANTER_S:.2f}:stop_threshold=-45dB:detection=rms,"
         "areverse,"
-        "silenceremove=start_periods=1:start_duration=0:start_threshold=-42dB:detection=peak,"
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-46dB:start_silence=0.03:detection=rms,"
         "areverse,"
         f"atempo={v:.3f},"
         "afade=t=in:st=0:d=0.008"
@@ -1174,7 +1175,7 @@ def limpar_silencio_frase(
     destino_wav: Path,
     velocidade: float | None = None,
 ) -> float:
-    """Corta silencios mortos nas pontas/internos (max 0.09s), aplica atempo e normaliza PCM 44.1kHz estereo."""
+    """Remove silencios longos demais mantendo respiracao natural, aplica atempo e normaliza PCM 44.1kHz."""
     vel = obter_velocidade_voz() if velocidade is None else max(0.5, min(2.0, float(velocidade)))
     filtro = montar_filtro_limpeza_voz(vel)
     cmd = [
@@ -1620,7 +1621,8 @@ def main() -> None:
         f"Roteiro: {roteiro_path.name} (sha256={roteiro_sha256[:12]})"
     )
     print(
-        f"V5.2 Ritmo 2x (atempo={velocidade:.2f}, silencio_interno<={SILENCIO_INTERNO_MAX_S:.2f}s) | "
+        f"Estacao 2 Voz Natural (atempo={velocidade:.2f}, silencio_longo>{SILENCIO_INTERNO_MAX_S:.2f}s, "
+        f"respiro={SILENCIO_INTERNO_MANTER_S:.2f}s) | "
         f"{status_gemini} | blocos agrupados={qtd_grupos_fala} | cadeia={' -> '.join(cadeia_provedores)}",
         flush=True,
     )
@@ -1913,6 +1915,10 @@ def main() -> None:
         eventos["cta_meio_inicio"] = cta_meio_inicio
         eventos["cta_meio_fim"] = cta_meio_fim
         eventos["cta_texto"] = cta_texto
+    elif exige_parte_2 and "corte_parte_2" not in eventos:
+        raise RuntimeError(
+            "Video com saidas_partes exige marcador [CORTE_PARTE_2] no roteiro."
+        )
 
     obrigatorios_por_roteiro = {
         "roteiro_02.txt": [

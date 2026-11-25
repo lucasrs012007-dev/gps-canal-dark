@@ -509,12 +509,21 @@ function splitShots(rawList, maxDur=1.65){
   return out;
 }
 
+function hasMidCtaWindow(ev){
+  const modo = String((ev && ev.cta_modo) || (CENAS && CENAS.cta_modo) || 'final').trim().toLowerCase();
+  if (modo !== 'pausa_meio' && modo !== 'meio') return false;
+  if (!ev || ev.cta_meio_inicio == null || ev.cta_meio_fim == null) return false;
+  const a = Number(ev.cta_meio_inicio);
+  const b = Number(ev.cta_meio_fim);
+  return isFinite(a) && isFinite(b) && b > a;
+}
+
 function buildShotsFromConfig(cfg, ev, dur){
   const lista = Array.isArray(cfg.cenas) && cfg.cenas.length ? cfg.cenas : CENAS_PREVIEW.cenas;
   const n = lista.length;
-  const ctaA = Number(ev.cta_meio_inicio);
-  const ctaB = Number(ev.cta_meio_fim);
-  const temCta = isFinite(ctaA) && isFinite(ctaB) && ctaB > ctaA;
+  const temCta = hasMidCtaWindow(ev);
+  const ctaA = temCta ? Number(ev.cta_meio_inicio) : NaN;
+  const ctaB = temCta ? Number(ev.cta_meio_fim) : NaN;
   const cP2 = Number(ev.corte_parte_2);
   const temP2 = isFinite(cP2) && cP2 > 0;
 
@@ -568,9 +577,9 @@ function buildShotsFromConfig(cfg, ev, dur){
 
 function buildKatanaHitsFromConfig(cfg, ev, dur){
   const list = Array.isArray(cfg.katana_hits) ? cfg.katana_hits : [];
-  const ctaA = Number(ev.cta_meio_inicio);
-  const ctaB = Number(ev.cta_meio_fim);
-  const temCta = isFinite(ctaA) && isFinite(ctaB);
+  const temCta = hasMidCtaWindow(ev);
+  const ctaA = temCta ? Number(ev.cta_meio_inicio) : NaN;
+  const ctaB = temCta ? Number(ev.cta_meio_fim) : NaN;
   const tilts = [-0.048, 0.044, -0.042, 0.050, -0.038];
   const out = [];
 
@@ -732,9 +741,10 @@ function drawKatanaOverlay(t){
    CTA DEDICADA EM TELA CHEIA NO MEIO (100% DA TELA)
    ============================================================ */
 function isFullScreenCtaActive(t){
+  if (!hasMidCtaWindow(EV)) return false;
   const a = Number(EV.cta_meio_inicio);
   const b = Number(EV.cta_meio_fim);
-  return isFinite(a) && isFinite(b) && b > a && t >= a && t < b;
+  return t >= a && t < b;
 }
 
 function drawFullScreenCta(t){
@@ -3043,11 +3053,13 @@ function rebuildTimeline(cenasData, evData, audioDur){
   );
   duration = dur;
 
+  const modoCta = String((evData && evData.cta_modo) || CENAS.cta_modo || 'final').trim().toLowerCase();
+  const usaCtaMeio = modoCta === 'pausa_meio' || modoCta === 'meio';
   const baseEv = {
-    cta_modo: CENAS.cta_modo || 'pausa_meio',
+    cta_modo: modoCta,
     cta_texto: (CENAS.cta && CENAS.cta.botao) || 'COMENTE EU QUERO',
-    cta_meio_inicio: Number((dur * 0.45).toFixed(2)),
-    cta_meio_fim: Number((dur * 0.45 + 3.4).toFixed(2)),
+    cta_meio_inicio: usaCtaMeio ? Number((dur * 0.45).toFixed(2)) : null,
+    cta_meio_fim: usaCtaMeio ? Number((dur * 0.45 + 3.4).toFixed(2)) : null,
     duracao_total: dur
   };
   EV = evData ? { ...baseEv, ...evData, duracao_total: dur } : baseEv;

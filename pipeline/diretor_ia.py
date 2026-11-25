@@ -3,11 +3,12 @@
 Aceita texto livre (`--roteiro-texto`, `--arquivo`) OU geracao 100% autonoma (`--gerar-inedito`),
 gerando automaticamente:
 1. Novo registro inedito em `historico_videos.json` (motor="v6", player="player_universal.html",
-   cta_modo="pausa_meio", parte_label="PARTE 1" e saidas_partes quando > 130 palavras).
-2. `roteiro_XX.txt` pronto para o pipeline V5.2 (tags [VOZ:perfil], [SFX:...], [CTA_PAUSA]
-   e [CORTE_PARTE_2] automatico acima de 130 palavras).
-3. `cenas.json` (schema versionado "6.0", validado e auto-corrigido em Python) guiando os
-   10 modulos visuais do `player_universal.html`, paleta, protagonista, relogio e 3 a 5 hits Katana.
+   cta_modo="final", parte_label="PARTE 1" e saidas_partes quando > 130 palavras).
+2. `roteiro_XX.txt` pronto para a Estacao 2 (tags [VOZ:perfil], [SFX:...], gancho/CTA curto
+   de 1 frase apenas no final sem pausa comercial no meio, e [CORTE_PARTE_2] acima de 130 palavras).
+3. `cenas.json` (schema versionado "6.0", validado e auto-corrigido em Python) com campo
+   obrigatorio `prompt_imagem` em ingles por cena, mantendo o mesmo estilo visual cinematografico
+   em todo o video, alem dos modulos visuais do `player_universal.html`, paleta, protagonista e Katana hits.
 
 Uso (na raiz do repositorio):
     python3 pipeline/diretor_ia.py --gerar-inedito --exigir-gemini
@@ -58,7 +59,11 @@ GEMINI_MODELOS_FALLBACK: tuple[str, ...] = (
 ARQUIVO_ENV = RAIZ / ".env"
 ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
-CTA_FALA_PADRAO = "Quer aprender a fazer vídeos assim no automático? Comente EU QUERO."
+CTA_FINAL_PADRAO = "E você, o que faria nessa situação, me conta aqui nos comentários?"
+ESTILO_VISUAL_PROMPT_IMAGEM = (
+    "stylized 2.5D dark cinematic digital illustration, moody dramatic lighting, "
+    "vertical 9:16 composition, no text, no watermark"
+)
 LIMITE_PALAVRAS_PARTE_2 = 130
 CANAL_NOME = "E Se Você?"
 
@@ -616,6 +621,295 @@ def extrair_citacao_tela(texto: str, limite: int = 88) -> str:
     return (corte or limpo[:limite]).strip() + "..."
 
 
+def _eh_bloco_cta_final(texto: str) -> bool:
+    """Identifica se o bloco final ja e um gancho/CTA curto de 1 frase no finalzinho do video."""
+    limpo = sanitizar_texto(texto)
+    palavras = limpo.split()
+    if not palavras or len(palavras) > 26:
+        return False
+    norm = normalizar_texto(limpo)
+    marcadores = (
+        "comenta",
+        "comente",
+        "comentario",
+        "comentarios",
+        "me diz",
+        "me conta",
+        "conta ai",
+        "diz ai",
+        "o que voce faria",
+        "voce aguentaria",
+        "voce teria coragem",
+        "voce encararia",
+        "segue",
+        "siga",
+        "curte",
+        "curta",
+        "salva esse",
+        "manda pra",
+        "eu quero",
+    )
+    return any(m in norm for m in marcadores)
+
+
+def _parece_ingles(texto: str) -> bool:
+    """Heuristica leve para garantir que prompt_imagem esta em ingles e nao em portugues."""
+    if not texto or len(texto.strip()) < 24:
+        return False
+    if re.search(r"[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]", texto):
+        return False
+    palavras = re.findall(r"[a-zA-Z]+", texto.lower())
+    if len(palavras) < 5:
+        return False
+    marcadores_pt = {
+        "voce", "nao", "cena", "homem", "mulher", "quarto", "corredor", "olhando",
+        "segurando", "flutuando", "escritorio", "janela", "escuro", "escura", "com",
+        "uma", "para", "dentro", "porta", "celular", "camera", "submarino", "oceano",
+    }
+    qtd_pt = sum(1 for w in palavras if w in marcadores_pt)
+    return qtd_pt < 2
+
+
+def gerar_prompt_imagem_cena(
+    texto_bloco: str,
+    modulo: str,
+    mood: str,
+    expressao: str,
+    camera: str,
+    props: dict | None = None,
+    protagonista: dict | None = None,
+    idx: int = 0,
+    total: int = 8,
+) -> str:
+    """Gera um prompt_imagem cinematografico unico em ingles alinhado a fala exata da cena."""
+    norm = normalizar_texto(texto_bloco)
+    p = props if isinstance(props, dict) else {}
+    prot = protagonista if isinstance(protagonista, dict) else {}
+    grav_zero = bool(p.get("gravidade_zero")) or texto_indica_gravidade_zero(texto_bloco)
+    pose = str(p.get("pose", "idle")).strip().lower()
+    flut = p.get("objetos_flutuantes") if isinstance(p.get("objetos_flutuantes"), list) else []
+    tem_vulto = bool(p.get("vulto"))
+
+    enquadramentos = {
+        "push_in": "cinematic slow push-in medium close-up shot",
+        "pull_out": "dramatic wide establishing pull-back shot",
+        "tight_close": "intense extreme close-up shot",
+        "pan_left": "dynamic angled medium shot framed from the left",
+        "pan_right": "dynamic angled medium shot framed from the right",
+        "wide_still": "symmetrical wide cinematic shot",
+    }
+    shot_desc = enquadramentos.get(camera, "dramatic cinematic medium shot")
+
+    iluminacao_mood = {
+        "navy": "deep midnight blue shadows with cold cyan rim lighting",
+        "violet": "eerie ultraviolet twilight glow and stark dark silhouettes",
+        "red": "urgent crimson emergency light slicing through deep darkness",
+        "yellow": "harsh sodium amber light casting long dramatic shadows",
+        "cctv": "high-contrast desaturated security monitor lighting with scanline atmosphere",
+        "dark": "near-pitch-black chiaroscuro lighting with a narrow beam of cold light",
+    }
+    light_desc = iluminacao_mood.get(mood, "moody high-contrast rim lighting")
+
+    expressoes_en = {
+        "neutral": "focused watchful expression",
+        "worry": "tense furrowed brow and uneasy expression",
+        "fear": "wide-eyed fearful expression",
+        "shock": "stunned panicked expression",
+        "sinister_smile": "chilling uncanny expression in half-shadow",
+    }
+    expr_desc = expressoes_en.get(expressao, "tense focused expression")
+
+    jaq_hex = str(prot.get("jaqueta", "")).upper()
+    jaq_cor = {
+        "#0F766E": "dark teal jacket",
+        "#1D4ED8": "deep navy jacket",
+        "#9A3412": "rust brown jacket",
+        "#4338CA": "dark indigo jacket",
+        "#3F6212": "olive utility jacket",
+        "#9F1239": "dark burgundy jacket",
+    }.get(jaq_hex, "dark hooded jacket")
+
+    # Detecta assunto concreto da fala para criar uma cena visual fiel e unica
+    detalhes: list[str] = []
+    if any(k in norm for k in ("submarino", "escotilha", "casco", "oxigenio", "pressao", "lastro", "oceano", "fundo do mar")):
+        ambiente = "claustrophobic steel submarine interior deep beneath the dark ocean, condensation on pipes, glowing red pressure gauges"
+        if any(k in norm for k in ("escotilha", "trava", "valvula")):
+            detalhes.append("hands gripping a heavy rusted iron hatch valve as red warning lights flash")
+        elif any(k in norm for k in ("oxigenio", "painel", "medidor", "radio")):
+            detalhes.append("flickering crimson oxygen dial and silent sonar radar screen casting harsh glow")
+        elif any(k in norm for k in ("bloop", "hidrofone", "som", "ponto nemo", "satelite", "nave", "baleia", "abismo")):
+            ambiente = "vast abyssal deep ocean waters under a starless night sky, submerged sonar buoys and distant sinking satellite wreckage"
+            detalhes.append("massive unseen acoustic ripples vibrating across pitch-black ocean depths")
+        else:
+            detalhes.append("a lone person in a cramped steel compartment surrounded by dark underwater pressure")
+    elif any(k in norm for k in ("ponto nemo", "oceano", "pacifico", "hidrofone", "estacao espacial", "satelite", "bloop", "subaquatico")):
+        ambiente = "remote pitch-black South Pacific ocean horizon at night with the tiny glowing trail of a space station high above"
+        if any(k in norm for k in ("satelite", "cemiterio", "nave", "fragmento")):
+            detalhes.append("submerged metallic spacecraft debris resting on the dark abyssal seafloor")
+        elif any(k in norm for k in ("som", "hidrofone", "bloop", "acustica", "gelo")):
+            detalhes.append("underwater military hydrophone array pulsing with eerie cyan soundwaves in the abyss")
+        else:
+            detalhes.append("endless empty dark ocean waves stretching into fog with zero land in sight")
+    elif any(k in norm for k in ("svalbard", "cofre", "semente", "artico", "geleira", "montanha", "noruega", "congelada")):
+        ambiente = "monolithic brutalist concrete vault entrance jutting out of a frozen Arctic mountainside during a dark snowstorm"
+        if any(k in norm for k in ("porta", "blindada", "corredor", "sensor", "camera")):
+            detalhes.append("frosted armored vault doors inside an icy concrete tunnel lit by cold blue security lamps")
+        elif any(k in norm for k in ("caixa", "semente", "amostra", "dezoito graus")):
+            detalhes.append("endless frosted steel shelves lined with sealed cryogenic seed crates in misty subzero air")
+        else:
+            detalhes.append("wind-swept snow swirling around illuminated geometric metal doors buried in ice")
+    elif any(k in norm for k in ("metro", "vagao", "trilho", "tunel", "estacao")):
+        ambiente = "empty late-night subway train car stalled inside a dark underground concrete tunnel, flickering overhead fluorescent tubes"
+        if any(k in norm for k in ("reflexo", "vidro", "janela", "sorrindo")):
+            detalhes.append("dark train window showing an eerie standing silhouette reflected right behind a shocked passenger while the real seat behind is empty")
+        elif any(k in norm for k in ("interfone", "painel", "eletronico")):
+            detalhes.append("glowing red emergency intercom box beside frosted subway doors and a glitched station display")
+        else:
+            detalhes.append("a lone passenger in a dark coat seated by a black window looking down an empty row of seats")
+    elif modulo == "escritorio" or texto_indica_escritorio(texto_bloco):
+        ambiente = "modern high-rise corporate office with glowing dual monitors, desks, plaster ceiling tiles, and floor-to-ceiling panoramic night windows overlooking a city skyline"
+        if grav_zero:
+            itens_en = []
+            if "lapiseira" in flut or "lapiseira" in norm or "caneta" in norm:
+                itens_en.append("a mechanical pencil")
+            if "xicara_cafe" in flut or "xicara" in norm or "cafe" in norm:
+                itens_en.append("a coffee mug with suspended dark liquid droplets")
+            if "cadeiras" in flut or "cadeira" in norm:
+                itens_en.append("swivel office chairs")
+            if "silhuetas_janela" in flut or "janela" in norm or "pessoas" in norm or "carros" in norm:
+                itens_en.append("distant silhouettes of cars and people rising outside the panoramic glass")
+            if not itens_en:
+                itens_en = ["office papers", "a coffee cup", "rolling chairs"]
+            if pose == "segurando_mesa":
+                detalhes.append(f"a protagonist in a {jaq_cor} desperately clinging to the edge of a heavy office desk while legs drift upward, surrounded by floating {', '.join(itens_en)}")
+            elif pose == "caindo":
+                detalhes.append(f"gravity slamming back as the protagonist in a {jaq_cor} plummets toward the office floor amid crashing {', '.join(itens_en)}")
+            else:
+                detalhes.append(f"a protagonist in a {jaq_cor} weightlessly drifting toward the ceiling in zero gravity amid floating {', '.join(itens_en)}")
+        else:
+            detalhes.append(f"a protagonist in a {jaq_cor} standing tense among dimly lit office desks and glowing monitors")
+    elif modulo == "elevador_cabine":
+        ambiente = "cramped brushed-steel elevator cabin with flickering ceiling light and glowing red floor indicator"
+        detalhes.append(f"a protagonist in a {jaq_cor} pressing the emergency panel with a {expr_desc}")
+    elif modulo == "carro_noite":
+        ambiente = "dark car interior driving down an unlit lonely road at night, dashboard lights glowing faintly and headlights cutting through mist"
+        detalhes.append(f"a passenger in a {jaq_cor} glancing anxiously at the rearview mirror with a {expr_desc}")
+    elif modulo == "celular_notificacao":
+        ambiente = "dimly lit dark room where the harsh blue-white glow of a smartphone screen illuminates a tense face and trembling hands"
+        detalhes.append(f"close perspective on a smartphone held by someone in a {jaq_cor} reacting with a {expr_desc}")
+    elif modulo == "camera_cctv":
+        ambiente = "high-angle security surveillance view of a dimly lit empty corridor with harsh monochrome contrast and subtle vignette"
+        detalhes.append("a solitary dark figure caught motionless near a doorway" if tem_vulto else f"a lone person in a {jaq_cor} frozen beneath the security lens")
+    elif modulo == "corredor_escuro":
+        ambiente = "narrow dimly lit apartment hallway receding into deep shadow with a half-open wooden door at the end"
+        detalhes.append("an eerie tall silhouette lurking in the doorway shadows" if tem_vulto else f"a person in a {jaq_cor} stepping cautiously down the dark hallway with a {expr_desc}")
+    elif modulo == "blecaute_olhos":
+        ambiente = "pitch-black void pierced only by a razor-thin rim of cold light revealing wide staring eyes in extreme suspense"
+        detalhes.append(f"dramatic shadowy silhouette with a {expr_desc}")
+    elif modulo == "big_face":
+        ambiente = "intense close atmospheric portrait against a dark blurred background lit by stark side rim light"
+        detalhes.append(f"a protagonist in a {jaq_cor} captured with a {expr_desc} as dramatic tension peaks")
+    elif modulo == "quarto_noturno":
+        ambiente = "dark silent bedroom at night lit by faint blue moonlight through window blinds, unmade bed and slightly ajar closet door"
+        detalhes.append(f"a protagonist in a {jaq_cor} sitting upright alert with a {expr_desc}")
+    else:
+        ambiente = "shadowy nocturnal apartment living room with faint blue moonlight across a wooden table and dark doorway"
+        detalhes.append(f"a protagonist in a {jaq_cor} frozen mid-step with a {expr_desc}")
+
+    if _eh_bloco_cta_final(texto_bloco):
+        detalhes = [
+            f"a protagonist in a {jaq_cor} turning slowly toward the camera with an intense questioning gaze, leaving an unresolved suspenseful atmosphere"
+        ]
+    elif grav_zero and modulo != "escritorio":
+        detalhes.append("weightless debris and dust particles suspended mid-air in zero gravity")
+
+    angulos_variacao = (
+        "low-angle perspective",
+        "eye-level cinematic perspective",
+        "over-the-shoulder perspective",
+        "slight Dutch-tilt suspense angle",
+        "high-angle dramatic perspective",
+        "tight atmospheric foreground framing",
+    )
+    angulo = angulos_variacao[idx % len(angulos_variacao)]
+    corpo = f"{shot_desc} ({angulo}), {ambiente}, {'; '.join(detalhes)}, {light_desc}"
+    corpo = sanitizar_texto(corpo).rstrip(" ,.;")
+    return f"{corpo}, {ESTILO_VISUAL_PROMPT_IMAGEM}"
+
+
+def _normalizar_prompt_imagem(
+    prompt_raw: str | None,
+    texto_bloco: str,
+    modulo: str,
+    mood: str,
+    expressao: str,
+    camera: str,
+    props: dict | None,
+    protagonista: dict | None,
+    idx: int,
+    total: int,
+    usados: set[str],
+) -> tuple[str, bool]:
+    """Garante prompt_imagem valido em ingles, unico na sequencia e com o estilo visual exato."""
+    bruto = sanitizar_texto(str(prompt_raw or ""))
+    usou_fallback = False
+
+    if not _parece_ingles(bruto):
+        prompt = gerar_prompt_imagem_cena(
+            texto_bloco=texto_bloco,
+            modulo=modulo,
+            mood=mood,
+            expressao=expressao,
+            camera=camera,
+            props=props,
+            protagonista=protagonista,
+            idx=idx,
+            total=total,
+        )
+        usou_fallback = True
+    else:
+        # Remove estilo parcial/duplicado no final antes de anexar o estilo canonico exato
+        limpo = re.sub(
+            r",?\s*stylized\s+2\.5d\s+dark\s+cinematic\s+digital\s+illustration.*$",
+            "",
+            bruto,
+            flags=re.IGNORECASE,
+        ).strip(" ,.;")
+        if len(limpo) < 20:
+            prompt = gerar_prompt_imagem_cena(
+                texto_bloco=texto_bloco,
+                modulo=modulo,
+                mood=mood,
+                expressao=expressao,
+                camera=camera,
+                props=props,
+                protagonista=protagonista,
+                idx=idx,
+                total=total,
+            )
+            usou_fallback = True
+        else:
+            prompt = f"{limpo}, {ESTILO_VISUAL_PROMPT_IMAGEM}"
+
+    chave = prompt.lower()
+    if chave in usados:
+        desambiguadores = (
+            "tighter framing on facial tension",
+            "deeper background shadow depth",
+            "dramatic side rim light shift",
+            "subtle atmospheric haze in foreground",
+            "sharper diagonal light beam",
+            "wider environmental scale",
+        )
+        extra = desambiguadores[idx % len(desambiguadores)]
+        prefixo = prompt[: -len(ESTILO_VISUAL_PROMPT_IMAGEM)].rstrip(" ,")
+        prompt = f"{prefixo}, {extra}, scene beat {idx + 1}, {ESTILO_VISUAL_PROMPT_IMAGEM}"
+        chave = prompt.lower()
+
+    usados.add(chave)
+    return prompt, usou_fallback
+
+
 def _extrair_palavras_chave(titulo: str, texto: str, qtd: int = 7) -> list[str]:
     norm = normalizar_texto(f"{titulo} {texto}")
     contagem: dict[str, int] = {}
@@ -671,10 +965,15 @@ def _dividir_em_blocos_narrativos(roteiro_bruto: str) -> list[str]:
             frases_fmt = frases_fmt[:idx_maior] + [p1, p2] + frases_fmt[idx_maior + 1 :]
         return frases_fmt
 
-    # Agrupa frases curtas consecutivas mantendo ultima frase isolada para o plot twist
-    ultima = frases_fmt[-1]
-    corpo = frases_fmt[:-1]
-    max_corpo = max(4, alvo_blocos - 1)
+    # Agrupa frases curtas consecutivas mantendo twist e gancho/CTA final isolados
+    if len(frases_fmt) >= 4 and _eh_bloco_cta_final(frases_fmt[-1]):
+        finais = [frases_fmt[-2], frases_fmt[-1]]
+        corpo = frases_fmt[:-2]
+    else:
+        finais = [frases_fmt[-1]]
+        corpo = frases_fmt[:-1]
+
+    max_corpo = max(4, alvo_blocos - len(finais))
     palavras_por_bloco = max(12, int(sum(len(f.split()) for f in corpo) / max_corpo))
 
     blocos: list[str] = []
@@ -691,7 +990,7 @@ def _dividir_em_blocos_narrativos(roteiro_bruto: str) -> list[str]:
             p_atual += pf
     if atual:
         blocos.append(" ".join(atual))
-    blocos.append(ultima)
+    blocos.extend(finais)
     return blocos
 
 
@@ -776,6 +1075,9 @@ def diretor_mock_deterministico(
     catalogo = catalogo_sfx or carregar_catalogo_sfx()
     limpo = restaurar_acentos_ptbr(sanitizar_texto(roteiro_bruto))
     blocos_txt = _dividir_em_blocos_narrativos(limpo)
+    if not blocos_txt or not _eh_bloco_cta_final(blocos_txt[-1]):
+        blocos_txt.append(CTA_FINAL_PADRAO)
+
     horario = extrair_horario(limpo)
     nome_prot = extrair_nome_protagonista(limpo)
     ctx_escritorio = texto_indica_escritorio(limpo)
@@ -788,35 +1090,59 @@ def diretor_mock_deterministico(
         titulo = " ".join(primeiras[:6]).strip() or "Suspense da Madrugada"
         titulo = titulo[0].upper() + titulo[1:]
 
-    tema = restaurar_acentos_ptbr(sanitizar_texto(blocos_txt[0] + " " + (blocos_txt[-1] if len(blocos_txt) > 1 else "")))[:180]
+    cor_idx = abs(sum(ord(c) for c in titulo)) % len(PALETA_JAQUETAS)
+    jaq, jaq_s, jaq_e = PALETA_JAQUETAS[cor_idx]
+    protagonista_cfg = {
+        "nome": nome_prot,
+        "jaqueta": jaq,
+        "jaqueta_sombra": jaq_s,
+        "jaqueta_escura": jaq_e,
+        "pele": "#E0B292",
+        "cabelo": "#141720",
+    }
+
+    idx_twist = len(blocos_txt) - 2 if len(blocos_txt) >= 3 and _eh_bloco_cta_final(blocos_txt[-1]) else len(blocos_txt) - 1
+    tema = restaurar_acentos_ptbr(
+        sanitizar_texto(blocos_txt[0] + " " + (blocos_txt[idx_twist] if idx_twist > 0 else ""))
+    )[:180]
     palavras_chave = _extrair_palavras_chave(titulo, limpo, qtd=7)
 
     n = len(blocos_txt)
     cameras_ciclo = ("push_in", "pan_right", "tight_close", "pan_left", "pull_out", "push_in")
     blocos: list[dict] = []
     ultimo_mod = ""
+    prompts_usados: set[str] = set()
 
     for i, txt in enumerate(blocos_txt):
         norm = normalizar_texto(txt)
+        eh_final_cta = (i == n - 1) and _eh_bloco_cta_final(txt)
+        eh_twist = i == idx_twist
+
         mod = inferir_modulo_por_texto(txt, i, n, contexto_global=limpo)
         if i == 0 and any(k in norm for k in ("quarto", "acorda", "acordou", "cama")) and mod == "celular_notificacao":
             mod = "quarto_noturno"
-        if mod == ultimo_mod and not (ctx_escritorio and mod == "escritorio"):
+        if eh_final_cta:
+            mod = "big_face" if ultimo_mod != "big_face" else ("escritorio" if ctx_escritorio else "corredor_escuro")
+        elif mod == ultimo_mod and not (ctx_escritorio and mod == "escritorio"):
             alternativas = [
                 m for m in ("big_face", "corredor_escuro", "sala_cozinha", "escritorio", "quarto_noturno", "blecaute_olhos")
                 if m != ultimo_mod
             ]
-            if i == n - 1:
+            if eh_twist:
                 mod = "blecaute_olhos" if ultimo_mod != "blecaute_olhos" else "big_face"
-            elif i == n - 2:
+            elif i == max(0, idx_twist - 1):
                 mod = "big_face" if ultimo_mod != "big_face" else "corredor_escuro"
             else:
                 mod = alternativas[i % len(alternativas)]
         ultimo_mod = mod
 
-        grav_zero = texto_indica_gravidade_zero(txt) or (ctx_zero_g and i >= 1)
+        grav_zero = (not eh_final_cta) and (texto_indica_gravidade_zero(txt) or (ctx_zero_g and i >= 1))
 
-        if i == n - 1:
+        if eh_final_cta:
+            perfil = "narrador_tenso"
+            mood = "navy"
+            expr = "worry"
+        elif eh_twist:
             perfil = "sussurro_twist"
             mood = "red" if (mod == "big_face" or grav_zero) else "dark"
             expr = "shock" if (mod == "big_face" or grav_zero) else "sinister_smile"
@@ -828,10 +1154,10 @@ def diretor_mock_deterministico(
             perfil = "interfone_porteiro"
             mood = "cctv" if mod == "camera_cctv" else "violet"
             expr = "fear"
-        elif i >= max(1, int(n * 0.55)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca")):
+        elif i >= max(1, int(idx_twist * 0.55)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca")):
             perfil = "panico"
-            mood = "red" if i >= n - 3 else "violet"
-            expr = "shock" if i >= n - 2 else "fear"
+            mood = "red" if i >= max(1, idx_twist - 2) else "violet"
+            expr = "shock" if i >= max(1, idx_twist - 1) else "fear"
         else:
             perfil = "narrador_tenso"
             mood = "cctv" if mod == "camera_cctv" else ("navy" if i % 2 == 0 else "violet")
@@ -846,7 +1172,9 @@ def diretor_mock_deterministico(
                   else ("guarda_roupa" if ("armario" in norm or "guarda roupa" in norm) else "janela"))
         )
         flutuantes = inferir_props_flutuantes(txt, objeto_atual=obj_principal, gravidade_zero=grav_zero) if grav_zero else []
-        tem_vulto = texto_indica_vulto(txt) and not (grav_zero and not any(k in norm for k in ("vulto", "sombra", "olhos", "invasor")))
+        tem_vulto = (not eh_final_cta) and texto_indica_vulto(txt) and not (
+            grav_zero and not any(k in norm for k in ("vulto", "sombra", "olhos", "invasor"))
+        )
 
         citacao = extrair_citacao_tela(txt, limite=84)
         props = {
@@ -858,16 +1186,30 @@ def diretor_mock_deterministico(
             "celular_app": "ALERTA" if any(k in norm for k in ("alerta", "emergencia", "banco", "pix")) else "MENSAGEM",
             "celular_remetente": "NÚMERO OCULTO" if "oculto" in norm or "desconhecido" in norm else "CONTATO",
             "celular_mensagem": citacao,
-            "celular_mensagem_2": "NÃO OLHE PARA TRÁS." if (i >= n - 3 and not grav_zero) else "",
+            "celular_mensagem_2": "NÃO OLHE PARA TRÁS." if (i >= max(1, idx_twist - 2) and not grav_zero and not eh_final_cta) else "",
             "cctv_cam": f"CAM 0{(i % 3) + 1}",
             "cctv_local": "ESCRITÓRIO" if ctx_escritorio else ("CORREDOR" if "corredor" in norm else ("QUARTO" if "quarto" in norm else "ACESSO")),
-            "cctv_status": "MOVIMENTO DETECTADO" if i < n - 2 else "ALERTA DE PRESENÇA",
+            "cctv_status": "MOVIMENTO DETECTADO" if i < max(1, idx_twist - 1) else "ALERTA DE PRESENÇA",
             "elevador_andar": "S3" if "subsolo" in norm or "s3" in norm else "06",
             "gps_destino": "DESTINO: SUA CASA" if "casa" in norm else "DESTINO DESCONHECIDO",
             "gps_alerta": "ROTA RECALCULADA" if "gps" in norm or "rota" in norm else "ALERTA DE TRAJETO",
             "corredor_objeto": "cadeira" if "cadeira" in norm else ("vulto" if tem_vulto else "porta"),
             "pose": pose,
         }
+        cam = cameras_ciclo[i % len(cameras_ciclo)]
+        prompt_imagem, _ = _normalizar_prompt_imagem(
+            prompt_raw=None,
+            texto_bloco=txt,
+            modulo=mod,
+            mood=mood,
+            expressao=expr,
+            camera=cam,
+            props=props,
+            protagonista=protagonista_cfg,
+            idx=i,
+            total=n,
+            usados=prompts_usados,
+        )
 
         blocos.append(
             {
@@ -876,42 +1218,34 @@ def diretor_mock_deterministico(
                 "modulo": mod,
                 "mood": mood,
                 "expressao": expr,
-                "camera": cameras_ciclo[i % len(cameras_ciclo)],
+                "camera": cam,
                 "props": props,
+                "prompt_imagem": prompt_imagem,
                 "sfx_depois": None,
             }
         )
 
-    # Insere 1 a 2 SFX diegeticos no meio + obrigatoriamente impacto_twist antes do bloco final
+    # Insere 1 a 2 SFX diegeticos no meio + obrigatoriamente impacto_twist antes do bloco de twist
     sfx_colocados = 0
-    for idx_b in range(1, max(1, n - 1)):
+    for idx_b in range(1, max(1, idx_twist)):
         if sfx_colocados >= 2:
             break
         sfx_cand = inferir_sfx_para_texto(blocos[idx_b]["texto"], catalogo)
         if sfx_cand and sfx_cand != "impacto_twist":
             blocos[idx_b]["sfx_depois"] = sfx_cand
             sfx_colocados += 1
-    if n >= 2:
-        blocos[n - 2]["sfx_depois"] = "impacto_twist"
+    if idx_twist >= 1:
+        blocos[idx_twist - 1]["sfx_depois"] = "impacto_twist"
 
-    katana_hits = _escolher_katana_hits(blocos, total_desejado=4 if n >= 6 else 3)
-
-    cor_idx = abs(sum(ord(c) for c in titulo)) % len(PALETA_JAQUETAS)
-    jaq, jaq_s, jaq_e = PALETA_JAQUETAS[cor_idx]
+    blocos_historia = blocos[: idx_twist + 1] if idx_twist >= 2 else blocos
+    katana_hits = _escolher_katana_hits(blocos_historia, total_desejado=4 if len(blocos_historia) >= 6 else 3)
 
     return {
         "titulo": titulo,
         "tema": tema,
         "palavras_chave": palavras_chave,
         "horario": horario,
-        "protagonista": {
-            "nome": nome_prot,
-            "jaqueta": jaq,
-            "jaqueta_sombra": jaq_s,
-            "jaqueta_escura": jaq_e,
-            "pele": "#E0B292",
-            "cabelo": "#141720",
-        },
+        "protagonista": protagonista_cfg,
         "paleta": dict(PALETA_PADRAO),
         "blocos": blocos,
         "katana_hits": katana_hits,
@@ -940,14 +1274,20 @@ def _montar_prompt_gemini(
         "2. ORTOGRAFIA COMPLETA EM PORTUGUÊS (UTF-8): preserve e escreva TODOS os acentos e cedilhas "
         "(ex.: você, não, mão, pés, direção, levitação, escritório, xícara, café, chão, pânico) no título, "
         "nos blocos narrativos, nas mensagens e nas linhas de katana_hits. Nunca remova acentos.\n"
-        "3. Preserve fielmente o roteiro bruto em português natural, dividido em 6 a 12 blocos narrativos.\n"
+        "3. RITMO HUMANO E SEM PAUSA NO MEIO: preserve o roteiro em frases curtas, diretas e faladas como um humano "
+        "contando algo viciante, dividido em 7 a 12 blocos narrativos. PROIBIDO inserir pausa comercial, propaganda ou CTA "
+        "no meio do vídeo. Deixe o gancho/CTA curto de 1 frase APENAS como último bloco do vídeo.\n"
         "4. Cada bloco escolhe:\n"
-        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use sussurro_twist no bloco final de impacto/revelação; nunca use cta_comercial nos blocos de história).\n"
+        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use 'sussurro_twist' no bloco de revelação/clímax e 'narrador_tenso' no último bloco curto de gancho/CTA final; NUNCA use 'cta_comercial').\n"
         f"   - modulo: um de {list(MODULOS_CENARIO)}. Use 'escritorio' sempre que a cena ocorrer em escritório, mesas com monitores, janelas panorâmicas, teto de gesso ou cenários hipotéticos de gravidade zero (evite repetir 'sala_cozinha' quando o ambiente for corporativo ou científico; intercale com 'big_face' nos picos internos de tensão).\n"
         f"   - mood: um de {list(MOODS_VALIDOS)}.\n"
         f"   - expressao: um de {list(EXPRESSOES_VALIDAS)} (nunca use 'sinister_smile' em cenas de queda livre ou pânico do protagonista; use 'shock' ou 'fear').\n"
         f"   - camera: um de {list(CAMERAS_VALIDAS)}.\n"
-        f"   - sfx_depois: null ou um de {sfx_validos} (coloque impacto_twist no penúltimo bloco antes da revelação final; no máximo 3 SFX no total).\n"
+        f"   - sfx_depois: null ou um de {sfx_validos} (coloque impacto_twist imediatamente antes do bloco da revelação final; no máximo 3 SFX no total).\n"
+        "   - prompt_imagem: OBRIGATÓRIO em INGLÊS para TODAS as cenas. Descreva uma cena visual ÚNICA, específica e "
+        "cinematográfica que ilustre EXATAMENTE aquela fala (enquadramento, sujeito, ação, cenário, iluminação e detalhes "
+        "coerentes com o resto do vídeo, sem repetir a mesma imagem entre cenas). Termine OBRIGATORIAMENTE com o estilo exato:\n"
+        f'     "{ESTILO_VISUAL_PROMPT_IMAGEM}"\n'
         f"   - props: objeto com:\n"
         f"     * pose: um de {list(POSES_VALIDAS)} (use 'flutuando', 'segurando_mesa' ou 'caindo' em cenas de gravidade zero/queda, nunca deixe 'idle' parado quando houver ação física).\n"
         "     * gravidade_zero: true ou false (true quando houver flutuação, levitação, perda de gravidade ou queda livre).\n"
@@ -966,7 +1306,8 @@ def _montar_prompt_gemini(
         f'  "horario": "{horario_ex}",\n'
         '  "protagonista": {"nome": "Você", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
         '  "paleta": {"bg_navy": "#0A0F1D", "bg_violet": "#130926", "bg_red": "#3B0A0A", "accent": "#38D9FF", "alert": "#FF3B30", "yellow": "#FFD400"},\n'
-        '  "blocos": [{"perfil_voz": "...", "texto": "...", "modulo": "...", "mood": "...", "expressao": "...", "camera": "...", "sfx_depois": null, "props": {"pose": "idle", "gravidade_zero": false, "objetos_flutuantes": [], "silhuetas_janela": false, "vulto": false}}],\n'
+        '  "blocos": [{"perfil_voz": "...", "texto": "...", "modulo": "...", "mood": "...", "expressao": "...", "camera": "...", "sfx_depois": null, "prompt_imagem": "Cinematic medium close-up of ..., '
+        f'{ESTILO_VISUAL_PROMPT_IMAGEM}", "props": {{"pose": "idle", "gravidade_zero": false, "objetos_flutuantes": [], "silhuetas_janela": false, "vulto": false}}}}],\n'
         '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "levitar", "linhas": ["LEVITAÇÃO", "TOTAL"], "duracao": 0.42, "cor": "red"}]\n'
         "}\n\n"
         f"{pilar_hint}"
@@ -1360,20 +1701,29 @@ def _montar_prompt_roteiro_inedito(
         f"{aviso_rej}\n"
         "REGRAS OBRIGATÓRIAS DO ROTEIRO:\n"
         f"1. {dica_titulo}"
-        "2. Escreva entre 185 e 245 palavras (ritmo ágil e contínuo para gerar automaticamente Parte 1 e Parte 2).\n"
+        "2. Escreva entre 185 e 245 palavras em ritmo contínuo e envolvente.\n"
         "3. Siga estritamente o pilar obrigatório acima (não transforme cenários hipotéticos, curiosidades "
         "ou mistérios reais em história genérica de terror de madrugada).\n"
-        "4. Use frases curtas, diretas e visuais, com gancho forte nos primeiros 3 segundos, cliffhanger "
-        "natural no meio (transição Parte 1 para Parte 2) e impacto final seco e inesquecível na última frase.\n"
-        "5. ORTOGRAFIA COMPLETA EM PORTUGUÊS (UTF-8): escreva com TODOS os acentos gráficos e cedilhas corretos "
-        "(ex.: você, não, mão, pés, direção, levitação, escritório, xícara, café, chão, pânico). Nunca remova acentos.\n"
-        "6. ZERO emoji, ZERO travessão (em-dash ou en-dash), ZERO tags [VOZ] ou [SFX], ZERO CTA "
-        "(a CTA e as tags serão inseridas automaticamente na etapa seguinte).\n"
-        "7. Responda APENAS com JSON válido no formato:\n"
+        "4. VOZ HUMANA E VICIANTE (ZERO TOM ROBÓTICO): escreva em frases curtas, diretas e faladas como um humano "
+        "contando algo viciante para um amigo. Ritmo conversacional real, verbos concretos e imagens mentais imediatas. "
+        "PROIBIDO usar clichês de IA ou linguagem de redação formal como 'mergulhe nessa história', 'prepare-se para descobrir', "
+        "'em um mundo onde', 'você não vai acreditar', 'a resposta vai te surpreender', 'no cenário atual', 'nesse contexto', "
+        "'além disso', 'por outro lado' ou 'sem dúvida'.\n"
+        "5. RETENÇÃO SEM INTERRUPÇÃO: abra com um gancho impossível de ignorar nos primeiros 3 segundos e mantenha "
+        "a tensão crescente até a virada final seca e memorável. PROIBIDO inserir qualquer pausa comercial, propaganda, "
+        "anúncio ou CTA no meio do vídeo (jamais interrompa a história por volta do segundo 14 ou no meio do roteiro). "
+        "Deixe APENAS um gancho/CTA curto e natural de 1 única frase no finalzinho do vídeo (ex.: provocando o espectador "
+        "a responder nos comentários o que faria ou o que acha).\n"
+        "6. ORTOGRAFIA COMPLETA EM PORTUGUÊS (UTF-8): escreva com acentuação UTF-8 100% correta em TODAS as palavras "
+        "(ex.: você, não, mão, pés, direção, levitação, escritório, xícara, café, chão, pânico, silêncio, coração, "
+        "câmera, está, é, até, também). Nunca remova acentos nem cedilhas.\n"
+        "7. ZERO emoji, ZERO travessão (em-dash ou en-dash), ZERO tags [VOZ], [SFX] ou [CTA_PAUSA] "
+        "(a marcação técnica será feita na etapa seguinte).\n"
+        "8. Responda APENAS com JSON válido no formato:\n"
         "{\n"
         '  "titulo": "Título Inédito Curto",\n'
         '  "tema": "Resumo objetivo em 1 frase da premissa inédita",\n'
-        '  "roteiro_bruto": "Texto corrido completo do roteiro em pt-BR com acentuação UTF-8 completa (185 a 245 palavras)."\n'
+        '  "roteiro_bruto": "Texto corrido completo do roteiro em pt-BR falado natural com acentuação UTF-8 100% correta, sem pausa comercial no meio e fechando com 1 frase curta de gancho/CTA no finalzinho (185 a 245 palavras)."\n'
         "}\n"
     )
 
@@ -1467,68 +1817,62 @@ def gerar_roteiro_inedito_mock(
         "cenarios_hipoteticos": (
             f"E Se Você Acordasse Preso no Submarino {prox_id:02d}",
             (
-                "E se você acordasse agora trancado dentro de um submarino parado a trezentos metros "
-                "de profundidade no fundo do oceano? No primeiro minuto, você nota que as luzes principais "
-                "apagaram e apenas o painel de emergência brilha em vermelho. O medidor mostra quarenta e oito "
-                "horas de oxigênio disponível e nenhuma resposta no rádio de superfície. Seu primeiro instinto "
-                "é correr pelos compartimentos batendo no casco de aço para chamar atenção, mas isso é o pior "
-                "erro possível: cada movimento acelerado consome o dobro de ar e eleva o dióxido de carbono na "
-                "cabine. Depois de doze horas, a temperatura cai para seis graus e o silêncio metálico começa "
-                "a enganar seu cérebro com ruídos falsos de passos fora da escotilha. Na vigésima quarta hora, "
-                "o ar fica pesado, sua visão perde o foco lateral e você descobre uma válvula de lastro manual "
-                "perto do corredor central. Ao girar a trava de ferro com as mãos tremendo, o submarino inclina "
-                "devagar, mas o visor de pressão acende um alerta que ninguém esperava: a escotilha externa já "
-                "havia sido destravada pelo lado de fora antes mesmo de você acordar."
+                "E se você acordasse agora preso dentro de um submarino a trezentos metros de profundidade? "
+                "As luzes principais apagaram. Só o painel de emergência brilha em vermelho. "
+                "O visor marca quarenta e oito horas de oxigênio, e o rádio da superfície está mudo. "
+                "Seu primeiro instinto é correr e bater no casco de aço pedindo socorro. Só que esse é o pior erro possível. "
+                "Cada movimento apressado dobra o gasto de ar e enche a cabine de gás carbônico. "
+                "Com doze horas, o frio bate seis graus. O silêncio de metal começa a pregar peças na sua cabeça, "
+                "como se alguém estivesse andando lá fora. Na hora vinte e quatro, o ar fica pesado e sua vista escurece nas bordas. "
+                "Você acha uma válvula manual de lastro no corredor central e gira o ferro com as mãos tremendo. "
+                "O submarino inclina devagar, mas o painel acende um alerta impossível: a escotilha externa já tinha sido aberta "
+                "pelo lado de fora antes mesmo de você acordar. "
+                "Me conta nos comentários: você tentaria abrir essa escotilha ou ficaria lá dentro?"
             ),
         ),
         "curiosidades_bizarras": (
             f"O Fenômeno Real do Ponto Nemo {prox_id:02d}",
             (
-                "Você sabia que existe um ponto no oceano tão isolado que, se você estiver lá, os seres "
-                "humanos mais próximos de você não estão na Terra, mas passando dentro da Estação Espacial "
-                "Internacional? Esse lugar real se chama Ponto Nemo, no meio do Oceano Pacífico Sul, a mais "
-                "de dois mil e seiscentos quilômetros da ilha habitada mais próxima. Por causa das correntes "
-                "marinhas circulares, quase nenhum nutriente chega até aquela região, transformando as águas "
-                "em um deserto biológico quase sem peixes. É exatamente por ser tão remoto que agências "
-                "espaciais usam o Ponto Nemo como o maior cemitério de naves do planeta: centenas de satélites "
-                "desativados e fragmentos de estações espaciais já foram derrubados de propósito naquela área. "
-                "Mas o detalhe mais bizarro aconteceu em mil novecentos e noventa e sete, quando hidrofones "
-                "militares captaram um som subaquático gigantesco vindo de perto dali, ouvido a cinco mil "
-                "quilômetros de distância. Os cientistas atribuíram o ruído a um bloco de gelo se partindo, "
-                "porém ninguém nunca conseguiu gravar outro som com a mesma assinatura acústica até hoje."
+                "Existe um lugar no oceano tão isolado que, se você cair lá, as pessoas mais perto de você não estão na Terra. "
+                "Elas estão passando lá em cima, na Estação Espacial Internacional. "
+                "Esse ponto real se chama Ponto Nemo, no meio do Pacífico Sul, a mais de dois mil e seiscentos quilômetros de qualquer ilha habitada. "
+                "As correntes giram em volta e quase não deixam nutrientes entrar. A água vira um deserto quase sem peixes. "
+                "Por ser tão vazio, agências espaciais usam o lugar como o maior cemitério de naves do planeta. "
+                "Centenas de satélites mortos e restos de estações já foram jogados de propósito ali no fundo. "
+                "Só que o mais estranho rolou em noventa e sete. Microfones militares no fundo do mar captaram um barulho colossal vindo dali, "
+                "ouvido a cinco mil quilômetros de distância. A explicação oficial falou em um bloco de gelo se partindo, "
+                "mas ninguém nunca gravou outro som igual até hoje. "
+                "E você, acha que era só gelo ou tem coisa escondida lá embaixo, comenta aí?"
             ),
         ),
         "misterios_reais": (
             f"O Cofre Proibido no Gelo de Svalbard {prox_id:02d}",
             (
-                "Existe uma porta de concreto cravada dentro de uma montanha congelada no Ártico onde quase "
-                "ninguém na Terra tem autorização para entrar. Trata-se do Cofre Global de Sementes de "
-                "Svalbard, construído cento e vinte metros montanha adentro em uma ilha gelada da Noruega. "
-                "Ele foi projetado para resistir a terremotos, explosões, falhas elétricas e até ao derretimento "
-                "total das geleiras, mantendo mais de um milhão de amostras de sementes guardadas a dezoito "
-                "graus negativos. O acesso é monitorado por sensores de movimento, portas blindadas duplas e "
-                "protocolos que impedem até pesquisadores sem credencial diplomática de passar do primeiro "
-                "corredor. Mesmo sem funcionários permanentes lá dentro, as câmeras registram cada mudança de "
-                "temperatura vinte e quatro horas por dia. O detalhe mais intrigante é que apenas um país "
-                "precisou abrir sua caixa lacrada até hoje após um conflito armado, provando que a estrutura "
-                "não é um exagero de ficção científica: ela existe porque governos inteiros já calcularam "
-                "exatamente o que fazer se a agricultura global colapsar de uma vez."
+                "Existe uma porta de concreto cravada numa montanha congelada do Ártico onde quase ninguém no mundo pode entrar. "
+                "É o Cofre Global de Sementes de Svalbard, enfiado cento e vinte metros dentro do gelo, na Noruega. "
+                "Ele foi feito para sobreviver a terremotos, explosões, apagões e até ao derretimento das geleiras. "
+                "Lá dentro ficam mais de um milhão de amostras de sementes guardadas a dezoito graus negativos. "
+                "Tem sensor de movimento, portas blindadas duplas e uma trava rígida: sem credencial diplomática, ninguém passa do primeiro corredor. "
+                "Não existe equipe morando lá dentro, mas câmeras vigiam cada grau de temperatura o tempo todo. "
+                "Até hoje, só um país precisou abrir sua caixa lacrada depois de uma guerra. "
+                "Isso mostra uma coisa bem real: o cofre não é exagero de filme, ele existe porque governos já têm plano pronto se a comida do planeta acabar. "
+                "Você sabia que esse cofre existia, me diz aqui nos comentários?"
             ),
         ),
         "suspense_urbano": (
             f"O Último Vagão da Linha Sul {prox_id:02d}",
             (
-                "Eram vinte e três e dezoito quando Mateus entrou no último vagão vazio do metrô voltando do "
-                "trabalho no centro. Ele sentou perto da janela escura e colocou os fones para abafar o chiado "
-                "dos trilhos. Quando o trem mergulhou no túnel longo, as luzes fluorescentes piscaram duas "
-                "vezes e o painel eletrônico acima da porta travou mostrando o nome de uma estação desativada "
-                "há quase trinta anos. Mateus tirou o fone e percebeu silêncio total, sem barulho de motor. "
-                "O vidro da janela refletia todos os bancos vazios, exceto o assento logo atrás dele, onde um "
-                "homem de capa escura aparecia sentado de cabeça baixa. Mateus virou rápido por cima do ombro: "
-                "o banco real atrás dele estava completamente vazio. O interfone de emergência perto da porta "
-                "chiou alto e a voz apressada da central perguntou: passageiro do último vagão, como você "
-                "entrou aí se esse trem está desligado na garagem há quarenta minutos? Mateus olhou de novo "
-                "para o reflexo na janela. O homem no vidro agora estava de pé atrás da nuca dele, sorrindo."
+                "Eram onze e dezoito da noite quando Mateus entrou no último vagão vazio do metrô. "
+                "Ele sentou perto da janela escura e pôs o fone para abafar o barulho dos trilhos. "
+                "Quando o trem entrou no túnel longo, a luz do teto piscou duas vezes. "
+                "O letreiro em cima da porta travou no nome de uma estação fechada há quase trinta anos. "
+                "Mateus tirou o fone e percebeu um silêncio total, sem nenhum som de motor. "
+                "No reflexo do vidro, todos os bancos estavam vazios, menos o banco logo atrás dele. "
+                "Tinha um homem de capa escura sentado ali, de cabeça baixa. Mateus virou o pescoço na hora: o banco real atrás dele estava vazio. "
+                "O interfone perto da porta chiou alto e uma voz assustada da central perguntou como ele tinha entrado ali, "
+                "porque aquele trem estava desligado na garagem há quarenta minutos. "
+                "Mateus olhou de volta para o vidro. O homem do reflexo agora estava de pé atrás da nuca dele, sorrindo. "
+                "Me diz nos comentários: você puxava o freio de emergência ou corria pro outro vagão?"
             ),
         ),
     }
@@ -1622,6 +1966,7 @@ def validar_e_corrigir_plano(
     blocos_in = plano_bruto.get("blocos")
     blocos_validos: list[dict] = []
     sfx_permitidos = set(catalogo_sfx.keys()) - {"glitch_cta", "cta_pop"}
+    prompts_usados: set[str] = set()
     pose_aliases = {
         "float": "flutuando",
         "floating": "flutuando",
@@ -1634,22 +1979,37 @@ def validar_e_corrigir_plano(
 
     if isinstance(blocos_in, list) and len(blocos_in) >= 3:
         sfx_count = 0
+        total_in = len(blocos_in)
         for idx, b in enumerate(blocos_in):
             if not isinstance(b, dict):
                 continue
-            txt = restaurar_acentos_ptbr(sanitizar_texto(b.get("texto", "")))
+            txt_raw = str(b.get("texto", ""))
+            txt = restaurar_acentos_ptbr(sanitizar_texto(re.sub(r"\[/?(?:CTA_PAUSA|VOZ(?::[a-zA-Z0-9_]+)?)\]", "", txt_raw, flags=re.IGNORECASE)))
             if not txt:
                 continue
             if not txt.endswith((".", "!", "?")):
                 txt += "."
             norm_txt = normalizar_texto(txt)
-            perfil = str(b.get("perfil_voz", "narrador_tenso")).strip().lower()
+            perfil_orig = str(b.get("perfil_voz", "narrador_tenso")).strip().lower()
+            eh_ultimo_in = idx == total_in - 1
+
+            # Bloqueia qualquer pausa comercial ou CTA no meio do video
+            if not eh_ultimo_in and (
+                "[cta_pausa]" in txt_raw.lower()
+                or perfil_orig == "cta_comercial"
+                or "comente eu quero" in norm_txt
+                or "fazer videos assim no automatico" in norm_txt
+            ):
+                avisos.append(f"Bloco {idx + 1}: pausa comercial/CTA no meio removida automaticamente.")
+                continue
+
+            perfil = perfil_orig
             if perfil not in PERFIS_VOZ or perfil == "cta_comercial":
                 perfil = "narrador_tenso"
                 avisos.append(f"Bloco {idx + 1}: perfil_voz corrigido para narrador_tenso.")
             modulo = str(b.get("modulo", "")).strip().lower()
             if modulo not in MODULOS_CENARIO:
-                modulo = inferir_modulo_por_texto(txt, idx, len(blocos_in), contexto_global=roteiro_bruto)
+                modulo = inferir_modulo_por_texto(txt, idx, total_in, contexto_global=roteiro_bruto)
                 avisos.append(f"Bloco {idx + 1}: modulo invalido substituido por '{modulo}'.")
             elif modulo == "sala_cozinha" and (
                 texto_indica_escritorio(txt)
@@ -1746,6 +2106,22 @@ def validar_e_corrigir_plano(
                 "corredor_objeto": sanitizar_texto(str(props_in.get("corredor_objeto", "porta")))[:20].lower() or "porta",
                 "pose": pose_norm,
             }
+            prompt_img, fb_img = _normalizar_prompt_imagem(
+                prompt_raw=b.get("prompt_imagem"),
+                texto_bloco=txt,
+                modulo=modulo,
+                mood=mood,
+                expressao=expr,
+                camera=cam,
+                props=props,
+                protagonista=protagonista,
+                idx=len(blocos_validos),
+                total=total_in,
+                usados=prompts_usados,
+            )
+            if fb_img:
+                avisos.append(f"Bloco {len(blocos_validos) + 1}: prompt_imagem gerado pelo fallback cinematografico em ingles.")
+
             blocos_validos.append(
                 {
                     "perfil_voz": perfil,
@@ -1755,6 +2131,7 @@ def validar_e_corrigir_plano(
                     "expressao": expr,
                     "camera": cam,
                     "props": props,
+                    "prompt_imagem": prompt_img,
                     "sfx_depois": sfx_limpo,
                 }
             )
@@ -1762,18 +2139,66 @@ def validar_e_corrigir_plano(
     if len(blocos_validos) < 3:
         avisos.append("Blocos insuficientes no retorno do Gemini: blocos gerados pelo fallback deterministico.")
         blocos_validos = fallback["blocos"]
+        prompts_usados = {str(b.get("prompt_imagem", "")).lower() for b in blocos_validos}
 
-    # Garante fechamento de impacto (impacto_twist no penultimo e sussurro_twist no ultimo)
-    if len(blocos_validos) >= 2:
+    # Garante apenas 1 frase curta de gancho/CTA no finalzinho do video (nunca no meio)
+    if not _eh_bloco_cta_final(blocos_validos[-1]["texto"]):
+        mod_cta = "big_face" if blocos_validos[-1]["modulo"] != "big_face" else ("escritorio" if ctx_escritorio else "corredor_escuro")
+        props_cta = {
+            **blocos_validos[-1]["props"],
+            "vulto": False,
+            "gravidade_zero": False,
+            "objetos_flutuantes": [],
+            "silhuetas_janela": False,
+            "pose": "idle",
+        }
+        prompt_cta, _ = _normalizar_prompt_imagem(
+            prompt_raw=None,
+            texto_bloco=CTA_FINAL_PADRAO,
+            modulo=mod_cta,
+            mood="navy",
+            expressao="worry",
+            camera="push_in",
+            props=props_cta,
+            protagonista=protagonista,
+            idx=len(blocos_validos),
+            total=len(blocos_validos) + 1,
+            usados=prompts_usados,
+        )
+        blocos_validos.append(
+            {
+                "perfil_voz": "narrador_tenso",
+                "texto": CTA_FINAL_PADRAO,
+                "modulo": mod_cta,
+                "mood": "navy",
+                "expressao": "worry",
+                "camera": "push_in",
+                "props": props_cta,
+                "prompt_imagem": prompt_cta,
+                "sfx_depois": None,
+            }
+        )
+
+    # Garante fechamento de impacto (impacto_twist antes do twist, sussurro_twist no twist, voz natural na CTA final)
+    idx_twist = len(blocos_validos) - 2 if len(blocos_validos) >= 3 and _eh_bloco_cta_final(blocos_validos[-1]["texto"]) else len(blocos_validos) - 1
+    if len(blocos_validos) >= 3 and idx_twist == len(blocos_validos) - 2:
+        blocos_validos[-1]["perfil_voz"] = "narrador_tenso"
+        blocos_validos[-1]["sfx_depois"] = None
+        blocos_validos[idx_twist]["perfil_voz"] = "sussurro_twist"
+        blocos_validos[idx_twist]["sfx_depois"] = None
+        if not any(b.get("sfx_depois") == "impacto_twist" for b in blocos_validos[:idx_twist]):
+            blocos_validos[idx_twist - 1]["sfx_depois"] = "impacto_twist"
+    elif len(blocos_validos) >= 2:
         blocos_validos[-1]["perfil_voz"] = "sussurro_twist"
         blocos_validos[-1]["sfx_depois"] = None
         if not any(b.get("sfx_depois") == "impacto_twist" for b in blocos_validos):
             blocos_validos[-2]["sfx_depois"] = "impacto_twist"
 
-    # Valida e normaliza 3 a 5 katana_hits ligados a palavras reais dos blocos (preservando acentos UTF-8)
+    # Valida e normaliza 3 a 5 katana_hits ligados a palavras reais dos blocos da historia (sem cobrir CTA final)
     hits_in = plano_bruto.get("katana_hits")
     hits_validos: list[dict] = []
     blocos_com_hit: set[int] = set()
+    max_hit_idx = idx_twist if idx_twist >= 2 else len(blocos_validos) - 1
     if isinstance(hits_in, list):
         for h in hits_in:
             if not isinstance(h, dict) or len(hits_validos) >= 5:
@@ -1782,7 +2207,7 @@ def validar_e_corrigir_plano(
                 b_idx = int(h.get("bloco_idx", -1))
             except (TypeError, ValueError):
                 b_idx = -1
-            if b_idx < 0 or b_idx >= len(blocos_validos) or b_idx in blocos_com_hit:
+            if b_idx < 0 or b_idx > max_hit_idx or b_idx in blocos_com_hit:
                 continue
             linhas_raw = h.get("linhas")
             if isinstance(linhas_raw, str):
@@ -1801,7 +2226,6 @@ def validar_e_corrigir_plano(
             ]
             tokens_bloco = [t for t in tokens_bloco if len(t) >= 2]
             if not gat_raw or not any(tb.startswith(gat_raw) for tb in tokens_bloco):
-                # Tenta casar primeira palavra da linha Katana
                 cand = re.sub(r"[^a-z0-9]", "", normalizar_texto(linhas[0].split()[0]))
                 if cand and any(tb.startswith(cand) for tb in tokens_bloco):
                     gat_raw = cand
@@ -1834,7 +2258,8 @@ def validar_e_corrigir_plano(
 
     if len(hits_validos) < 3:
         avisos.append("Menos de 3 Katana hits validos: completando automaticamente com base no roteiro.")
-        hits_validos = _escolher_katana_hits(blocos_validos, total_desejado=4 if len(blocos_validos) >= 6 else 3)
+        blocos_hist = blocos_validos[: max_hit_idx + 1]
+        hits_validos = _escolher_katana_hits(blocos_hist, total_desejado=4 if len(blocos_hist) >= 6 else 3)
 
     # Ordena hits cronologicamente e renumera hit_01..hit_NN
     hits_validos.sort(key=lambda x: x["bloco_idx"])
@@ -1871,45 +2296,32 @@ def compor_roteiro_e_cenas(
     palavras_por_bloco = [len(b["texto"].split()) for b in blocos]
     total_palavras = sum(palavras_por_bloco)
     tem_parte_2 = total_palavras > LIMITE_PALAVRAS_PARTE_2
+    tem_cta_final = len(blocos) >= 3 and _eh_bloco_cta_final(blocos[-1]["texto"])
+    idx_twist = len(blocos) - 2 if tem_cta_final else len(blocos) - 1
 
-    # Escolhe posicoes ideais para [CTA_PAUSA] e (se >130 palavras) [CORTE_PARTE_2]
+    # Sem pausa comercial no meio; define apenas [CORTE_PARTE_2] quando > 130 palavras
     acum = 0
     idx_corte: int | None = None
     if tem_parte_2 and len(blocos) >= 4:
-        alvo_corte = total_palavras * 0.46
+        alvo_corte = total_palavras * 0.48
         melhor_idx = max(2, len(blocos) // 2)
         melhor_dist = float("inf")
+        limite_sup_corte = max(2, idx_twist - 1)
         for i in range(1, len(blocos) - 1):
             acum += palavras_por_bloco[i - 1]
             dist = abs(acum - alvo_corte)
-            if dist < melhor_dist and i >= 2 and i <= len(blocos) - 2:
+            if dist < melhor_dist and 2 <= i <= limite_sup_corte:
                 melhor_dist = dist
                 melhor_idx = i
         idx_corte = melhor_idx
-
-    # CTA fica no meio da Parte 1 (quando ha Parte 2) ou no meio da historia (Short unico)
-    limite_cta = idx_corte if idx_corte is not None else len(blocos)
-    palavras_p1 = sum(palavras_por_bloco[:limite_cta])
-    alvo_cta = palavras_p1 * 0.52
-    acum_cta = 0
-    idx_cta = max(1, limite_cta // 2)
-    melhor_dist_cta = float("inf")
-    for i in range(1, max(2, limite_cta)):
-        acum_cta += palavras_por_bloco[i - 1]
-        dist = abs(acum_cta - alvo_cta)
-        if dist < melhor_dist_cta:
-            melhor_dist_cta = dist
-            idx_cta = i
-    if idx_corte is not None and idx_cta >= idx_corte:
-        idx_cta = max(1, idx_corte - 1)
 
     linhas_rot: list[str] = [
         f'ROTEIRO {video_id:02d}: "{plano["titulo"].upper()}"',
         f"Formato: YouTube Shorts / Reels 9:16 (1080x1920) | {'Serie em 2 Partes' if tem_parte_2 else 'Short Unico'} (Motor V6.0)",
         "Gerado automaticamente por pipeline/diretor_ia.py | Player: player_universal.html + cenas.json",
         f"Protagonista: {plano['protagonista']['nome']} (jaqueta {plano['protagonista']['jaqueta']})",
-        "Perfis vocais V5.1: narrador_tenso, panico, interfone_porteiro, cta_comercial, sussurro_twist.",
-        "CTA dedicada: bloco [CTA_PAUSA] em tela cheia (~3.5s) no meio; zero CTA no final para loop seco.",
+        "Perfis vocais: narrador_tenso, panico, interfone_porteiro, voz_telefone, sussurro_twist.",
+        "Retencao continua: zero pausa comercial no meio; apenas 1 frase curta de gancho/CTA no finalzinho.",
         "",
         "Estrutura de cada bloco:",
         "[Tempo em Segundos] | [Texto Exato da Narracao com Tags VOZ] | [Direcao visual e modulo] | [Eventos e pausas]",
@@ -1929,20 +2341,6 @@ def compor_roteiro_e_cenas(
     }
 
     for i, b in enumerate(blocos):
-        if i == idx_cta:
-            t0_c = int(round(t_cursor))
-            t1_c = t0_c + 4
-            linhas_rot.extend(
-                [
-                    "------------------------------------------------------------",
-                    "BLOCO DEDICADO DE CTA EM TELA CHEIA NO MEIO",
-                    f"[{t0_c:02d} - {t1_c:02d}] | [CTA_PAUSA] [VOZ:cta_comercial] {CTA_FALA_PADRAO} [/VOZ] [/CTA_PAUSA] | Cartao dedicado ocupando 100% da tela com pilula amarela COMENTE EU QUERO. | cta_pausa",
-                    "------------------------------------------------------------",
-                    "",
-                ]
-            )
-            t_cursor += 3.8
-
         if idx_corte is not None and i == idx_corte:
             t_c = int(round(t_cursor))
             linhas_rot.extend(
@@ -1957,7 +2355,7 @@ def compor_roteiro_e_cenas(
             )
 
         cena_id = f"cena_{i + 1:02d}"
-        dur_est = max(2.2, len(b["texto"].split()) / 2.65)
+        dur_est = max(2.0, len(b["texto"].split()) / 2.45)
         t0 = int(round(t_cursor))
         t1 = max(t0 + 1, int(round(t_cursor + dur_est)))
         t_cursor += dur_est
@@ -1971,14 +2369,17 @@ def compor_roteiro_e_cenas(
             eventos_bloco.append(f"{hit['evento']}@{hit['palavra_gatilho']}")
             palavras_vermelhas.add(hit["palavra_gatilho"])
 
-        if i == len(blocos) - 1:
+        if i == idx_twist:
             if hit is not None:
                 eventos_bloco.append(f"plot_twist@{hit['palavra_gatilho']}")
             else:
                 eventos_bloco.append("plot_twist")
 
-        if i == len(blocos) - 1:
-            eventos_bloco.append("pausa=0.16")
+        if tem_cta_final and i == len(blocos) - 1:
+            eventos_bloco.append("cta")
+            eventos_bloco.append("pausa=0.20")
+        elif i == len(blocos) - 1:
+            eventos_bloco.append("pausa=0.18")
 
         ev_str = ", ".join(eventos_bloco)
         perfil = b["perfil_voz"]
@@ -1988,7 +2389,6 @@ def compor_roteiro_e_cenas(
         )
 
         sfx_dep = b.get("sfx_depois")
-        # Evita colocar SFX colado exatamente antes do corte Parte 2 para manter corte limpo
         if sfx_dep and sfx_dep in catalogo_sfx:
             dur_sfx = float(catalogo_sfx[sfx_dep])
             ts0 = int(round(t_cursor))
@@ -2007,6 +2407,7 @@ def compor_roteiro_e_cenas(
                 "expressao": b["expressao"],
                 "camera": b["camera"],
                 "vig": 0.72 if b["mood"] in ("red", "dark") else 0.58,
+                "prompt_imagem": b["prompt_imagem"],
                 "props": b["props"],
             }
         )
@@ -2040,6 +2441,7 @@ def compor_roteiro_e_cenas(
             if len(tok) >= 4:
                 palavras_vermelhas.add(tok)
 
+    cta_final_texto = blocos[-1]["texto"] if tem_cta_final else CTA_FINAL_PADRAO
     cenas_json = {
         "schema_version": SCHEMA_VERSION,
         "video_id": video_id,
@@ -2047,11 +2449,15 @@ def compor_roteiro_e_cenas(
         "titulo": plano["titulo"],
         "parte_label": "PARTE 1",
         "horario": plano["horario"],
-        "cta_modo": "pausa_meio",
+        "cta_modo": "final",
         "tem_parte_2": tem_parte_2,
+        "estilo_visual": ESTILO_VISUAL_PROMPT_IMAGEM,
         "paleta": plano["paleta"],
         "protagonista": plano["protagonista"],
-        "cta": dict(CTA_PADRAO),
+        "cta": {
+            "modo": "final",
+            "texto": cta_final_texto,
+        },
         "cenas": cenas_json_lista,
         "katana_hits": katana_saida,
         "palavras_vermelhas": sorted(palavras_vermelhas),
@@ -2090,6 +2496,7 @@ def validar_cenas_json(cenas: dict) -> list[str]:
     if not isinstance(lista_cenas, list) or len(lista_cenas) < 3:
         erros.append("cenas precisa ter pelo menos 3 itens.")
     else:
+        prompts_vistos: set[str] = set()
         for idx, c in enumerate(lista_cenas):
             if not isinstance(c, dict):
                 erros.append(f"cenas[{idx}] invalido.")
@@ -2100,6 +2507,22 @@ def validar_cenas_json(cenas: dict) -> list[str]:
                 erros.append(f"cenas[{idx}].mood invalido: {c.get('mood')!r}.")
             if c.get("expressao") not in EXPRESSOES_VALIDAS:
                 erros.append(f"cenas[{idx}].expressao invalida: {c.get('expressao')!r}.")
+            prompt_img = c.get("prompt_imagem")
+            if not isinstance(prompt_img, str) or len(prompt_img.strip()) < 40:
+                erros.append(f"cenas[{idx}].prompt_imagem obrigatorio ausente ou curto demais.")
+            else:
+                if ESTILO_VISUAL_PROMPT_IMAGEM not in prompt_img:
+                    erros.append(
+                        f"cenas[{idx}].prompt_imagem sem o estilo visual obrigatorio."
+                    )
+                if not _parece_ingles(prompt_img):
+                    erros.append(f"cenas[{idx}].prompt_imagem precisa estar em ingles.")
+                if RE_EMOJI.search(prompt_img) or "\u2014" in prompt_img or "\u2013" in prompt_img:
+                    erros.append(f"cenas[{idx}].prompt_imagem contem emoji ou travessao proibido.")
+                chave_p = prompt_img.strip().lower()
+                if chave_p in prompts_vistos:
+                    erros.append(f"cenas[{idx}].prompt_imagem duplicado de outra cena.")
+                prompts_vistos.add(chave_p)
             props_c = c.get("props")
             if not isinstance(props_c, dict):
                 erros.append(f"cenas[{idx}].props precisa ser objeto.")
@@ -2189,7 +2612,7 @@ def _preparar_novo_registro_historico(
         "status": "em_producao",
         "motor": "v6",
         "parte_label": "PARTE 1",
-        "cta_modo": "pausa_meio",
+        "cta_modo": "final",
     }
     if pilar and pilar in PILARES_POR_ID:
         registro["pilar"] = pilar
@@ -2215,12 +2638,12 @@ def _preparar_novo_registro_historico(
 
 
 def _validar_texto_roteiro_gerado(texto_roteiro: str, tem_parte_2: bool) -> list[str]:
-    """Confere marcadores obrigatorios V5.2/V6 e ausencia de emoji/travessao antes de salvar."""
+    """Confere marcadores obrigatorios V6, ausencia de pausa comercial no meio e ausencia de emoji/travessao."""
     erros: list[str] = []
     if "[VOZ:" not in texto_roteiro:
         erros.append("roteiro gerado sem tags [VOZ:perfil].")
-    if "[CTA_PAUSA]" not in texto_roteiro or "COMENTE EU QUERO" not in texto_roteiro.upper():
-        erros.append("roteiro gerado sem bloco obrigatorio [CTA_PAUSA] / COMENTE EU QUERO.")
+    if "[CTA_PAUSA]" in texto_roteiro or "[VOZ:cta_comercial]" in texto_roteiro:
+        erros.append("roteiro gerado nao pode conter pausa comercial [CTA_PAUSA] ou [VOZ:cta_comercial] no meio.")
     if tem_parte_2 and "[CORTE_PARTE_2]" not in texto_roteiro:
         erros.append("roteiro longo sem marcador obrigatorio [CORTE_PARTE_2].")
     if RE_EMOJI.search(texto_roteiro):

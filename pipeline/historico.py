@@ -197,6 +197,7 @@ def carimbo_roteiro_atual() -> dict:
     atual = obter_video_atual(validar=True)
     roteiro = caminho_roteiro_atual()
     cta_modo = str(atual.get("cta_modo", "final")).strip().lower() or "final"
+    motor = str(atual.get("motor", "")).strip().lower()
     partes = atual.get("saidas_partes")
     exige_parte_2 = isinstance(partes, list) and len(partes) >= 2
     player_rel = str(atual.get("player", "player.html")).strip() or "player.html"
@@ -204,6 +205,7 @@ def carimbo_roteiro_atual() -> dict:
         "video_id": int(atual["id"]),
         "slug": str(atual["slug"]),
         "titulo": str(atual["titulo"]),
+        "motor": motor,
         "parte_label": str(atual.get("parte_label", "PARTE 1")),
         "cta_modo": cta_modo,
         "player": player_rel,
@@ -387,14 +389,45 @@ def validar_artefatos_audio(
                             f"{nome_arq}: permanencia da CTA do meio ({perm:.2f}s) fora da faixa [1.5s, 3.5s]"
                         )
         else:
-            palavras = ts_dados.get("palavras") or []
-            ultimas_palavras = " ".join(str(p.get("palavra", "")) for p in palavras[-14:])
-            cauda_texto = normalizar_texto(ultimas_palavras or str(ts_dados.get("texto", ""))[-120:])
-            if CTA_OBRIGATORIA not in cauda_texto:
-                erros.append(
-                    "timestamps.json: CTA obrigatoria 'COMENTE EU QUERO' nao encontrada no final da narracao "
-                    f"(trecho final lido: {ultimas_palavras!r})"
-                )
+            motor_esp = esperado.get("motor", "")
+            if motor_esp == "v6":
+                dur_ref = float(ev_dados.get("duracao_total") or ts_dados.get("duracao_total") or 0.0)
+                for nome_arq, dados in (("timestamps.json", ts_dados), ("eventos.json", ev_dados)):
+                    modo_arq = str(dados.get("cta_modo", "")).strip().lower()
+                    if modo_arq != "final":
+                        erros.append(
+                            f"{nome_arq}: cta_modo={modo_arq!r} difere do esperado 'final' (V6)"
+                        )
+                    if dados.get("cta_meio_inicio") is not None or dados.get("cta_meio_fim") is not None:
+                        erros.append(
+                            f"{nome_arq}: cta_meio_inicio/cta_meio_fim nao podem existir em cta_modo='final'"
+                        )
+                    corte = dados.get("corte_parte_2")
+                    if esperado["exige_parte_2"] or corte is not None:
+                        try:
+                            corte_f = float(corte)
+                        except (TypeError, ValueError):
+                            erros.append(f"{nome_arq}: corte_parte_2 ausente ou invalido ({corte!r})")
+                        else:
+                            if dur_ref > 0:
+                                frac = corte_f / dur_ref
+                                if frac < 0.35 or frac > 0.65:
+                                    erros.append(
+                                        f"{nome_arq}: corte_parte_2={corte_f:.3f}s ({frac * 100:.1f}%) "
+                                        "fora da faixa obrigatoria [35%, 65%]"
+                                    )
+                palavras = ts_dados.get("palavras") or []
+                if len(palavras) < 5:
+                    erros.append("timestamps.json: narracao V6 sem palavras finais validas.")
+            else:
+                palavras = ts_dados.get("palavras") or []
+                ultimas_palavras = " ".join(str(p.get("palavra", "")) for p in palavras[-14:])
+                cauda_texto = normalizar_texto(ultimas_palavras or str(ts_dados.get("texto", ""))[-120:])
+                if CTA_OBRIGATORIA not in cauda_texto:
+                    erros.append(
+                        "timestamps.json: CTA obrigatoria 'COMENTE EU QUERO' nao encontrada no final da narracao "
+                        f"(trecho final lido: {ultimas_palavras!r})"
+                    )
 
     if erros:
         detalhes = "\n  - ".join(erros)
@@ -460,6 +493,13 @@ def main() -> None:
                 f"CTA 'COMENTE EU QUERO' confirmada [modo=meio, "
                 f"{float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s]"
             )
+        elif c.get("motor") == "v6":
+            corte_info = (
+                f", corte_parte_2={float(ev['corte_parte_2']):.2f}s"
+                if ev.get("corte_parte_2") is not None
+                else ", short_unico"
+            )
+            det_cta = f"CTA curta no final confirmada sem pausa no meio [modo=final{corte_info}]"
         else:
             det_cta = "CTA 'COMENTE EU QUERO' confirmada [modo=final]"
         print(
