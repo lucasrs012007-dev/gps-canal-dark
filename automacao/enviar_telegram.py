@@ -172,12 +172,28 @@ def montar_legenda_postagem(
     return f"{titulo}{sufixo_parte}\n{gancho}\n\n{cta}\n\n{hashtags}"
 
 
+def ler_youtube_url_arquivo(caminho: Path | None = None) -> str:
+    """Le a URL publicada no YouTube Shorts salva em output/youtube_url.txt quando existir."""
+    arq = caminho or (RAIZ / "output" / "youtube_url.txt")
+    if not arq.is_file():
+        return ""
+    try:
+        for linha in arq.read_text(encoding="utf-8", errors="ignore").splitlines():
+            url = linha.strip()
+            if url.startswith(("https://", "http://")):
+                return url
+    except OSError:
+        return ""
+    return ""
+
+
 def montar_caption_telegram(
     video_info: dict,
     arquivo: Path,
     outros_arquivos: list[Path],
     artifact_url: str | None = None,
     run_url: str | None = None,
+    youtube_url: str | None = None,
     raiz: Path = RAIZ,
 ) -> str:
     """Monta a legenda completa enviada junto ao video no Telegram (<= 1000 chars)."""
@@ -203,6 +219,7 @@ def montar_caption_telegram(
     link_artifacts = (artifact_url or "").strip()
     if not link_artifacts and run_url:
         link_artifacts = f"{run_url.rstrip('/')}#artifacts"
+    link_youtube = (youtube_url or "").strip()
 
     linhas: list[str] = [
         f"{prefixo} | {etiqueta}",
@@ -211,6 +228,8 @@ def montar_caption_telegram(
     if outros_arquivos and modo != "parte2":
         nomes_outros = ", ".join(p.name for p in outros_arquivos)
         linhas.append(f"Arquivo completo nos Artifacts: {nomes_outros}")
+    if link_youtube:
+        linhas.append(f"YouTube Shorts: {link_youtube}")
     if link_artifacts:
         linhas.append(f"GitHub Artifacts: {link_artifacts}")
 
@@ -463,6 +482,12 @@ def main() -> None:
     parser.add_argument("--run-url", type=str, default=None, help="URL da execucao no GitHub Actions.")
     parser.add_argument("--artifact-url", type=str, default=None, help="URL direta do Artifact no GitHub Actions.")
     parser.add_argument(
+        "--youtube-url",
+        type=str,
+        default=None,
+        help="URL opcional do YouTube Shorts publicado (se omitida, le output/youtube_url.txt se existir).",
+    )
+    parser.add_argument(
         "--estrategia",
         choices=("partes", "parte1", "todas"),
         default="partes",
@@ -515,6 +540,7 @@ def main() -> None:
         raise SystemExit("Nenhum arquivo MP4 encontrado para envio no Telegram.")
 
     limite_bytes = int(max(1.0, float(args.limite_mb)) * 1024 * 1024)
+    youtube_url = (args.youtube_url or "").strip() or ler_youtube_url_arquivo()
 
     for idx, arq in enumerate(para_enviar):
         caption = montar_caption_telegram(
@@ -523,6 +549,7 @@ def main() -> None:
             outros_arquivos=apenas_artifact,
             artifact_url=args.artifact_url,
             run_url=args.run_url,
+            youtube_url=youtube_url,
         )
         if args.dry_run:
             tam_mb = arq.stat().st_size / (1024 * 1024)

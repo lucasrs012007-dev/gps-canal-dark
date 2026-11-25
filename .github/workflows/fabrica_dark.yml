@@ -28,6 +28,15 @@ on:
         required: false
         default: false
         type: boolean
+      youtube_privacidade:
+        description: "Privacidade do upload automatico no YouTube Shorts"
+        required: false
+        default: "public"
+        type: choice
+        options:
+          - public
+          - unlisted
+          - private
   repository_dispatch:
     types:
       - novo_roteiro
@@ -41,7 +50,7 @@ concurrency:
 
 jobs:
   produzir-e-renderizar:
-    name: Diretor IA -> Audio -> Render -> Telegram
+    name: Diretor IA -> Audio -> Render -> YouTube -> Telegram
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -55,11 +64,13 @@ jobs:
       WD_USAR_ATUAL: ${{ inputs.usar_video_atual }}
       WD_ENVIAR_TG: ${{ inputs.enviar_telegram }}
       WD_MODO_TESTE: ${{ inputs.modo_teste }}
+      WD_YT_PRIVACIDADE: ${{ inputs.youtube_privacidade }}
       RD_TITULO: ${{ github.event.client_payload.titulo }}
       RD_ROTEIRO: ${{ github.event.client_payload.roteiro }}
       RD_USAR_ATUAL: ${{ github.event.client_payload.usar_video_atual }}
       RD_ENVIAR_TG: ${{ github.event.client_payload.enviar_telegram }}
       RD_MODO_TESTE: ${{ github.event.client_payload.modo_teste }}
+      RD_YT_PRIVACIDADE: ${{ github.event.client_payload.youtube_privacidade }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     steps:
@@ -90,29 +101,39 @@ jobs:
                   return "false"
               return "true" if padrao else "false"
 
+          def to_privacy(val: str, padrao: str = "public") -> str:
+              v = str(val or "").strip().lower()
+              return v if v in ("public", "unlisted", "private") else padrao
+
           if ev == "schedule":
               usar_atual = "false"
               enviar_tg = "true"
               modo_teste = "false"
+              yt_privacy = "public"
           else:
               pref = "RD_" if ev == "repository_dispatch" else "WD_"
               usar_atual = to_bool_str(os.environ.get(pref + "USAR_ATUAL", ""), False)
               enviar_tg = to_bool_str(os.environ.get(pref + "ENVIAR_TG", ""), True)
               modo_teste = to_bool_str(os.environ.get(pref + "MODO_TESTE", ""), False)
+              yt_privacy = to_privacy(os.environ.get(pref + "YT_PRIVACIDADE", ""), "public")
 
           gh_env = Path(os.environ["GITHUB_ENV"])
           with gh_env.open("a", encoding="utf-8") as arq:
               arq.write(f"USAR_VIDEO_ATUAL={usar_atual}\n")
               arq.write(f"ENVIAR_TELEGRAM={enviar_tg}\n")
               arq.write(f"MODO_TESTE={modo_teste}\n")
+              arq.write(f"YOUTUBE_PRIVACY={yt_privacy}\n")
 
-          print(f"Evento={ev} | usar_video_atual={usar_atual} | enviar_telegram={enviar_tg} | modo_teste={modo_teste}")
+          print(
+              f"Evento={ev} | usar_video_atual={usar_atual} | enviar_telegram={enviar_tg} "
+              f"| modo_teste={modo_teste} | youtube_privacy={yt_privacy}"
+          )
           PY
 
-      - name: Instalar dependencias Python (numpy, edge-tts atualizado e gTTS)
+      - name: Instalar dependencias Python (numpy, edge-tts, gTTS e YouTube API)
         run: |
           python3 -m pip install --upgrade pip --no-cache-dir
-          python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS
+          python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS google-api-python-client google-auth google-auth-oauthlib
 
       - name: Garantir FFmpeg e Google Chrome headless
         run: |
@@ -234,6 +255,18 @@ jobs:
             python3 render/renderizar.py --legendas
           fi
           ls -lh output/*.mp4
+
+      - name: Publicar no YouTube Shorts
+        if: ${{ success() }}
+        continue-on-error: true
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_PRIVACY: ${{ env.YOUTUBE_PRIVACY }}
+        run: |
+          rm -f output/youtube_url.txt
+          python3 upload_youtube.py
 
       - name: Publicar MP4s e metadados como Artifact
         id: upload_artifact
