@@ -1,7 +1,7 @@
 {
-  "versao": 9,
+  "versao": 10,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 9,
+  "video_atual": 10,
   "videos": [
     {
       "id": 1,
@@ -207,7 +207,7 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_09.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v6",
       "parte_label": "PARTE 1",
       "cta_modo": "pausa_meio",
@@ -215,6 +215,32 @@
       "saidas_partes": [
         "output/short_09_parte1.mp4",
         "output/short_09_parte2.mp4"
+      ]
+    },
+    {
+      "id": 10,
+      "slug": "o-som-mais-estranho-do-oceano",
+      "titulo": "O som mais estranho do oceano",
+      "tema": "O mistério acústico do Ponto Nemo e os sons inexplicáveis nas profundezas",
+      "palavras_chave": [
+        "oceano",
+        "ponto nemo",
+        "the bloop",
+        "misterio",
+        "profundezas"
+      ],
+      "roteiro": "roteiro_10.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_10.mp4",
+      "status": "em_producao",
+      "motor": "v6",
+      "parte_label": "PARTE 1",
+      "cta_modo": "pausa_meio",
+      "pilar": "curiosidades_bizarras",
+      "saidas_partes": [
+        "output/short_10_parte1.mp4",
+        "output/short_10_parte2.mp4"
       ]
     }
   ]
