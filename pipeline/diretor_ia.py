@@ -2699,20 +2699,20 @@ def validar_e_corrigir_plano(
                 )
 
     if len(blocos_validos) < 3:
-        avisos.append("Blocos insuficientes no retorno do Gemini: blocos gerados pelo fallback deterministico.")
+        avisos.append("Blocos insuficientes no retorno da IA: blocos gerados pelo fallback deterministico.")
         blocos_validos = fallback["blocos"]
-        ultima_camera = blocos_validos[-1]["camera"]
-        prompts_usados = {b["prompt_imagem"].lower() for b in blocos_validos}
+        ultima_camera = str(blocos_validos[-1].get("camera") or "push_in")
+        prompts_usados = {str(b.get("prompt_imagem") or "").lower() for b in blocos_validos}
 
     # Garante apenas 1 frase curta de gancho/CTA no finalzinho do video (nunca no meio)
-    if not _eh_bloco_cta_final(blocos_validos[-1]["texto"]):
-        cen_cta = "big_face" if blocos_validos[-1]["cenario"] != "big_face" else "arena_comparacao"
+    if not _eh_bloco_cta_final(str(blocos_validos[-1].get("texto") or "")):
+        cen_cta = "big_face" if blocos_validos[-1].get("cenario") != "big_face" else "arena_comparacao"
         cam_cta = escolher_camera_alternada(
             "pull_out",
             "investigando_pista",
             cen_cta,
             len(blocos_validos),
-            anterior=blocos_validos[-1]["camera"],
+            anterior=str(blocos_validos[-1].get("camera") or "push_in"),
             mood="navy",
         )
         prompt_cta = gerar_prompt_imagem_literal(
@@ -2941,11 +2941,14 @@ def compor_roteiro_e_cenas(
             eventos_bloco.append("pausa=0.18")
 
         ev_str = ", ".join(eventos_bloco)
-        perfil = b["perfil_voz"]
+        perfil = str(b.get("perfil_voz") or "narrador_tenso")
+        cam_b = str(b.get("camera") or "push_in")
+        mood_b = str(b.get("mood") or "navy")
+        texto_b = str(b.get("texto") or "")
         prompt_img = garantir_estilo_prompt_imagem(str(b.get("prompt_imagem", "")))
-        direcao = f"Tomada {cena_id} (cam={b['camera']}, mood={b['mood']}): {prompt_img[:90]}"
+        direcao = f"Tomada {cena_id} (cam={cam_b}, mood={mood_b}): {prompt_img[:90]}"
         linhas_rot.append(
-            f"[{t0:02d} - {t1:02d}] | [VOZ:{perfil}] {b['texto']} [/VOZ] | {direcao} | {ev_str}"
+            f"[{t0:02d} - {t1:02d}] | [VOZ:{perfil}] {texto_b} [/VOZ] | {direcao} | {ev_str}"
         )
 
         sfx_dep = b.get("sfx_depois")
@@ -2962,13 +2965,13 @@ def compor_roteiro_e_cenas(
             {
                 "id": cena_id,
                 "evento_inicio": cena_id,
-                "fala": b["texto"],
+                "fala": texto_b,
                 "prompt_imagem": prompt_img,
-                "camera": b["camera"],
-                "mood": b["mood"],
-                "vig": 0.72 if b["mood"] in ("red", "dark") else 0.58,
+                "camera": cam_b,
+                "mood": mood_b,
+                "vig": 0.72 if mood_b in ("red", "dark") else 0.58,
                 "duracao_estimada_s": round(dur_est, 2),
-                "tensao": b["mood"] == "red" or b["camera"] == "shake_impact" or i == idx_twist,
+                "tensao": mood_b == "red" or cam_b == "shake_impact" or i == idx_twist,
             }
         )
 
@@ -3405,10 +3408,10 @@ def produzir_direcao_v6(
     }
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            f"Diretor IA V6 ('{CANAL_NOME}'): cria episodio inedito nos "
+            f"Diretor IA V8 ('{CANAL_NOME}'): cria episodio inedito nos "
             f"{len(PILARES_EDITORIAIS)} pilar(es) de config_canal.json ou converte roteiro bruto."
         )
     )
@@ -3418,7 +3421,7 @@ def main() -> None:
     grupo.add_argument(
         "--gerar-inedito",
         action="store_true",
-        help="Cria automaticamente um roteiro 100%% inedito via Gemini alternando os pilares de config_canal.json.",
+        help="Cria automaticamente um roteiro 100%% inedito via Groq/Gemini alternando os pilares de config_canal.json.",
     )
     parser.add_argument("--titulo", type=str, default=None, help="Titulo opcional do video.")
     parser.add_argument(
@@ -3432,20 +3435,32 @@ def main() -> None:
         "--modelo",
         type=str,
         default=GEMINI_MODELO_PADRAO,
-        help=f"Modelo Gemini preferido (padrao: {GEMINI_MODELO_PADRAO}; com fallback automatico).",
+        help=f"Modelo Gemini de fallback preferido (padrao: {GEMINI_MODELO_PADRAO}; Groq e primario quando GROQ_API_KEY existe).",
     )
     parser.add_argument("--mock", action="store_true", help="Executa em modo deterministico offline sem chamar a API.")
     parser.add_argument(
         "--exigir-gemini",
         action="store_true",
-        help="Falha explicitamente se GEMINI_API_KEY estiver ausente ou a chamada Gemini falhar (proibe fallback silencioso).",
+        help="Falha explicitamente se nenhuma chave de IA (GROQ_API_KEY / GEMINI_API_KEY) estiver ativa ou todas falharem.",
     )
     parser.add_argument(
         "--nao-atualizar-historico",
         action="store_true",
         help="Gera arquivos de teste sem sobrescrever historico_videos.json.",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--historico",
+        type=Path,
+        default=None,
+        help="Caminho opcional para historico_videos.json (padrao: historico_videos.json na raiz).",
+    )
+    parser.add_argument(
+        "--dir-saida",
+        type=Path,
+        default=None,
+        help="Diretorio opcional de saida para roteiro_XX.txt e cenas.json (padrao: raiz do repositorio).",
+    )
+    args = parser.parse_args(argv)
 
     texto_bruto: str | None = None
     if args.arquivo is not None:
@@ -3456,6 +3471,17 @@ def main() -> None:
     elif args.roteiro_texto is not None:
         texto_bruto = args.roteiro_texto
 
+    caminho_hist = (
+        (args.historico if args.historico.is_absolute() else (RAIZ / args.historico))
+        if args.historico is not None
+        else ARQUIVO_HISTORICO
+    )
+    dir_saida = (
+        (args.dir_saida if args.dir_saida.is_absolute() else (RAIZ / args.dir_saida))
+        if args.dir_saida is not None
+        else RAIZ
+    )
+
     res = produzir_direcao_v6(
         roteiro_bruto=texto_bruto,
         titulo=args.titulo,
@@ -3463,27 +3489,52 @@ def main() -> None:
         gerar_inedito=args.gerar_inedito,
         exigir_gemini=args.exigir_gemini,
         modelo=args.modelo,
+        caminho_historico=caminho_hist,
+        dir_saida=dir_saida,
         atualizar_historico=not args.nao_atualizar_historico,
         pilar_editorial=args.pilar,
     )
 
-    for av in res["avisos"]:
+    for av in res.get("avisos") or []:
         print(f"AVISO Diretor IA: {av}", flush=True)
 
-    cenas = res["cenas"]
-    modulos = ", ".join(c["modulo"] for c in cenas["cenas"])
-    hits = ", ".join(" ".join(h["linhas"]) for h in cenas["katana_hits"])
+    cenas = res.get("cenas") or {}
+    lista_cenas = cenas.get("cenas") or []
+    motor_atual = str(cenas.get("motor") or MOTOR_RENDER_PADRAO)
+    if motor_atual == MOTOR_RENDER_PADRAO:
+        resumo_visual = ", ".join(
+            f"{c.get('camera') or 'push_in'}({c.get('mood') or 'navy'})"
+            for c in lista_cenas
+            if isinstance(c, dict)
+        )
+        rotulo_visual = "Cameras"
+    else:
+        resumo_visual = ", ".join(
+            str(c.get("camera") or c.get("mood") or c.get("modulo") or "cena_ia")
+            for c in lista_cenas
+            if isinstance(c, dict)
+        )
+        rotulo_visual = "Cenas"
+    hits = ", ".join(
+        " ".join(h.get("linhas") or [])
+        for h in (cenas.get("katana_hits") or [])
+        if isinstance(h, dict)
+    )
     pilar_info = f", pilar={res['pilar']}" if res.get("pilar") else ""
     print(
-        f"Diretor IA V6 concluido ({res['origem']}): Video {res['video_id']:02d} '{res['titulo']}' "
+        f"Diretor IA V8 concluido ({res.get('origem', 'ia')}): Video {int(res['video_id']):02d} '{res['titulo']}' "
         f"[slug={res['slug']}{pilar_info}, palavras={res['palavras_historia']}, "
-        f"{'Parte 1 + Parte 2' if res['tem_parte_2'] else 'Short unico'}]"
+        f"{'Parte 1 + Parte 2' if res.get('tem_parte_2') else 'Short unico'}]"
     )
     print(f"  Roteiro: {res['roteiro_path']}")
-    print(f"  Cenas:   {res['cenas_path']} (schema v{cenas['schema_version']}, {len(cenas['cenas'])} cenas)")
-    print(f"  Modulos: {modulos}")
+    print(
+        f"  Cenas:   {res['cenas_path']} "
+        f"(schema v{cenas.get('schema_version', SCHEMA_VERSION)}, motor={motor_atual}, {len(lista_cenas)} cenas)"
+    )
+    print(f"  {rotulo_visual}: {resumo_visual}")
     print(f"  Katana:  {hits}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

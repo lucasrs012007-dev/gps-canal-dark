@@ -15,6 +15,7 @@ import random
 import sys
 import tempfile
 import urllib.error
+import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -25,6 +26,9 @@ if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
 import gerar_midia_cenas as gmc  # noqa: E402
+import upload_instagram  # noqa: E402
+import upload_tiktok  # noqa: E402
+import upload_youtube  # noqa: E402
 from audio import gerar_narracao as gn  # noqa: E402
 from pipeline import diretor_ia as dia  # noqa: E402
 from pipeline import gemini_pool as gp  # noqa: E402
@@ -593,14 +597,219 @@ def testar_estacao3_imagens_rotacao_chaves_fail_fast() -> None:
     print("[OK] Estacao 3 (gerar_midia_cenas): troca instantanea para GEMINI_API_KEY_2 (0s sleep) e cache entre cenas OK.")
 
 
+def testar_diretor_ia_main_real_groq_sem_modulo() -> None:
+    """Executa a funcao main() real de pipeline/diretor_ia.py (--gerar-inedito --exigir-gemini) via Groq sem 'modulo'."""
+    blocos_v8_sem_modulo = [
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "Na noite de 2011, o sino da estacao antiga tocou sozinho.",
+            "prompt_imagem": "Abandoned foggy rural train station bell swinging alone under flickering cold streetlamp, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "push_in",
+            "mood": "navy",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "Os trilhos estavam cobertos de mato alto havia vinte anos.",
+            "prompt_imagem": "Overgrown rusted railway tracks disappearing into dense nocturnal mist with moonlight sheen, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "pan_diag_tl",
+            "mood": "navy",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "O vigia apontou a lanterna para a plataforma vazia de pedra.",
+            "prompt_imagem": "Night watchman beam sweeping across empty cracked stone train platform in heavy dark fog, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "pull_out",
+            "mood": "violet",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "Mesmo sem locomotiva, o chao comecou a tremer sob as botas dele.",
+            "prompt_imagem": "Close up of trembling gravel pebbles vibrating beside a wet dark iron rail track, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "shake_impact",
+            "mood": "red",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "Um farol branco gigantesco surgiu cortando a neblina no fim do tunel.",
+            "prompt_imagem": "Blinding solitary locomotive headlight piercing through a dark brick railway tunnel choked with fog, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "push_in",
+            "mood": "yellow",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "As janelas do vagao passaram iluminadas com passageiros parados.",
+            "prompt_imagem": "Motion-blurred dark vintage train windows glowing pale amber with motionless shadowy silhouettes inside, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "pan_right",
+            "mood": "navy",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "O relogio da bilheteria travou exatamente as duas e dezessete.",
+            "prompt_imagem": "Dusty antique station wall clock stopped in shadow with cracked glass face, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "pan_left",
+            "mood": "violet",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "Quando o vento baixou, um bilhete molhado estava sobre o balcao.",
+            "prompt_imagem": "Extreme close up of a damp faded paper train ticket resting on a dark wooden counter, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "pan_diag_br",
+            "mood": "dark",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "sussurro_twist",
+            "texto": "A passagem estava emitida para o nome do proprio vigia naquela data.",
+            "prompt_imagem": "Dramatic tense close up of gloved trembling hand lifting a mysterious soaked paper ticket under cold moonlight, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "shake_impact",
+            "mood": "red",
+            "sfx_depois": None,
+        },
+        {
+            "perfil_voz": "narrador_tenso",
+            "texto": "E voce, embarcaria nesse trem ou correria da estacao?",
+            "prompt_imagem": "Wide aerial shot of the silent fog-covered railway station fading into dark forest hills, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark",
+            "camera": "pull_out",
+            "mood": "navy",
+            "sfx_depois": None,
+        },
+    ]
+    roteiro_bruto = " ".join(b["texto"] for b in blocos_v8_sem_modulo)
+    chamadas = {"n": 0}
+
+    def _mock_urlopen_global(req, timeout=60):
+        assert req.full_url == gp.GROQ_API_URL, f"Esperava Groq primario, recebeu {req.full_url}"
+        chamadas["n"] += 1
+        if chamadas["n"] == 1:
+            obj = {
+                "titulo": "O Trem das Duas e Dezessete",
+                "pilar": "suspense_urbano",
+                "tema": "Um trem antigo aparece numa estacao desativada ha vinte anos com um bilhete para o vigia.",
+                "roteiro_bruto": roteiro_bruto,
+            }
+        else:
+            obj = {
+                "titulo": "O Trem das Duas e Dezessete",
+                "pilar": "suspense_urbano",
+                "tema": "Um trem antigo aparece numa estacao desativada ha vinte anos com um bilhete para o vigia.",
+                "palavras_chave": ["trem", "estacao", "bilhete", "vigia", "neblina"],
+                "horario": "02:17",
+                "protagonista": {"nome": "Vigia", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},
+                "paleta": dict(dia.PALETA_PADRAO),
+                "blocos": blocos_v8_sem_modulo,
+                "katana_hits": [
+                    {"bloco_idx": 0, "palavra_gatilho": "sino", "linhas": ["SINO"], "duracao": 0.42, "cor": "red"},
+                    {"bloco_idx": 4, "palavra_gatilho": "farol", "linhas": ["FAROL"], "duracao": 0.42, "cor": "red"},
+                    {"bloco_idx": 8, "palavra_gatilho": "passagem", "linhas": ["PASSAGEM"], "duracao": 0.46, "cor": "red"},
+                ],
+            }
+        envelope = {"choices": [{"message": {"content": json.dumps(obj, ensure_ascii=False)}}]}
+        return _RespFake(json.dumps(envelope, ensure_ascii=False).encode("utf-8"))
+
+    backup_env = {k: os.environ.get(k) for k in ("GROQ_API_KEY", "GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3")}
+    orig_urlopen = urllib.request.urlopen
+    try:
+        os.environ["GROQ_API_KEY"] = "gsk_main_cli_real_test_999"
+        os.environ.pop("GEMINI_API_KEY", None)
+        os.environ.pop("GEMINI_API_KEY_2", None)
+        os.environ.pop("GEMINI_API_KEY_3", None)
+        urllib.request.urlopen = _mock_urlopen_global
+
+        with tempfile.TemporaryDirectory(prefix="teste_main_v8_") as tmp:
+            tmp_dir = Path(tmp)
+            hist_path = tmp_dir / "historico_videos.json"
+            hist_path.write_text(
+                json.dumps(
+                    {
+                        "versao": 1,
+                        "regra": "Sempre Video Novo",
+                        "video_atual": 1,
+                        "videos": [
+                            {
+                                "id": 1,
+                                "slug": "ilha-proibida",
+                                "titulo": "A Ilha Proibida",
+                                "tema": "Outro tema totalmente distinto sobre uma ilha no oceano.",
+                                "palavras_chave": ["ilha", "oceano", "barco", "mar"],
+                                "roteiro": "roteiro_01.txt",
+                                "saida": "output/short_01.mp4",
+                                "status": "publicado",
+                                "pilar": "misterios_reais",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            buf_out = io.StringIO()
+            with contextlib.redirect_stdout(buf_out):
+                rc = dia.main(
+                    [
+                        "--gerar-inedito",
+                        "--exigir-gemini",
+                        "--historico",
+                        str(hist_path),
+                        "--dir-saida",
+                        str(tmp_dir),
+                    ]
+                )
+
+            saida_cli = buf_out.getvalue()
+            assert rc == 0, f"main() retornou codigo {rc} != 0"
+            assert "Diretor IA V8 concluido" in saida_cli, f"Log esperado ausente:\n{saida_cli}"
+            assert "Cameras:" in saida_cli, f"Resumo de cameras V8 ausente:\n{saida_cli}"
+
+            cenas_arq = tmp_dir / "cenas.json"
+            roteiro_arq = tmp_dir / "roteiro_02.txt"
+            assert cenas_arq.is_file() and roteiro_arq.is_file()
+            cenas_disk = json.loads(cenas_arq.read_text(encoding="utf-8"))
+            assert cenas_disk["schema_version"] == "8.0"
+            assert cenas_disk["motor"] == "cinematografico_ia_30fps"
+            assert all("modulo" not in c for c in cenas_disk["cenas"]), "Schema V8 nao deve depender da chave 'modulo'."
+            assert dia.validar_cenas_json(cenas_disk) == []
+
+            # Confirma compatibilidade de leitura nas Estacoes 5A/5B/5C sobre o cenas.json V8 sem 'modulo'
+            m_yt = upload_youtube.carregar_metadados_video(
+                video_id=2, cenas_path=cenas_arq, historico_path=hist_path, raiz=tmp_dir
+            )
+            m_ig = upload_instagram.carregar_metadados_cenas(
+                video_id=2, cenas_path=cenas_arq, historico_path=hist_path, raiz=tmp_dir
+            )
+            m_tt = upload_tiktok.carregar_metadados_tiktok(
+                video_id=2, cenas_path=cenas_arq, historico_path=hist_path, raiz=tmp_dir
+            )
+            assert m_yt["titulo"] == "O Trem das Duas e Dezessete" and m_yt["gancho"]
+            assert m_ig["titulo"] == "O Trem das Duas e Dezessete" and m_ig["gancho"]
+            assert m_tt["titulo"] == "O Trem das Duas e Dezessete" and m_tt["gancho"]
+    finally:
+        urllib.request.urlopen = orig_urlopen
+        for k, v in backup_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    print("[OK] diretor_ia.main() CLI real (Groq sem 'modulo'): exit code 0, cenas.json V8 e Estacoes 5A/5B/5C OK.")
+
+
 def main() -> int:
     testar_deteccao_cota_e_carregamento_chaves()
     testar_estacao1_groq_primario_e_16_cenas()
+    testar_diretor_ia_main_real_groq_sem_modulo()
     testar_estacao1_groq_falha_fallback_gemini_pool()
     testar_estacao1_rotacao_imediata_sem_travar()
     testar_estacao2_tts_rotacao_chaves_fail_fast()
     testar_estacao3_imagens_rotacao_chaves_fail_fast()
-    print("TODOS OS TESTES (GROQ PRIMARIO + GEMINI POOL FAIL-FAST) PASSARAM COM SUCESSO.")
+    print("TODOS OS TESTES (GROQ PRIMARIO + MAIN CLI V8 + GEMINI POOL FAIL-FAST) PASSARAM COM SUCESSO.")
     return 0
 
 

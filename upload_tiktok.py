@@ -327,7 +327,9 @@ def carregar_metadados_tiktok(
         lista_cenas = cenas.get("cenas") if isinstance(cenas.get("cenas"), list) else []
         if lista_cenas and isinstance(lista_cenas[0], dict):
             props0 = lista_cenas[0].get("props") if isinstance(lista_cenas[0].get("props"), dict) else {}
-            gancho = _limpar_texto_social(str(props0.get("celular_mensagem", "") or ""))
+            gancho = _limpar_texto_social(
+                str(lista_cenas[0].get("fala") or props0.get("celular_mensagem") or "")
+            )
 
     palavras_chave: list[str] = []
     vistas: set[str] = set()
