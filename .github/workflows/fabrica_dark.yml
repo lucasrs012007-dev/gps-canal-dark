@@ -172,12 +172,12 @@ jobs:
           fi
           ffmpeg -version | head -n 1
 
-      - name: Estacao 1 - Diretor IA V8 (gera episodio novo + cortes rapidos 3s-4s e prompts IA)
+      - name: Estacao 1 - Diretor IA V8 (Groq Llama 3.3 70B primario -> GeminiPool fallback)
         env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python3 - <<'PY'
           import json, os, subprocess, sys
@@ -200,15 +200,16 @@ jobs:
 
           chaves_gem = carregar_chaves_gemini(ler_env_arquivo=False)
           groq_key = obter_groq_api_key(ler_env_arquivo=False)
-          if not chaves_gem and not groq_key:
+          if not groq_key and not chaves_gem:
               print(
-                  "ERRO Estacao 1: nenhuma chave valida em GEMINI_API_KEY, GEMINI_API_KEY_2, "
-                  "GEMINI_API_KEY_3 ou GROQ_API_KEY quando usar_video_atual=false "
+                  "ERRO Estacao 1: nenhuma chave valida em GROQ_API_KEY, GEMINI_API_KEY, "
+                  "GEMINI_API_KEY_2 ou GEMINI_API_KEY_3 quando usar_video_atual=false "
                   "(bloqueado para impedir repeticao silenciosa de video antigo).",
                   file=sys.stderr,
               )
               sys.exit(1)
 
+          motor_txt = "Groq Llama 3.3 70B (primario)" if groq_key else "GeminiPool (GROQ_API_KEY vazia)"
           hist_path = Path("historico_videos.json")
           hist_antes = json.loads(hist_path.read_text(encoding="utf-8"))
           id_antes = int(hist_antes.get("video_atual", 0))
@@ -217,10 +218,10 @@ jobs:
               arq = Path("/tmp/roteiro_entrada_v8.txt")
               arq.write_text(roteiro, encoding="utf-8")
               cmd = [sys.executable, "pipeline/diretor_ia.py", "--arquivo", str(arq), "--exigir-gemini"]
-              print(f"Estacao 1: roteiro fornecido -> gerando proximo episodio acima do Video {id_antes:02d} via GeminiPool/Groq...")
+              print(f"Estacao 1: roteiro fornecido -> gerando proximo episodio acima do Video {id_antes:02d} via {motor_txt}...")
           else:
               cmd = [sys.executable, "pipeline/diretor_ia.py", "--gerar-inedito", "--exigir-gemini"]
-              print(f"Estacao 1: usar_video_atual=false sem roteiro manual -> criando episodio 100% inedito acima do Video {id_antes:02d} via GeminiPool/Groq...")
+              print(f"Estacao 1: usar_video_atual=false sem roteiro manual -> criando episodio 100% inedito acima do Video {id_antes:02d} via {motor_txt}...")
 
           if titulo:
               cmd.extend(["--titulo", titulo])

@@ -1644,9 +1644,10 @@ def _montar_prompt_gemini(
         f"   - sfx_depois: null ou um de {sfx_validos} (coloque 'impacto_twist' imediatamente antes do bloco da revelação final; máximo 3 SFX no total).\n"
         "7. katana_hits: lista de 3 a 5 palavras de impacto reais do roteiro (MAIÚSCULAS com acento UTF-8) para destaque vermelho nas legendas.\n"
         f"8. horario: string HH:MM coerente com o episódio (ex.: '{horario_ex}').\n"
-        "9. Responda APENAS com JSON válido no formato:\n"
+        "9. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários, com 14 a 18 itens em `blocos` para vídeos de ~60s) no formato:\n"
         "{\n"
         '  "titulo": "...",\n'
+        f'  "pilar": "{pilar["id"] if pilar is not None else "suspense_urbano"}",\n'
         '  "tema": "resumo curto em 1 frase",\n'
         '  "palavras_chave": ["kw1", "kw2", "kw3", "kw4", "kw5"],\n'
         f'  "horario": "{horario_ex}",\n'
@@ -1681,10 +1682,10 @@ def validar_gemini_api_key(api_key: str | None) -> str:
 
 
 def _extrair_json_resposta(texto: str) -> dict:
-    """Limpa fences/BOM/virgulas sobrando e valida que o retorno do Gemini e um objeto JSON nao vazio."""
+    """Limpa fences/BOM/virgulas/caracteres de controle e valida que o retorno da IA e um objeto JSON nao vazio."""
     bruto = str(texto or "").lstrip("\ufeff").strip()
     if not bruto:
-        raise ValueError("Resposta vazia do Gemini ao esperar JSON.")
+        raise ValueError("Resposta vazia do modelo ao esperar JSON.")
     if "```" in bruto:
         m_fence = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", bruto, flags=re.IGNORECASE)
         if m_fence:
@@ -1699,11 +1700,15 @@ def _extrair_json_resposta(texto: str) -> dict:
     try:
         dados = json.loads(bruto)
     except json.JSONDecodeError:
-        # Remove virgulas finais invalidas antes de } ou ] antes de desistir
         corrigido = re.sub(r",\s*([}\]])", r"\1", bruto)
-        dados = json.loads(corrigido)
+        try:
+            dados = json.loads(corrigido)
+        except json.JSONDecodeError:
+            # Remove caracteres de controle/quebras literais ilegais dentro de strings JSON
+            sanit = re.sub(r"[\x00-\x1f]+", " ", corrigido)
+            dados = json.loads(sanit)
     if not isinstance(dados, dict) or not dados:
-        raise ValueError("JSON retornado pelo Gemini precisa ser um objeto nao vazio.")
+        raise ValueError("JSON retornado pela IA precisa ser um objeto nao vazio.")
     return dados
 
 
@@ -1833,10 +1838,10 @@ def chamar_groq_json(
     sleep_fn: Callable[[float], None] = time.sleep,
     modelo_ativo_ref: dict[str, str] | None = None,
 ) -> dict:
-    """Fallback gratuito via Groq (OpenAI-compatible) usando llama-3.3-70b-versatile em modo JSON."""
+    """Motor primario gratuito via Groq (OpenAI-compatible) usando llama-3.3-70b-versatile em JSON estrito."""
     chave = str(groq_api_key or "").strip()
     if not chave:
-        raise RuntimeError("GROQ_API_KEY ausente para fallback.")
+        raise RuntimeError("GROQ_API_KEY ausente.")
 
     modelo_uso = (modelo or os.environ.get("GROQ_MODEL", "").strip() or GROQ_MODELO_PADRAO)
     opener = urlopen_fn or urllib.request.urlopen
@@ -1844,12 +1849,16 @@ def chamar_groq_json(
         "Authorization": f"Bearer {chave}",
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "gps-canal-dark/8.1",
+        "User-Agent": "gps-canal-dark/8.2",
     }
 
     system_msg = (
-        "Voce e uma API JSON precisa. Responda sempre com um unico objeto JSON valido "
-        "seguindo exatamente o esquema pedido, sem cercas markdown e com acentuacao UTF-8 correta."
+        "Voce e uma API JSON estrita (RFC-8259) especializada em roteiros e direcao cinematografica "
+        "para videos curtos verticais. Regras obrigatorias: "
+        "(1) Responda SOMENTE com um unico objeto JSON valido, sem texto extra e sem cercas markdown. "
+        "(2) Siga exatamente os nomes de campos pedidos no prompt (incluindo titulo, pilar, tema, roteiro_bruto "
+        "ou blocos com 14 a 18 cenas e prompt_imagem em ingles). "
+        "(3) Preserve 100% da acentuacao UTF-8 em portugues, com ZERO emoji e ZERO travessao."
     )
 
     ultimo_erro = "Falha desconhecida ao chamar Groq."
@@ -1860,7 +1869,8 @@ def chamar_groq_json(
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.7,
+            "temperature": 0.65,
+            "max_tokens": 4096,
         }
         if usar_response_format:
             payload["response_format"] = {"type": "json_object"}
@@ -1883,7 +1893,7 @@ def chamar_groq_json(
                 if modelo_ativo_ref is not None:
                     modelo_ativo_ref["modelo"] = f"groq:{modelo_uso}"
                     modelo_ativo_ref["provedor"] = "groq"
-                print(f"Fallback gratuito Groq OK ({modelo_uso}).", flush=True)
+                print(f"Groq API OK ({modelo_uso}).", flush=True)
                 return dados
             except urllib.error.HTTPError as exc:
                 detalhe = _extrair_erro_http_gemini(exc, chave)
@@ -1896,7 +1906,7 @@ def chamar_groq_json(
                     )
                     break
                 if exc.code in (429, 500, 502, 503, 504) and tentativa == 0:
-                    espera = min(4.0, _extrair_retry_after_s(exc, 2.5))
+                    espera = min(3.0, _extrair_retry_after_s(exc, 2.0))
                     print(f"AVISO {ultimo_erro}; aguardando {espera:.1f}s antes de repetir Groq...", flush=True)
                     sleep_fn(espera)
                     continue
@@ -1904,7 +1914,7 @@ def chamar_groq_json(
             except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
                 ultimo_erro = f"Groq [{modelo_uso}] {type(exc).__name__}: {exc}"
                 if tentativa == 0:
-                    sleep_fn(2.0)
+                    sleep_fn(1.5)
                     continue
                 if usar_response_format:
                     break
@@ -1924,10 +1934,33 @@ def _chamar_gemini_json(
     pool: GeminiPool | None = None,
     groq_api_key: str | None = None,
 ) -> dict:
-    """Chama Gemini via GeminiPool (multi-chave + rotacao de modelos + fail-fast cota diaria) com fallback Groq."""
+    """Chama texto em JSON priorizando Groq (Llama 3.3 70B) com fallback automatico para GeminiPool."""
     opener = urlopen_fn or urllib.request.urlopen
-    modelos_iniciais = _montar_lista_modelos(modelo)
 
+    groq_key = (
+        obter_groq_api_key(ler_env_arquivo=False)
+        if groq_api_key is None
+        else str(groq_api_key or "").strip()
+    )
+
+    erro_groq: str | None = None
+    if groq_key:
+        try:
+            return chamar_groq_json(
+                prompt,
+                groq_key,
+                urlopen_fn=opener,
+                sleep_fn=sleep_fn,
+                modelo_ativo_ref=modelo_ativo_ref,
+            )
+        except Exception as exc_groq:
+            erro_groq = str(exc_groq)
+            print(
+                f"AVISO Groq primario falhou ({erro_groq}). Acionando fallback automatico no GeminiPool...",
+                flush=True,
+            )
+
+    modelos_iniciais = _montar_lista_modelos(modelo)
     if pool is None:
         chave_limpa = str(api_key or "").strip()
         if chave_limpa:
@@ -1941,24 +1974,10 @@ def _chamar_gemini_json(
     else:
         pool.adicionar_modelos(modelos_iniciais)
 
-    groq_key = (
-        obter_groq_api_key(ler_env_arquivo=False)
-        if groq_api_key is None
-        else str(groq_api_key or "").strip()
-    )
-
     if pool.total_chaves() == 0:
-        if groq_key:
-            print(
-                f"AVISO nenhuma chave Gemini ativa; usando fallback gratuito Groq ({GROQ_MODELO_PADRAO}).",
-                flush=True,
-            )
-            return chamar_groq_json(
-                prompt,
-                groq_key,
-                urlopen_fn=opener,
-                sleep_fn=sleep_fn,
-                modelo_ativo_ref=modelo_ativo_ref,
+        if erro_groq is not None:
+            raise RuntimeError(
+                f"Groq primario falhou ({erro_groq}) e nenhuma chave Gemini esta disponivel para fallback."
             )
         validar_gemini_api_key(api_key)
 
@@ -2072,7 +2091,6 @@ def _chamar_gemini_json(
                                 flush=True,
                             )
                             break
-                        # Se ha outra combinacao disponivel no pool, evita dormir longo e tenta proxima combinacao
                         if tentativa < len(retry_esperas):
                             espera = min(10.0, _extrair_retry_after_s(exc, float(retry_esperas[tentativa])))
                             print(
@@ -2142,22 +2160,9 @@ def _chamar_gemini_json(
                     continue
         break
 
-    if groq_key:
-        print(
-            f"AVISO todas as combinacoes Gemini esgotadas/falharam ({pool.resumo_estado()}). "
-            f"Acionando fallback gratuito Groq ({GROQ_MODELO_PADRAO})...",
-            flush=True,
-        )
-        return chamar_groq_json(
-            prompt,
-            groq_key,
-            urlopen_fn=opener,
-            sleep_fn=sleep_fn,
-            modelo_ativo_ref=modelo_ativo_ref,
-        )
-
+    prefixo_groq = f"Groq primario falhou ({erro_groq}) e " if erro_groq else ""
     raise RuntimeError(
-        f"Todas as combinacoes Gemini falharam ({combinacoes_testadas} | {pool.resumo_estado()}). "
+        f"{prefixo_groq}todas as combinacoes Gemini falharam ({combinacoes_testadas} | {pool.resumo_estado()}). "
         f"Ultimo erro: {ultimo_erro_msg}"
     )
 
@@ -2255,9 +2260,10 @@ def _montar_prompt_roteiro_inedito(
         "em TODAS as palavras. Nunca remova acentos nem cedilhas.\n"
         "7. ZERO emoji, ZERO travessão (em-dash ou en-dash), ZERO tags [VOZ], [SFX] ou [CTA_PAUSA] "
         "(a marcação técnica será feita na etapa seguinte).\n"
-        "8. Responda APENAS com JSON válido no formato:\n"
+        "8. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários) no formato:\n"
         "{\n"
         '  "titulo": "Título Inédito Curto",\n'
+        f'  "pilar": "{pilar_ativo["id"]}",\n'
         '  "tema": "Resumo objetivo em 1 frase da premissa inédita",\n'
         f'  "roteiro_bruto": "Texto corrido completo do roteiro em {IDIOMA_CANAL} falado natural com grafia UTF-8 100% correta, sem pausa comercial no meio e fechando com 1 frase curta de gancho/CTA no finalzinho (185 a 245 palavras)."\n'
         "}\n"
@@ -2276,7 +2282,7 @@ def gerar_roteiro_inedito_gemini(
     pool: GeminiPool | None = None,
     groq_api_key: str | None = None,
 ) -> tuple[str, str]:
-    """Gera obrigatoriamente um titulo e roteiro bruto 100% ineditos via GeminiPool (com fallback Groq)."""
+    """Gera obrigatoriamente um titulo e roteiro bruto 100% ineditos via Groq primario (fallback GeminiPool)."""
     prox_id = proximo_numero_livre(dados_hist)
     pilar_ativo = pilar or selecionar_proximo_pilar(dados_hist, prox_id)
     print(
@@ -2284,7 +2290,7 @@ def gerar_roteiro_inedito_gemini(
         flush=True,
     )
     motivo_rej: str | None = None
-    ultimo_erro = "Gemini/Groq nao retornou um roteiro inedito valido."
+    ultimo_erro = "Groq/Gemini nao retornou um roteiro inedito valido."
     ref_local = modelo_ativo_ref if modelo_ativo_ref is not None else {}
 
     for tentativa in range(1, 4):
@@ -2306,9 +2312,20 @@ def gerar_roteiro_inedito_gemini(
             pool=pool,
             groq_api_key=groq_api_key,
         )
-        titulo_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("titulo", "") or titulo_sugerido or ""))).strip()
-        tema_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("tema", "") or ""))).strip()
-        roteiro_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("roteiro_bruto", "") or ""))).strip()
+        titulo_gerado = restaurar_acentos_ptbr(
+            sanitizar_texto(str(dados.get("titulo") or dados.get("title") or titulo_sugerido or ""))
+        ).strip()
+        tema_gerado = restaurar_acentos_ptbr(
+            sanitizar_texto(str(dados.get("tema") or dados.get("theme") or ""))
+        ).strip()
+        roteiro_raw = (
+            dados.get("roteiro_bruto")
+            or dados.get("roteiro")
+            or dados.get("script")
+            or dados.get("texto")
+            or ""
+        )
+        roteiro_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(roteiro_raw))).strip()
 
         if len(roteiro_gerado.split()) < 60:
             ultimo_erro = f"Roteiro inedito curto demais ({len(roteiro_gerado.split())} palavras)."
@@ -2526,6 +2543,8 @@ def validar_e_corrigir_plano(
     }
 
     blocos_in = plano_bruto.get("blocos")
+    if not isinstance(blocos_in, list) or len(blocos_in) < 3:
+        blocos_in = plano_bruto.get("cenas")
     blocos_validos: list[dict] = []
     sfx_permitidos = set(catalogo_sfx.keys()) - {"glitch_cta", "cta_pop"}
     prompts_usados: set[str] = set()
@@ -2539,7 +2558,7 @@ def validar_e_corrigir_plano(
         for idx, b in enumerate(blocos_in):
             if not isinstance(b, dict):
                 continue
-            txt_raw = str(b.get("texto", ""))
+            txt_raw = str(b.get("texto") or b.get("fala") or b.get("narration") or "")
             txt = restaurar_acentos_ptbr(
                 sanitizar_texto(re.sub(r"\[/?(?:CTA_PAUSA|VOZ(?::[a-zA-Z0-9_]+)?)\]", "", txt_raw, flags=re.IGNORECASE))
             )
@@ -2586,7 +2605,9 @@ def validar_e_corrigir_plano(
                 if eh_cta_in or len(txt.split()) <= MAX_PALAVRAS_POR_TOMADA + 1
                 else _dividir_fala_em_tomadas_curtas(txt, max_palavras=MAX_PALAVRAS_POR_TOMADA)
             )
-            prompt_bruto = sanitizar_texto(str(b.get("prompt_imagem", "")))
+            prompt_bruto = sanitizar_texto(
+                str(b.get("prompt_imagem") or b.get("image_prompt") or b.get("prompt") or "")
+            )
             tomadas_prompts_raw = b.get("tomadas_prompts") if isinstance(b.get("tomadas_prompts"), list) else []
 
             for sub_i, sub_txt in enumerate(sub_falas):
@@ -3231,11 +3252,18 @@ def produzir_direcao_v6(
 
     if not usar_mock and tem_ia_online:
         nomes_ch = ", ".join(pool_gemini.nomes_chaves()) or "nenhuma"
-        print(
-            f"Pool IA Estacao 1: {pool_gemini.total_chaves()} chave(s) Gemini [{nomes_ch}] "
-            f"| modelos={len(pool_gemini.modelos)} | Groq fallback={'ATIVO (' + GROQ_MODELO_PADRAO + ')' if groq_key else 'desativado'}",
-            flush=True,
-        )
+        if groq_key:
+            print(
+                f"Motor IA Estacao 1: PRIMARIO=Groq ({GROQ_MODELO_PADRAO}) "
+                f"| FALLBACK=GeminiPool ({pool_gemini.total_chaves()} chave(s): [{nomes_ch}], {len(pool_gemini.modelos)} modelos)",
+                flush=True,
+            )
+        else:
+            print(
+                f"Motor IA Estacao 1: PRIMARIO=GeminiPool ({pool_gemini.total_chaves()} chave(s): [{nomes_ch}], "
+                f"{len(pool_gemini.modelos)} modelos) | Groq desativado (GROQ_API_KEY vazia)",
+                flush=True,
+            )
 
     avisos: list[str] = []
     titulo_efetivo = titulo

@@ -114,7 +114,7 @@ No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions 
 | `GEMINI_API_KEY` | Chave principal da API do Google Gemini (criada em aistudio.google.com/apikey) |
 | `GEMINI_API_KEY_2` | Opcional: segunda chave Gemini para rotacao automatica se a chave 1 atingir limite diario |
 | `GEMINI_API_KEY_3` | Opcional: terceira chave Gemini para triplicar a cota diaria nas Estacoes 1, 2 e 3 |
-| `GROQ_API_KEY` | Opcional: chave gratuita da Groq (`llama-3.3-70b-versatile`) usada automaticamente como fallback na Estacao 1 caso todas as chaves Gemini fiquem sem cota de texto |
+| `GROQ_API_KEY` | Recomendado (gratuito): motor primario da Estacao 1 (`llama-3.3-70b-versatile`) para gerar roteiros e prompts sem consumir cota do Gemini; quando vazia ou indisponivel, cai automaticamente no pool Gemini |
 
 ### 2. Upgrade Plug-and-Play para Video IA por Cena (opcional)
 
