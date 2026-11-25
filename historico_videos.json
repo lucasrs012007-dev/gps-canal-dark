@@ -1,7 +1,7 @@
 {
-  "versao": 11,
+  "versao": 12,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 11,
+  "video_atual": 12,
   "videos": [
     {
       "id": 1,
@@ -259,7 +259,7 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_11.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v6",
       "parte_label": "PARTE 1",
       "cta_modo": "final",
@@ -267,6 +267,32 @@
       "saidas_partes": [
         "output/short_11_parte1.mp4",
         "output/short_11_parte2.mp4"
+      ]
+    },
+    {
+      "id": 12,
+      "slug": "a-cabine-do-pedagio-deserto",
+      "titulo": "A Cabine do Pedágio Deserto",
+      "tema": "O mistério de um motorista fantasma em uma rodovia estadual isolada",
+      "palavras_chave": [
+        "pedágio",
+        "suspense urbano",
+        "rodovia deserta",
+        "neblina",
+        "aparição"
+      ],
+      "roteiro": "roteiro_12.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_12.mp4",
+      "status": "em_producao",
+      "motor": "v6",
+      "parte_label": "PARTE 1",
+      "cta_modo": "final",
+      "pilar": "suspense_urbano",
+      "saidas_partes": [
+        "output/short_12_parte1.mp4",
+        "output/short_12_parte2.mp4"
       ]
     }
   ]
