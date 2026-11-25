@@ -119,3 +119,5 @@ output/
 .env.*
 !.env.example
 *.key
+client_secret*.json
+gerar_token.py
