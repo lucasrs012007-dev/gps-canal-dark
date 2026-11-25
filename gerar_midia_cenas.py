@@ -36,7 +36,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from PIL import Image, ImageOps, ImageStat
 
@@ -45,6 +45,12 @@ if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
 from pipeline.config_canal import carregar_config_canal  # noqa: E402
+from pipeline.gemini_pool import (  # noqa: E402
+    GeminiPool,
+    carregar_chaves_gemini,
+    eh_erro_chave_invalida,
+    eh_erro_modelo_indisponivel,
+)
 
 ARQUIVO_ENV = RAIZ / ".env"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
@@ -447,63 +453,155 @@ def _eh_erro_temporario(exc: Exception) -> bool:
     return any(tok in txt for tok in ("429", "resource_exhausted", "quota", "503", "500", "502", "504", "timeout", "temporar"))
 
 
+def _eh_erro_429_ou_cota(exc: Exception) -> bool:
+    txt = str(exc).lower()
+    return any(tok in txt for tok in ("429", "resource_exhausted", "quota", "free_tier_requests", "perday", "too many requests"))
+
+
 def _eh_erro_modelo_indisponivel(exc: Exception) -> bool:
     txt = str(exc).lower()
-    return any(tok in txt for tok in ("404", "not found", "not_found", "not supported", "is not found", "permission_denied"))
+    return eh_erro_modelo_indisponivel(txt) or "permission_denied" in txt
 
 
 def gerar_imagem_gemini_com_cache(
     prompt: str,
     destino_jpg: Path,
-    api_key: str,
-    cache_modelo: dict[str, str],
+    api_key: str = "",
+    cache_modelo: dict[str, str] | None = None,
     *,
     client: Any = None,
     types_mod: Any = None,
     max_retries: int = 2,
+    pool: GeminiPool | None = None,
+    client_factory: Callable[[str], Any] | None = None,
+    clientes_cache: dict[str, Any] | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
-    """Gera imagem 1080x1920 via google-genai usando cache do primeiro modelo funcional na conta."""
-    if client is None or types_mod is None:
+    """Gera imagem 1080x1920 via google-genai usando GeminiPool (multi-chave + rotacao fail-fast em cota diaria)."""
+    cache_ref = cache_modelo if cache_modelo is not None else {}
+    clientes_map = clientes_cache if clientes_cache is not None else {}
+
+    if pool is None:
+        chave_seed = str(api_key or "").strip()
+        if client is not None:
+            chave_efetiva = chave_seed if len(chave_seed) >= 10 else "mock-injected-client-key"
+            pool = GeminiPool(chaves=[("GEMINI_API_KEY", chave_efetiva)], modelos=list(MODELOS_GEMINI_IMAGEM))
+            clientes_map[chave_efetiva] = client
+        else:
+            pool = GeminiPool.from_env(
+                modelos=list(MODELOS_GEMINI_IMAGEM),
+                chave_primaria=chave_seed or None,
+                ler_env_arquivo=False,
+                incluir_ambiente=True,
+            )
+
+    if types_mod is None or (client_factory is None and not clientes_map):
         from google import genai  # type: ignore[import-not-found]
         from google.genai import types  # type: ignore[import-not-found]
 
-        client = genai.Client(api_key=api_key)
-        types_mod = types
+        if types_mod is None:
+            types_mod = types
+        if client_factory is None:
+            client_factory = lambda k: genai.Client(api_key=k)  # noqa: E731
+
+    def _obter_cliente(chave_valor: str) -> Any:
+        if chave_valor in clientes_map:
+            return clientes_map[chave_valor]
+        if client_factory is not None:
+            cli = client_factory(chave_valor)
+            clientes_map[chave_valor] = cli
+            return cli
+        if client is not None:
+            return client
+        raise RuntimeError("Nenhum client google-genai disponivel para gerar imagem.")
 
     prompt_final = garantir_estilo_prompt(prompt)
-    modelo_cache = cache_modelo.get("modelo", "")
-    fila = [modelo_cache] + [m for m in MODELOS_GEMINI_IMAGEM if m != modelo_cache] if modelo_cache else list(MODELOS_GEMINI_IMAGEM)
+    modelo_pref = cache_ref.get("modelo", "") or None
+    combinacoes = list(
+        pool.iterar_combinacoes(estrategia="chave_depois_modelo", modelo_preferido=modelo_pref)
+    )
+    if not combinacoes:
+        raise RuntimeError(
+            f"Nenhuma combinacao (chave, modelo) de imagem Gemini disponivel no pool ({pool.resumo_estado()})."
+        )
 
     ultimo_erro: Exception | None = None
-    for modelo in fila:
+    for nome_chave, chave_valor, modelo in combinacoes:
+        if not pool.esta_disponivel(nome_chave, modelo):
+            continue
+        cli_atual = _obter_cliente(chave_valor)
+
         for tentativa in range(max_retries + 1):
             try:
-                raw = _chamar_modelo_gemini_imagem(client, types_mod, modelo, prompt_final)
+                raw = _chamar_modelo_gemini_imagem(cli_atual, types_mod, modelo, prompt_final)
                 info = validar_e_padronizar_imagem(raw, destino_jpg)
-                if cache_modelo.get("modelo") != modelo:
-                    cache_modelo["modelo"] = modelo
-                    print(f"Modelo Gemini Image em cache para esta rodada: {modelo}", flush=True)
+                pool.registrar_sucesso(nome_chave, modelo)
+                if cache_ref.get("modelo") != modelo or cache_ref.get("chave") != nome_chave:
+                    cache_ref["modelo"] = modelo
+                    cache_ref["chave"] = nome_chave
+                    print(
+                        f"Modelo Gemini Image em cache para esta rodada: {modelo} (chave={nome_chave})",
+                        flush=True,
+                    )
                 info["tipo"] = "imagem"
                 info["modelo"] = modelo
+                info["chave"] = nome_chave
                 info["reaproveitada"] = False
                 return info
             except Exception as exc:
                 ultimo_erro = exc
-                if _eh_erro_modelo_indisponivel(exc):
-                    print(f"AVISO modelo '{modelo}' indisponivel ({exc}). Testando proximo modelo...", flush=True)
-                    if cache_modelo.get("modelo") == modelo:
-                        cache_modelo.pop("modelo", None)
-                    break
-                if _eh_erro_temporario(exc) and tentativa < max_retries:
-                    espera = 4.0 * (tentativa + 1)
+                msg_limpa = pool.sanitizar(str(exc))
+
+                if eh_erro_chave_invalida(msg_limpa):
+                    pool.marcar_chave_invalida(nome_chave, msg_limpa)
                     print(
-                        f"AVISO Gemini Image [{modelo}] instabilidade ({exc}) tentativa {tentativa + 1}/{max_retries + 1}. "
-                        f"Aguardando {espera:.1f}s...",
+                        f"AVISO Gemini Image [{nome_chave}/{modelo}] chave invalida ({msg_limpa}). "
+                        "Trocando imediatamente para proxima chave...",
                         flush=True,
                     )
-                    time.sleep(espera)
+                    break
+
+                if _eh_erro_modelo_indisponivel(exc):
+                    pool.marcar_modelo_indisponivel(modelo, msg_limpa)
+                    print(
+                        f"AVISO modelo '{modelo}' indisponivel ({msg_limpa}). Testando proximo modelo...",
+                        flush=True,
+                    )
+                    if cache_ref.get("modelo") == modelo:
+                        cache_ref.pop("modelo", None)
+                    break
+
+                if _eh_erro_429_ou_cota(exc):
+                    esgotou_diaria = pool.registrar_429(nome_chave, modelo, msg_limpa, status_code=429)
+                    if esgotou_diaria:
+                        print(
+                            f"AVISO COTA DIARIA GEMINI IMAGE [{nome_chave}/{modelo}] ({msg_limpa}). "
+                            "Marcando combinacao como esgotada e trocando imediatamente (fail-fast, 0s sleep)...",
+                            flush=True,
+                        )
+                        if cache_ref.get("modelo") == modelo and cache_ref.get("chave") == nome_chave:
+                            cache_ref.pop("modelo", None)
+                            cache_ref.pop("chave", None)
+                        break
+                    if pool.tem_outra_combinacao_disponivel(nome_chave, modelo):
+                        print(
+                            f"AVISO Gemini Image [{nome_chave}/{modelo}] 429 ({msg_limpa}). "
+                            "Alternando imediatamente para proxima chave/modelo no pool (0s sleep)...",
+                            flush=True,
+                        )
+                        break
+
+                if _eh_erro_temporario(exc) and tentativa < max_retries:
+                    espera = 3.0 * (tentativa + 1)
+                    print(
+                        f"AVISO Gemini Image [{nome_chave}/{modelo}] instabilidade ({msg_limpa}) "
+                        f"tentativa {tentativa + 1}/{max_retries + 1}. Aguardando {espera:.1f}s...",
+                        flush=True,
+                    )
+                    sleep_fn(espera)
                     continue
-                print(f"AVISO Gemini Image [{modelo}] falhou: {exc}", flush=True)
+
+                print(f"AVISO Gemini Image [{nome_chave}/{modelo}] falhou: {msg_limpa}", flush=True)
                 break
 
     assert ultimo_erro is not None
@@ -533,7 +631,7 @@ def gerar_midias_todas_cenas(
     max_cenas: int | None = None,
     forcar: bool = False,
 ) -> dict[str, Any]:
-    """Gera midia 9:16 (video fal.ai se FAL_KEY ativa, ou imagem 1080x1920 Gemini) para cada cena."""
+    """Gera midia 9:16 (video fal.ai se FAL_KEY ativa, ou imagem 1080x1920 via GeminiPool) para cada cena."""
     carregar_env()
     if not cenas_path.is_file():
         raise FileNotFoundError(f"cenas.json nao encontrado: {cenas_path}")
@@ -552,30 +650,34 @@ def gerar_midias_todas_cenas(
     _limpar_cenas_antigas_se_novo_video(saida_dir, video_id=video_id, forcar=forcar)
 
     fal_key = os.environ.get("FAL_KEY", "").strip()
-    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not fal_key and not gemini_key:
+    chaves_gemini = carregar_chaves_gemini(ler_env_arquivo=False)
+    pool_gemini = GeminiPool(chaves=chaves_gemini, modelos=list(MODELOS_GEMINI_IMAGEM))
+    if not fal_key and pool_gemini.total_chaves() == 0:
         raise RuntimeError(
-            "Nenhuma credencial de midia encontrada (GEMINI_API_KEY e FAL_KEY ausentes). "
+            "Nenhuma credencial de midia encontrada (GEMINI_API_KEY/2/3 e FAL_KEY ausentes). "
             "Configure GEMINI_API_KEY (gratuito) ou FAL_KEY nos Secrets."
         )
 
-    client_genai = None
+    client_factory: Callable[[str], Any] | None = None
+    clientes_cache: dict[str, Any] = {}
     types_mod = None
-    if gemini_key:
+    if pool_gemini.total_chaves() > 0:
         try:
             from google import genai  # type: ignore[import-not-found]
             from google.genai import types  # type: ignore[import-not-found]
 
-            client_genai = genai.Client(api_key=gemini_key)
+            client_factory = lambda k: genai.Client(api_key=k)  # noqa: E731
             types_mod = types
         except ImportError as exc:
             if not fal_key:
                 raise RuntimeError("Biblioteca google-genai nao instalada. Rode: pip install google-genai") from exc
             print(f"AVISO google-genai ausente ({exc}); operando apenas com FAL_KEY.", flush=True)
 
+    nomes_ch_str = ", ".join(pool_gemini.nomes_chaves()) or "nenhuma"
     print(
         f"Estacao 3A (gerar_midia_cenas): Video {video_id:02d} '{titulo}' | "
-        f"{len(lista_cenas)} cena(s) | FAL_KEY={'ATIVA (' + FAL_ENDPOINT_T2V + ')' if fal_key else 'desativada (Gemini Image gratuito)'}",
+        f"{len(lista_cenas)} cena(s) | GeminiPool={pool_gemini.total_chaves()} chave(s) [{nomes_ch_str}] | "
+        f"FAL_KEY={'ATIVA (' + FAL_ENDPOINT_T2V + ')' if fal_key else 'desativada (Gemini Image gratuito)'}",
         flush=True,
     )
 
@@ -636,17 +738,18 @@ def gerar_midias_todas_cenas(
                     flush=True,
                 )
 
-        # 2. Modo gratuito padrao (ou fallback da fal.ai): Gemini Image API com cache de modelo
+        # 2. Modo gratuito padrao (ou fallback da fal.ai): Gemini Image API com pool multi-chave
         gerada = False
-        if gemini_key and client_genai is not None:
+        if pool_gemini.total_chaves() > 0 and client_factory is not None:
             try:
                 info_i = gerar_imagem_gemini_com_cache(
                     prompt=prompt,
                     destino_jpg=destino_jpg,
-                    api_key=gemini_key,
                     cache_modelo=cache_modelo,
-                    client=client_genai,
                     types_mod=types_mod,
+                    pool=pool_gemini,
+                    client_factory=client_factory,
+                    clientes_cache=clientes_cache,
                 )
                 destino_mp4.unlink(missing_ok=True)
                 info_i.update({"indice": idx, "id": cena_id})
@@ -655,40 +758,49 @@ def gerar_midias_todas_cenas(
                 total_geradas_originais += 1
                 gerada = True
                 print(
-                    f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK via {info_i['modelo']} "
+                    f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK via {info_i['modelo']} ({info_i.get('chave', 'GEMINI_API_KEY')}) "
                     f"({info_i['largura']}x{info_i['altura']}, {info_i['bytes'] / 1024:.1f} KB)",
                     flush=True,
                 )
             except Exception as exc_orig:
-                print(
-                    f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] prompt original falhou ({exc_orig}). "
-                    f"Reescrevendo prompt de forma neutra para evitar filtro de seguranca...",
-                    flush=True,
-                )
-                prompt_neutro = reescrever_prompt_neutro(prompt, fala_fallback=fala)
-                try:
-                    info_n = gerar_imagem_gemini_com_cache(
-                        prompt=prompt_neutro,
-                        destino_jpg=destino_jpg,
-                        api_key=gemini_key,
-                        cache_modelo=cache_modelo,
-                        client=client_genai,
-                        types_mod=types_mod,
-                    )
-                    destino_mp4.unlink(missing_ok=True)
-                    info_n.update({"indice": idx, "id": cena_id, "prompt_neutro": True})
-                    itens_manifesto.append(info_n)
-                    ultima_imagem_valida = destino_jpg
-                    total_geradas_originais += 1
-                    gerada = True
+                tem_pool_vivo = bool(list(pool_gemini.iterar_combinacoes()))
+                if tem_pool_vivo:
                     print(
-                        f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK apos reescrita neutra "
-                        f"via {info_n['modelo']} ({info_n['bytes'] / 1024:.1f} KB)",
+                        f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] prompt original falhou ({exc_orig}). "
+                        f"Reescrevendo prompt de forma neutra para evitar filtro de seguranca...",
                         flush=True,
                     )
-                except Exception as exc_neutro:
+                    prompt_neutro = reescrever_prompt_neutro(prompt, fala_fallback=fala)
+                    try:
+                        info_n = gerar_imagem_gemini_com_cache(
+                            prompt=prompt_neutro,
+                            destino_jpg=destino_jpg,
+                            cache_modelo=cache_modelo,
+                            types_mod=types_mod,
+                            pool=pool_gemini,
+                            client_factory=client_factory,
+                            clientes_cache=clientes_cache,
+                        )
+                        destino_mp4.unlink(missing_ok=True)
+                        info_n.update({"indice": idx, "id": cena_id, "prompt_neutro": True})
+                        itens_manifesto.append(info_n)
+                        ultima_imagem_valida = destino_jpg
+                        total_geradas_originais += 1
+                        gerada = True
+                        print(
+                            f"  [{idx:02d}/{len(lista_cenas):02d}] {destino_jpg.name} OK apos reescrita neutra "
+                            f"via {info_n['modelo']} ({info_n['bytes'] / 1024:.1f} KB)",
+                            flush=True,
+                        )
+                    except Exception as exc_neutro:
+                        print(
+                            f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] reescrita neutra tambem falhou ({exc_neutro}).",
+                            flush=True,
+                        )
+                else:
                     print(
-                        f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] reescrita neutra tambem falhou ({exc_neutro}).",
+                        f"  AVISO [{idx:02d}/{len(lista_cenas):02d}] pool Gemini Image totalmente esgotado "
+                        f"({pool_gemini.resumo_estado()}); pulando reescrita e reaproveitando enquadramento valido.",
                         flush=True,
                     )
 
@@ -713,7 +825,7 @@ def gerar_midias_todas_cenas(
             else:
                 raise RuntimeError(
                     f"Falha critica na cena {idx:02d}/{len(lista_cenas):02d}: nenhuma midia valida anterior "
-                    f"disponivel para reaproveitamento. Verifique GEMINI_API_KEY / FAL_KEY."
+                    f"disponivel para reaproveitamento. Verifique GEMINI_API_KEY/2/3 ou FAL_KEY."
                 )
 
     if total_geradas_originais == 0:
@@ -726,6 +838,8 @@ def gerar_midias_todas_cenas(
         "originais_geradas": total_geradas_originais,
         "fal_ativo": bool(fal_key),
         "modelo_imagem_cache": cache_modelo.get("modelo", ""),
+        "chave_imagem_cache": cache_modelo.get("chave", ""),
+        "chaves_gemini_pool": pool_gemini.nomes_chaves(),
         "itens": itens_manifesto,
     }
     (saida_dir / MANIFESTO_NOME).write_text(

@@ -39,6 +39,17 @@ from pipeline.config_canal import (  # noqa: E402
     carregar_config_canal,
     obter_perfil_idioma,
 )
+from pipeline.gemini_pool import (  # noqa: E402
+    GROQ_API_URL,
+    GROQ_MODELO_PADRAO,
+    MODELOS_TEXTO_GEMINI_PADRAO,
+    GeminiPool,
+    carregar_chaves_gemini,
+    eh_erro_chave_invalida,
+    eh_erro_cota_diaria,
+    eh_erro_modelo_indisponivel,
+    obter_groq_api_key,
+)
 from pipeline.historico import (  # noqa: E402
     ARQUIVO_HISTORICO,
     _similares,
@@ -51,16 +62,8 @@ from pipeline.historico import (  # noqa: E402
 
 SCHEMA_VERSION = "8.0"
 MOTOR_RENDER_PADRAO = "cinematografico_ia_30fps"
-GEMINI_MODELO_PADRAO = "gemini-3.5-flash-lite"
-GEMINI_MODELOS_FALLBACK: tuple[str, ...] = (
-    "gemini-3.5-flash-lite",
-    "gemini-flash-latest",
-    "gemini-3.8-flash",
-    "gemini-3.6-flash",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-flash-lite",
-    "gemini-4-hydrogen",
-)
+GEMINI_MODELO_PADRAO = MODELOS_TEXTO_GEMINI_PADRAO[0]
+GEMINI_MODELOS_FALLBACK: tuple[str, ...] = MODELOS_TEXTO_GEMINI_PADRAO
 ARQUIVO_ENV = RAIZ / ".env"
 ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
@@ -1791,7 +1794,6 @@ def _descobrir_modelos_gemini_disponiveis(
         "decision",
         "computer-use",
         "gemini-1.",
-        "gemini-2.0",
     )
     candidatos: list[str] = []
     for item in dados.get("models") or []:
@@ -1810,33 +1812,156 @@ def _descobrir_modelos_gemini_disponiveis(
 
     def _prioridade(nome: str) -> tuple[int, int, str]:
         low = nome.lower()
-        legado_25 = 1 if "gemini-2.5" in low else 0
+        geracao = 0 if "gemini-2.5" in low else (1 if "gemini-2.0" in low else 2)
         if "flash-lite" in low:
-            return (legado_25, 0, low)
+            return (geracao, 0, low)
         if "flash" in low and "preview" not in low:
-            return (legado_25, 1, low)
-        if "hydrogen" in low:
-            return (legado_25, 2, low)
+            return (geracao, 1, low)
         if "flash" in low:
-            return (legado_25, 3, low)
-        return (legado_25, 4, low)
+            return (geracao, 2, low)
+        return (geracao, 3, low)
 
     candidatos.sort(key=_prioridade)
-    return candidatos[:8]
+    return candidatos[:10]
+
+
+def chamar_groq_json(
+    prompt: str,
+    groq_api_key: str,
+    modelo: str | None = None,
+    urlopen_fn: Callable | None = None,
+    sleep_fn: Callable[[float], None] = time.sleep,
+    modelo_ativo_ref: dict[str, str] | None = None,
+) -> dict:
+    """Fallback gratuito via Groq (OpenAI-compatible) usando llama-3.3-70b-versatile em modo JSON."""
+    chave = str(groq_api_key or "").strip()
+    if not chave:
+        raise RuntimeError("GROQ_API_KEY ausente para fallback.")
+
+    modelo_uso = (modelo or os.environ.get("GROQ_MODEL", "").strip() or GROQ_MODELO_PADRAO)
+    opener = urlopen_fn or urllib.request.urlopen
+    headers = {
+        "Authorization": f"Bearer {chave}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "gps-canal-dark/8.1",
+    }
+
+    system_msg = (
+        "Voce e uma API JSON precisa. Responda sempre com um unico objeto JSON valido "
+        "seguindo exatamente o esquema pedido, sem cercas markdown e com acentuacao UTF-8 correta."
+    )
+
+    ultimo_erro = "Falha desconhecida ao chamar Groq."
+    for usar_response_format in (True, False):
+        payload: dict = {
+            "model": modelo_uso,
+            "messages": [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.7,
+        }
+        if usar_response_format:
+            payload["response_format"] = {"type": "json_object"}
+        payload_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+        for tentativa in range(2):
+            req = urllib.request.Request(GROQ_API_URL, data=payload_bytes, headers=headers, method="POST")
+            try:
+                with opener(req, timeout=60) as resp:
+                    corpo = resp.read().decode("utf-8")
+                envelope = json.loads(corpo)
+                choices = envelope.get("choices") or []
+                if not choices:
+                    raise RuntimeError(f"Resposta do Groq ({modelo_uso}) sem 'choices'.")
+                msg = choices[0].get("message") or {}
+                conteudo = str(msg.get("content", "") or "").strip()
+                if not conteudo:
+                    raise RuntimeError(f"Resposta do Groq ({modelo_uso}) sem conteudo textual.")
+                dados = _extrair_json_resposta(conteudo)
+                if modelo_ativo_ref is not None:
+                    modelo_ativo_ref["modelo"] = f"groq:{modelo_uso}"
+                    modelo_ativo_ref["provedor"] = "groq"
+                print(f"Fallback gratuito Groq OK ({modelo_uso}).", flush=True)
+                return dados
+            except urllib.error.HTTPError as exc:
+                detalhe = _extrair_erro_http_gemini(exc, chave)
+                ultimo_erro = f"Groq [{modelo_uso}] HTTP {exc.code}: {detalhe}"
+                # Se falhou validacao estrita de json_object (HTTP 400), tenta sem response_format
+                if exc.code == 400 and usar_response_format and "json" in detalhe.lower():
+                    print(
+                        f"AVISO {ultimo_erro}; repetindo no Groq sem response_format estrito...",
+                        flush=True,
+                    )
+                    break
+                if exc.code in (429, 500, 502, 503, 504) and tentativa == 0:
+                    espera = min(4.0, _extrair_retry_after_s(exc, 2.5))
+                    print(f"AVISO {ultimo_erro}; aguardando {espera:.1f}s antes de repetir Groq...", flush=True)
+                    sleep_fn(espera)
+                    continue
+                raise RuntimeError(ultimo_erro) from None
+            except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
+                ultimo_erro = f"Groq [{modelo_uso}] {type(exc).__name__}: {exc}"
+                if tentativa == 0:
+                    sleep_fn(2.0)
+                    continue
+                if usar_response_format:
+                    break
+                raise RuntimeError(ultimo_erro) from None
+
+    raise RuntimeError(ultimo_erro)
 
 
 def _chamar_gemini_json(
     prompt: str,
-    api_key: str,
+    api_key: str = "",
     modelo: str = GEMINI_MODELO_PADRAO,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
-    retry_esperas: tuple[float, ...] = (3.0, 8.0, 18.0),
+    retry_esperas: tuple[float, ...] = (2.0, 5.0),
     modelo_ativo_ref: dict[str, str] | None = None,
+    pool: GeminiPool | None = None,
+    groq_api_key: str | None = None,
 ) -> dict:
-    """Chama Gemini REST API com JSON estruturado, 3 retries com backoff e fallback de modelos."""
-    api_key = validar_gemini_api_key(api_key)
-    # Sem temperature/top_p/top_k: removidos/depreciados a partir do Gemini 3.5/3.6/3.8/4
+    """Chama Gemini via GeminiPool (multi-chave + rotacao de modelos + fail-fast cota diaria) com fallback Groq."""
+    opener = urlopen_fn or urllib.request.urlopen
+    modelos_iniciais = _montar_lista_modelos(modelo)
+
+    if pool is None:
+        chave_limpa = str(api_key or "").strip()
+        if chave_limpa:
+            chave_limpa = validar_gemini_api_key(chave_limpa)
+        pool = GeminiPool.from_env(
+            modelos=modelos_iniciais,
+            chave_primaria=chave_limpa or None,
+            ler_env_arquivo=False,
+            incluir_ambiente=True,
+        )
+    else:
+        pool.adicionar_modelos(modelos_iniciais)
+
+    groq_key = (
+        obter_groq_api_key(ler_env_arquivo=False)
+        if groq_api_key is None
+        else str(groq_api_key or "").strip()
+    )
+
+    if pool.total_chaves() == 0:
+        if groq_key:
+            print(
+                f"AVISO nenhuma chave Gemini ativa; usando fallback gratuito Groq ({GROQ_MODELO_PADRAO}).",
+                flush=True,
+            )
+            return chamar_groq_json(
+                prompt,
+                groq_key,
+                urlopen_fn=opener,
+                sleep_fn=sleep_fn,
+                modelo_ativo_ref=modelo_ativo_ref,
+            )
+        validar_gemini_api_key(api_key)
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -1844,83 +1969,148 @@ def _chamar_gemini_json(
         },
     }
     payload_bytes = json.dumps(payload).encode("utf-8")
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": api_key,
-    }
-    opener = urlopen_fn or urllib.request.urlopen
     max_t = 1 + len(retry_esperas)
 
-    modelos_fila = _montar_lista_modelos(modelo)
-    testados: set[str] = set()
     autodescoberta_feita = False
     ultimo_erro_msg = "Falha desconhecida ao consultar a API Gemini."
+    combinacoes_testadas: list[str] = []
 
-    idx_m = 0
-    while idx_m < len(modelos_fila):
-        modelo_atual = modelos_fila[idx_m]
-        idx_m += 1
-        if modelo_atual in testados:
-            continue
-        testados.add(modelo_atual)
-
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_atual}:generateContent"
-        avancar_modelo = False
-
-        for tentativa in range(max_t):
-            req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
-            try:
-                with opener(req, timeout=60) as resp:
-                    corpo = resp.read().decode("utf-8")
-                envelope = json.loads(corpo)
-                candidatos = envelope.get("candidates") or []
-                if not candidatos:
-                    raise RuntimeError(f"Resposta do Gemini ({modelo_atual}) sem 'candidates'.")
-                partes = (candidatos[0].get("content") or {}).get("parts") or []
-                # Ignora blocos internos de pensamento (thought=True) dos modelos Gemini 3.x / 4
-                partes_resp = [p for p in partes if not p.get("thought")] or partes
-                texto_json = "".join(str(p.get("text", "")) for p in partes_resp)
-                if not texto_json.strip():
-                    raise RuntimeError(f"Resposta do Gemini ({modelo_atual}) sem conteudo textual.")
-                dados_json = _extrair_json_resposta(texto_json)
-                if modelo_ativo_ref is not None:
-                    modelo_ativo_ref["modelo"] = modelo_atual
-                return dados_json
-            except urllib.error.HTTPError as exc:
-                detalhe = _extrair_erro_http_gemini(exc, api_key)
-                detalhe_low = detalhe.lower()
-                ultimo_erro_msg = f"Gemini [{modelo_atual}] HTTP {exc.code}: {detalhe}"
-
-                if exc.code in (401, 403) or (
-                    exc.code == 400 and ("api key" in detalhe_low or "api_key" in detalhe_low)
-                ):
-                    print(f"ERRO autenticacao/permissao {ultimo_erro_msg}", flush=True)
-                    raise RuntimeError(
-                        f"Chave GEMINI_API_KEY invalida, rejeitada ou sem permissao ({ultimo_erro_msg})."
-                    ) from None
-
-                if exc.code == 404:
-                    print(
-                        f"AVISO modelo indisponivel ({ultimo_erro_msg}). Tentando proximo modelo ativo...",
-                        flush=True,
+    while True:
+        modelo_pref = None
+        if modelo_ativo_ref and modelo_ativo_ref.get("provedor") != "groq":
+            modelo_pref = modelo_ativo_ref.get("modelo") or None
+        combinacoes = list(
+            pool.iterar_combinacoes(
+                estrategia="chave_depois_modelo",
+                modelo_preferido=modelo_pref or modelo,
+            )
+        )
+        if not combinacoes:
+            if not autodescoberta_feita:
+                autodescoberta_feita = True
+                chave_disc = next(
+                    (v for n, v in pool.chaves if n not in pool.chaves_invalidas),
+                    None,
+                )
+                if chave_disc:
+                    descobertos = pool.adicionar_modelos(
+                        _descobrir_modelos_gemini_disponiveis(chave_disc, urlopen_fn=opener)
                     )
-                    avancar_modelo = True
-                    break
+                    if descobertos:
+                        print(
+                            f"AVISO autodescoberta /v1beta/models adicionou modelos ao pool: {descobertos}",
+                            flush=True,
+                        )
+                        continue
+            break
 
-                if exc.code == 400 and any(
-                    tok in detalhe_low
-                    for tok in ("response_mime_type", "json mode", "not supported", "not enabled")
-                ):
-                    print(
-                        f"AVISO modelo incompativel ({ultimo_erro_msg}). Tentando proximo modelo ativo...",
-                        flush=True,
-                    )
-                    avancar_modelo = True
-                    break
+        houve_avanco = False
+        for nome_chave, chave_valor, modelo_atual in combinacoes:
+            if not pool.esta_disponivel(nome_chave, modelo_atual):
+                continue
+            houve_avanco = True
+            combinacoes_testadas.append(f"{nome_chave}:{modelo_atual}")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_atual}:generateContent"
+            headers = {
+                "Content-Type": "application/json",
+                "x-goog-api-key": chave_valor,
+            }
 
-                if exc.code in (429, 500, 502, 503, 504):
+            for tentativa in range(max_t):
+                req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
+                try:
+                    with opener(req, timeout=60) as resp:
+                        corpo = resp.read().decode("utf-8")
+                    envelope = json.loads(corpo)
+                    candidatos = envelope.get("candidates") or []
+                    if not candidatos:
+                        raise RuntimeError(f"Resposta do Gemini ({modelo_atual}) sem 'candidates'.")
+                    partes = (candidatos[0].get("content") or {}).get("parts") or []
+                    # Ignora blocos internos de pensamento (thought=True) dos modelos Gemini 3.x / 4
+                    partes_resp = [p for p in partes if not p.get("thought")] or partes
+                    texto_json = "".join(str(p.get("text", "")) for p in partes_resp)
+                    if not texto_json.strip():
+                        raise RuntimeError(f"Resposta do Gemini ({modelo_atual}) sem conteudo textual.")
+                    dados_json = _extrair_json_resposta(texto_json)
+                    pool.registrar_sucesso(nome_chave, modelo_atual)
+                    if modelo_ativo_ref is not None:
+                        modelo_ativo_ref["modelo"] = modelo_atual
+                        modelo_ativo_ref["chave"] = nome_chave
+                        modelo_ativo_ref["provedor"] = "gemini"
+                    return dados_json
+                except urllib.error.HTTPError as exc:
+                    detalhe = pool.sanitizar(_extrair_erro_http_gemini(exc, chave_valor))
+                    ultimo_erro_msg = f"Gemini [{nome_chave}/{modelo_atual}] HTTP {exc.code}: {detalhe}"
+
+                    if eh_erro_chave_invalida(detalhe, status_code=exc.code):
+                        pool.marcar_chave_invalida(nome_chave, detalhe)
+                        print(
+                            f"AVISO chave rejeitada/sem permissao ({ultimo_erro_msg}). Trocando para proxima chave...",
+                            flush=True,
+                        )
+                        break
+
+                    if eh_erro_modelo_indisponivel(detalhe, status_code=exc.code):
+                        pool.marcar_modelo_indisponivel(modelo_atual, detalhe)
+                        print(
+                            f"AVISO modelo indisponivel ({ultimo_erro_msg}). Trocando para proximo modelo...",
+                            flush=True,
+                        )
+                        break
+
+                    if exc.code == 429 or "resource_exhausted" in detalhe.lower():
+                        esgotou_diaria = pool.registrar_429(
+                            nome_chave,
+                            modelo_atual,
+                            detalhe,
+                            status_code=exc.code,
+                        )
+                        if esgotou_diaria:
+                            print(
+                                f"AVISO COTA DIARIA ESGOTADA ({ultimo_erro_msg}). "
+                                "Marcando combinacao como esgotada e trocando imediatamente (fail-fast, 0s sleep)...",
+                                flush=True,
+                            )
+                            break
+                        # Se ha outra combinacao disponivel no pool, evita dormir longo e tenta proxima combinacao
+                        if tentativa < len(retry_esperas):
+                            espera = min(10.0, _extrair_retry_after_s(exc, float(retry_esperas[tentativa])))
+                            print(
+                                f"AVISO 429 transitorio ({ultimo_erro_msg}) tentativa {tentativa + 1}/{max_t}. "
+                                f"Aguardando {espera:.1f}s...",
+                                flush=True,
+                            )
+                            sleep_fn(espera)
+                            continue
+                        pool.marcar_esgotado(nome_chave, modelo_atual, detalhe)
+                        print(
+                            f"AVISO {ultimo_erro_msg} persistiu apos retries; trocando de combinacao...",
+                            flush=True,
+                        )
+                        break
+
+                    if exc.code in (500, 502, 503, 504):
+                        if tentativa < len(retry_esperas):
+                            espera = min(10.0, _extrair_retry_after_s(exc, float(retry_esperas[tentativa])))
+                            print(
+                                f"AVISO {ultimo_erro_msg} na tentativa {tentativa + 1}/{max_t}. "
+                                f"Aguardando {espera:.1f}s...",
+                                flush=True,
+                            )
+                            sleep_fn(espera)
+                            continue
+                        print(
+                            f"AVISO {ultimo_erro_msg} esgotou retries; tentando proxima combinacao do pool...",
+                            flush=True,
+                        )
+                        break
+
+                    print(f"AVISO erro definitivo na combinacao ({ultimo_erro_msg}); avancando no pool...", flush=True)
+                    break
+                except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
+                    ultimo_erro_msg = f"Gemini [{nome_chave}/{modelo_atual}] {type(exc).__name__}: {pool.sanitizar(str(exc))}"
                     if tentativa < len(retry_esperas):
-                        espera = _extrair_retry_after_s(exc, float(retry_esperas[tentativa]))
+                        espera = float(retry_esperas[tentativa])
                         print(
                             f"AVISO {ultimo_erro_msg} na tentativa {tentativa + 1}/{max_t}. "
                             f"Aguardando {espera:.1f}s...",
@@ -1928,42 +2118,48 @@ def _chamar_gemini_json(
                         )
                         sleep_fn(espera)
                         continue
-                    print(
-                        f"AVISO {ultimo_erro_msg} esgotou {len(retry_esperas)} retries; tentando proximo modelo da cascata...",
-                        flush=True,
-                    )
-                    avancar_modelo = True
                     break
 
-                print(f"ERRO definitivo {ultimo_erro_msg}", flush=True)
-                raise RuntimeError(ultimo_erro_msg) from None
-            except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
-                ultimo_erro_msg = f"Gemini [{modelo_atual}] {type(exc).__name__}: {exc}"
-                if tentativa < len(retry_esperas):
-                    espera = float(retry_esperas[tentativa])
+        if not houve_avanco:
+            break
+
+        # Apos esgotar a fila inicial, tenta autodescoberta uma unica vez se ainda houver chave valida
+        if not autodescoberta_feita:
+            autodescoberta_feita = True
+            chave_disc = next(
+                (v for n, v in pool.chaves if n not in pool.chaves_invalidas),
+                None,
+            )
+            if chave_disc:
+                descobertos = pool.adicionar_modelos(
+                    _descobrir_modelos_gemini_disponiveis(chave_disc, urlopen_fn=opener)
+                )
+                if descobertos:
                     print(
-                        f"AVISO {ultimo_erro_msg} na tentativa {tentativa + 1}/{max_t}. "
-                        f"Aguardando {espera:.1f}s...",
+                        f"AVISO autodescoberta /v1beta/models adicionou modelos ao pool: {descobertos}",
                         flush=True,
                     )
-                    sleep_fn(espera)
                     continue
-                avancar_modelo = True
-                break
+        break
 
-        if avancar_modelo and idx_m >= len(modelos_fila) and not autodescoberta_feita:
-            autodescoberta_feita = True
-            descobertos = [
-                m for m in _descobrir_modelos_gemini_disponiveis(api_key, urlopen_fn=opener) if m not in testados
-            ]
-            if descobertos:
-                print(
-                    f"AVISO autodescoberta /v1beta/models encontrou modelos ativos: {descobertos}",
-                    flush=True,
-                )
-                modelos_fila.extend(descobertos)
+    if groq_key:
+        print(
+            f"AVISO todas as combinacoes Gemini esgotadas/falharam ({pool.resumo_estado()}). "
+            f"Acionando fallback gratuito Groq ({GROQ_MODELO_PADRAO})...",
+            flush=True,
+        )
+        return chamar_groq_json(
+            prompt,
+            groq_key,
+            urlopen_fn=opener,
+            sleep_fn=sleep_fn,
+            modelo_ativo_ref=modelo_ativo_ref,
+        )
 
-    raise RuntimeError(f"Todos os modelos Gemini falharam ({sorted(testados)}). Ultimo erro: {ultimo_erro_msg}")
+    raise RuntimeError(
+        f"Todas as combinacoes Gemini falharam ({combinacoes_testadas} | {pool.resumo_estado()}). "
+        f"Ultimo erro: {ultimo_erro_msg}"
+    )
 
 
 def selecionar_proximo_pilar(
@@ -2071,14 +2267,16 @@ def _montar_prompt_roteiro_inedito(
 def gerar_roteiro_inedito_gemini(
     dados_hist: dict,
     titulo_sugerido: str | None,
-    api_key: str,
+    api_key: str = "",
     modelo: str = GEMINI_MODELO_PADRAO,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     modelo_ativo_ref: dict[str, str] | None = None,
     pilar: dict[str, str] | None = None,
+    pool: GeminiPool | None = None,
+    groq_api_key: str | None = None,
 ) -> tuple[str, str]:
-    """Gera obrigatoriamente um titulo e roteiro bruto 100% ineditos via Gemini (contra historico)."""
+    """Gera obrigatoriamente um titulo e roteiro bruto 100% ineditos via GeminiPool (com fallback Groq)."""
     prox_id = proximo_numero_livre(dados_hist)
     pilar_ativo = pilar or selecionar_proximo_pilar(dados_hist, prox_id)
     print(
@@ -2086,7 +2284,7 @@ def gerar_roteiro_inedito_gemini(
         flush=True,
     )
     motivo_rej: str | None = None
-    ultimo_erro = "Gemini nao retornou um roteiro inedito valido."
+    ultimo_erro = "Gemini/Groq nao retornou um roteiro inedito valido."
     ref_local = modelo_ativo_ref if modelo_ativo_ref is not None else {}
 
     for tentativa in range(1, 4):
@@ -2097,13 +2295,16 @@ def gerar_roteiro_inedito_gemini(
             motivo_rejeicao=motivo_rej,
             pilar=pilar_ativo,
         )
+        mod_pref = ref_local.get("modelo", modelo) if ref_local.get("provedor") != "groq" else modelo
         dados = _chamar_gemini_json(
             prompt=prompt,
             api_key=api_key,
-            modelo=ref_local.get("modelo", modelo),
+            modelo=mod_pref,
             urlopen_fn=urlopen_fn,
             sleep_fn=sleep_fn,
             modelo_ativo_ref=ref_local,
+            pool=pool,
+            groq_api_key=groq_api_key,
         )
         titulo_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("titulo", "") or titulo_sugerido or ""))).strip()
         tema_gerado = restaurar_acentos_ptbr(sanitizar_texto(str(dados.get("tema", "") or ""))).strip()
@@ -2241,16 +2442,19 @@ def gerar_roteiro_inedito_mock(
 def chamar_gemini_diretor(
     roteiro_bruto: str,
     titulo_sugerido: str | None,
-    api_key: str,
-    catalogo_sfx: dict[str, float],
+    api_key: str = "",
+    catalogo_sfx: dict[str, float] | None = None,
     modelo: str = GEMINI_MODELO_PADRAO,
     urlopen_fn: Callable | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     modelo_ativo_ref: dict[str, str] | None = None,
     pilar: dict[str, str] | None = None,
+    pool: GeminiPool | None = None,
+    groq_api_key: str | None = None,
 ) -> dict:
-    """Chama Gemini REST API (stdlib urllib) passando a chave no header x-goog-api-key."""
-    prompt = _montar_prompt_gemini(roteiro_bruto, titulo_sugerido, sorted(catalogo_sfx.keys()), pilar=pilar)
+    """Chama GeminiPool (multi-chave + rotacao de modelos + fail-fast) com fallback gratuito Groq."""
+    sfx_keys = sorted((catalogo_sfx or {}).keys())
+    prompt = _montar_prompt_gemini(roteiro_bruto, titulo_sugerido, sfx_keys, pilar=pilar)
     return _chamar_gemini_json(
         prompt=prompt,
         api_key=api_key,
@@ -2258,6 +2462,8 @@ def chamar_gemini_diretor(
         urlopen_fn=urlopen_fn,
         sleep_fn=sleep_fn,
         modelo_ativo_ref=modelo_ativo_ref,
+        pool=pool,
+        groq_api_key=groq_api_key,
     )
 
 
@@ -3005,17 +3211,31 @@ def produzir_direcao_v6(
     sleep_fn: Callable[[float], None] = time.sleep,
     pilar_editorial: str | None = None,
 ) -> dict:
-    """Executa o fluxo completo do Diretor IA V6 e grava roteiro_XX.txt, cenas.json e historico."""
+    """Executa o fluxo completo do Diretor IA V8 (GeminiPool multi-chave + Groq fallback) e grava artefatos."""
     carregar_env()
     catalogo_sfx = carregar_catalogo_sfx()
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    chaves_gemini = carregar_chaves_gemini(ler_env_arquivo=False)
+    groq_key = obter_groq_api_key(ler_env_arquivo=False)
+    pool_gemini = GeminiPool(chaves=chaves_gemini, modelos=_montar_lista_modelos(modelo))
+    tem_ia_online = (pool_gemini.total_chaves() > 0) or bool(groq_key)
+    api_key = chaves_gemini[0][1] if chaves_gemini else ""
 
     if exigir_gemini:
         if usar_mock:
             raise RuntimeError("Modo --mock e incompativel com --exigir-gemini.")
-        api_key = validar_gemini_api_key(api_key)
-    elif api_key and not usar_mock:
-        api_key = validar_gemini_api_key(api_key)
+        if not tem_ia_online:
+            raise RuntimeError(
+                "Nenhuma credencial de IA valida encontrada em GEMINI_API_KEY, GEMINI_API_KEY_2, "
+                "GEMINI_API_KEY_3 ou GROQ_API_KEY."
+            )
+
+    if not usar_mock and tem_ia_online:
+        nomes_ch = ", ".join(pool_gemini.nomes_chaves()) or "nenhuma"
+        print(
+            f"Pool IA Estacao 1: {pool_gemini.total_chaves()} chave(s) Gemini [{nomes_ch}] "
+            f"| modelos={len(pool_gemini.modelos)} | Groq fallback={'ATIVO (' + GROQ_MODELO_PADRAO + ')' if groq_key else 'desativado'}",
+            flush=True,
+        )
 
     avisos: list[str] = []
     titulo_efetivo = titulo
@@ -3034,9 +3254,9 @@ def produzir_direcao_v6(
             dados_hist, prox_id, pilar_forcado=pilar_editorial
         )
         veio_de_inedito = True
-        if usar_mock or not api_key:
-            if not usar_mock and not api_key:
-                avisos.append("GEMINI_API_KEY ausente: gerando episodio inedito deterministico offline.")
+        if usar_mock or not tem_ia_online:
+            if not usar_mock and not tem_ia_online:
+                avisos.append("GEMINI_API_KEY e GROQ_API_KEY ausentes: gerando episodio inedito deterministico offline.")
             titulo_gerado, texto_entrada = gerar_roteiro_inedito_mock(
                 dados_hist, titulo_sugerido=titulo, pilar=pilar_selecionado
             )
@@ -3050,42 +3270,55 @@ def produzir_direcao_v6(
                 sleep_fn=sleep_fn,
                 modelo_ativo_ref=modelo_ativo_ref,
                 pilar=pilar_selecionado,
+                pool=pool_gemini,
+                groq_api_key=groq_key,
             )
         titulo_efetivo = titulo or titulo_gerado
 
     limpo_in = sanitizar_texto(texto_entrada)
     if len(limpo_in.split()) < 15:
-        raise ValueError("Roteiro bruto muito curto (minimo 15 palavras para gerar Short V6).")
+        raise ValueError("Roteiro bruto muito curto (minimo 15 palavras para gerar Short V8).")
 
     origem = "mock"
     plano_bruto: dict | None = None
 
-    if usar_mock or not api_key:
-        if not usar_mock and not api_key:
-            avisos.append("GEMINI_API_KEY ausente: usando modo deterministico offline.")
+    if usar_mock or not tem_ia_online:
+        if not usar_mock and not tem_ia_online:
+            avisos.append("GEMINI_API_KEY e GROQ_API_KEY ausentes: usando modo deterministico offline.")
         plano_bruto = diretor_mock_deterministico(limpo_in, titulo_forcado=titulo_efetivo, catalogo_sfx=catalogo_sfx)
         origem = "mock_inedito" if veio_de_inedito else "mock"
     else:
         try:
+            mod_dir = (
+                modelo_ativo_ref.get("modelo", modelo)
+                if modelo_ativo_ref.get("provedor") != "groq"
+                else modelo
+            )
             plano_bruto = chamar_gemini_diretor(
                 limpo_in,
                 titulo_sugerido=titulo_efetivo,
                 api_key=api_key,
                 catalogo_sfx=catalogo_sfx,
-                modelo=modelo_ativo_ref.get("modelo", modelo),
+                modelo=mod_dir,
                 urlopen_fn=urlopen_fn,
                 sleep_fn=sleep_fn,
                 modelo_ativo_ref=modelo_ativo_ref,
                 pilar=pilar_selecionado,
+                pool=pool_gemini,
+                groq_api_key=groq_key,
             )
             modelo_usado = modelo_ativo_ref.get("modelo", modelo)
-            origem = f"gemini_inedito:{modelo_usado}" if veio_de_inedito else f"gemini:{modelo_usado}"
+            prov_usado = modelo_ativo_ref.get("provedor", "gemini")
+            if prov_usado == "groq":
+                origem = f"groq_inedito:{modelo_usado}" if veio_de_inedito else f"groq:{modelo_usado}"
+            else:
+                origem = f"gemini_inedito:{modelo_usado}" if veio_de_inedito else f"gemini:{modelo_usado}"
         except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, RuntimeError, ValueError, TimeoutError) as exc:
             if exigir_gemini:
                 raise RuntimeError(
-                    f"Falha no Gemini Diretor IA em modo --exigir-gemini ({type(exc).__name__}: {exc})."
+                    f"Falha no Diretor IA (GeminiPool + Groq) em modo --exigir-gemini ({type(exc).__name__}: {exc})."
                 ) from exc
-            avisos.append(f"Falha no Gemini ({type(exc).__name__}: {exc}): fallback deterministico ativado.")
+            avisos.append(f"Falha no GeminiPool/Groq ({type(exc).__name__}: {exc}): fallback deterministico ativado.")
             plano_bruto = diretor_mock_deterministico(
                 limpo_in, titulo_forcado=titulo_efetivo, catalogo_sfx=catalogo_sfx
             )

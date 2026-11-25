@@ -68,6 +68,9 @@ jobs:
     env:
       EVENT_NAME: ${{ github.event_name }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+      GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       WD_TITULO: ${{ inputs.titulo }}
       WD_ROTEIRO: ${{ inputs.roteiro }}
       WD_USAR_ATUAL: ${{ inputs.usar_video_atual }}
@@ -172,10 +175,14 @@ jobs:
       - name: Estacao 1 - Diretor IA V8 (gera episodio novo + cortes rapidos 3s-4s e prompts IA)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python3 - <<'PY'
           import json, os, subprocess, sys
           from pathlib import Path
+          from pipeline.gemini_pool import carregar_chaves_gemini, obter_groq_api_key
 
           ev = os.environ.get("EVENT_NAME", "")
           usar_atual = str(os.environ.get("USAR_VIDEO_ATUAL", "false")).strip().lower() == "true"
@@ -191,10 +198,12 @@ jobs:
               print("Modo usar_video_atual=true: mantendo video ativo do historico_videos.json.")
               sys.exit(0)
 
-          api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-          if not api_key or len(api_key) < 10 or any(ch.isspace() for ch in api_key):
+          chaves_gem = carregar_chaves_gemini(ler_env_arquivo=False)
+          groq_key = obter_groq_api_key(ler_env_arquivo=False)
+          if not chaves_gem and not groq_key:
               print(
-                  "ERRO Estacao 1: GEMINI_API_KEY ausente ou invalida quando usar_video_atual=false "
+                  "ERRO Estacao 1: nenhuma chave valida em GEMINI_API_KEY, GEMINI_API_KEY_2, "
+                  "GEMINI_API_KEY_3 ou GROQ_API_KEY quando usar_video_atual=false "
                   "(bloqueado para impedir repeticao silenciosa de video antigo).",
                   file=sys.stderr,
               )
@@ -208,10 +217,10 @@ jobs:
               arq = Path("/tmp/roteiro_entrada_v8.txt")
               arq.write_text(roteiro, encoding="utf-8")
               cmd = [sys.executable, "pipeline/diretor_ia.py", "--arquivo", str(arq), "--exigir-gemini"]
-              print(f"Estacao 1: roteiro fornecido -> gerando proximo episodio acima do Video {id_antes:02d} via Gemini...")
+              print(f"Estacao 1: roteiro fornecido -> gerando proximo episodio acima do Video {id_antes:02d} via GeminiPool/Groq...")
           else:
               cmd = [sys.executable, "pipeline/diretor_ia.py", "--gerar-inedito", "--exigir-gemini"]
-              print(f"Estacao 1: usar_video_atual=false sem roteiro manual -> criando episodio 100% inedito acima do Video {id_antes:02d} via Gemini...")
+              print(f"Estacao 1: usar_video_atual=false sem roteiro manual -> criando episodio 100% inedito acima do Video {id_antes:02d} via GeminiPool/Groq...")
 
           if titulo:
               cmd.extend(["--titulo", titulo])
@@ -251,6 +260,8 @@ jobs:
       - name: Validar historico e limpar cache de audio antigo
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
         run: |
           python3 pipeline/historico.py verificar
           rm -f audio/mix_final.mp3 audio/voz_limpa.mp3 audio/narracao.mp3 audio/timestamps.json audio/eventos.json
@@ -258,6 +269,8 @@ jobs:
       - name: Estacao 2 - Narracao humana Gemini TTS (1.02x) e Sound Design (-14 LUFS)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
         run: |
@@ -268,6 +281,8 @@ jobs:
       - name: Estacao 3 - Motor Cinematografico IA 30fps (Gemini Image / FAL Video + FFmpeg) + Corte Parte 1 / Parte 2
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           FAL_KEY: ${{ secrets.FAL_KEY }}
         run: |
           rm -rf output/cenas

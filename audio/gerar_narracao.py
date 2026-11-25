@@ -47,6 +47,12 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+from pipeline.gemini_pool import (  # noqa: E402
+    GeminiPool,
+    carregar_chaves_gemini,
+    eh_erro_chave_invalida,
+    eh_erro_modelo_indisponivel,
+)
 from pipeline.historico import (  # noqa: E402
     calcular_sha256_arquivo,
     caminho_roteiro_atual,
@@ -860,7 +866,7 @@ def _extrair_retry_after(exc: urllib.error.HTTPError) -> float | None:
 def sintetizar_gemini_tts(
     texto: str,
     destino_wav: Path,
-    api_key: str,
+    api_key: str = "",
     perfil_voz: str = PERFIL_VOZ_PADRAO,
     modelo: str | None = None,
     urlopen_fn: Callable | None = None,
@@ -869,102 +875,188 @@ def sintetizar_gemini_tts(
     cadencia_estado: dict | None = None,
     min_interval_s: float | None = None,
     retry_esperas: tuple[float, ...] = GEMINI_RETRY_ESPERAS,
+    gemini_pool: GeminiPool | None = None,
 ) -> list[dict]:
-    """Chama a API REST oficial do Gemini 2.5 TTS com cadencia anti-429, retries com backoff e log explicito."""
+    """Chama a API REST oficial do Gemini 2.5 TTS com pool multi-chave, fail-fast em cota diaria e log explicito."""
     texto_limpo = sanitizar_texto_tts(texto)
     if not tem_conteudo_falavel(texto_limpo):
         raise ValueError("Texto vazio ou sem conteudo falavel para Gemini TTS.")
 
     modelo_uso = (modelo or os.environ.get("GEMINI_TTS_MODEL", "").strip() or GEMINI_TTS_MODELO)
     intervalo = obter_intervalo_min_gemini() if min_interval_s is None else max(0.0, float(min_interval_s))
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_uso}:generateContent"
     payload_bytes = json.dumps(
         montar_payload_gemini_tts(texto_limpo, perfil_voz=perfil_voz),
         ensure_ascii=False,
     ).encode("utf-8")
-    headers = {
-        "x-goog-api-key": api_key,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
     opener = urlopen_fn or urllib.request.urlopen
+
+    if gemini_pool is not None:
+        pool = gemini_pool
+        pool.adicionar_modelos([modelo_uso])
+    else:
+        pool = GeminiPool.from_env(
+            modelos=[modelo_uso],
+            chave_primaria=api_key or None,
+            ler_env_arquivo=False,
+            incluir_ambiente=True,
+        )
+
+    combinacoes = list(
+        pool.iterar_combinacoes(estrategia="chave_depois_modelo", modelo_preferido=modelo_uso)
+    )
+    if not combinacoes:
+        raise RuntimeError(
+            f"Nenhuma chave/modelo Gemini TTS disponivel no pool ({pool.resumo_estado()})."
+        )
 
     ultimo_erro: Exception | None = None
     max_tentativas = 1 + len(retry_esperas)
 
-    for tentativa in range(max_tentativas):
-        if tentativa == 0 and cadencia_estado is not None and intervalo > 0.0:
-            ultima = cadencia_estado.get("ultima_chamada")
-            if ultima is not None:
-                decorrido = monotonic_fn() - float(ultima)
-                falta = intervalo - decorrido
-                if falta > 0.0:
-                    sleep_fn(falta)
-        if cadencia_estado is not None:
-            cadencia_estado["ultima_chamada"] = monotonic_fn()
+    for nome_chave, chave_valor, modelo_atual in combinacoes:
+        if not pool.esta_disponivel(nome_chave, modelo_atual):
+            continue
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_atual}:generateContent"
+        headers = {
+            "x-goog-api-key": chave_valor,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        cad_key = f"ultima_chamada:{nome_chave}"
 
-        req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
-        try:
-            with opener(req, timeout=90) as resp:
-                dados = json.loads(resp.read().decode("utf-8"))
-            decodificar_resposta_gemini_tts(dados, destino_wav)
-            return []
-        except urllib.error.HTTPError as exc:
-            ultimo_erro = exc
-            motivo = _extrair_motivo_http_error(exc)
-            if exc.code in (429, 500, 502, 503, 504) and tentativa < len(retry_esperas):
-                espera = float(retry_esperas[tentativa])
-                retry_after = _extrair_retry_after(exc)
-                if retry_after is not None and retry_after > espera:
-                    espera = retry_after
+        for tentativa in range(max_tentativas):
+            if tentativa == 0 and cadencia_estado is not None and intervalo > 0.0:
+                ultima = cadencia_estado.get(cad_key)
+                if ultima is None and pool.total_chaves() == 1:
+                    ultima = cadencia_estado.get("ultima_chamada")
+                if ultima is not None:
+                    decorrido = monotonic_fn() - float(ultima)
+                    falta = intervalo - decorrido
+                    if falta > 0.0:
+                        sleep_fn(falta)
+            if cadencia_estado is not None:
+                agora = monotonic_fn()
+                cadencia_estado[cad_key] = agora
+                cadencia_estado["ultima_chamada"] = agora
+
+            req = urllib.request.Request(url, data=payload_bytes, headers=headers, method="POST")
+            try:
+                with opener(req, timeout=90) as resp:
+                    dados = json.loads(resp.read().decode("utf-8"))
+                decodificar_resposta_gemini_tts(dados, destino_wav)
+                pool.registrar_sucesso(nome_chave, modelo_atual)
+                return []
+            except urllib.error.HTTPError as exc:
+                ultimo_erro = exc
+                motivo = pool.sanitizar(_extrair_motivo_http_error(exc))
+
+                if eh_erro_chave_invalida(motivo, status_code=exc.code):
+                    pool.marcar_chave_invalida(nome_chave, motivo)
+                    print(
+                        f"AVISO Gemini TTS [{nome_chave}/{modelo_atual}] chave invalida/sem permissao "
+                        f"(HTTP {exc.code}: {motivo}). Trocando imediatamente de chave...",
+                        flush=True,
+                    )
+                    break
+
+                if eh_erro_modelo_indisponivel(motivo, status_code=exc.code):
+                    pool.marcar_modelo_indisponivel(modelo_atual, motivo)
+                    print(
+                        f"AVISO Gemini TTS [{nome_chave}/{modelo_atual}] modelo indisponivel "
+                        f"(HTTP {exc.code}: {motivo}).",
+                        flush=True,
+                    )
+                    break
+
+                if exc.code == 429 or "resource_exhausted" in motivo.lower():
+                    esgotou_diaria = pool.registrar_429(
+                        nome_chave,
+                        modelo_atual,
+                        motivo,
+                        status_code=exc.code,
+                    )
+                    if esgotou_diaria:
+                        print(
+                            f"AVISO COTA DIARIA GEMINI TTS [{nome_chave}/{modelo_atual}] HTTP {exc.code} ({motivo}). "
+                            "Marcando chave/modelo como esgotado e trocando imediatamente (fail-fast, 0s sleep)...",
+                            flush=True,
+                        )
+                        break
+                    if pool.tem_outra_combinacao_disponivel(nome_chave, modelo_atual):
+                        print(
+                            f"AVISO Gemini TTS [{nome_chave}/{modelo_atual}] HTTP {exc.code} ({motivo}). "
+                            "Alternando imediatamente para proxima chave disponivel no pool (0s sleep)...",
+                            flush=True,
+                        )
+                        break
+                    if tentativa < len(retry_esperas):
+                        espera = float(retry_esperas[tentativa])
+                        retry_after = _extrair_retry_after(exc)
+                        if retry_after is not None and retry_after > espera:
+                            espera = retry_after
+                        print(
+                            f"AVISO Gemini TTS [{nome_chave}/{modelo_atual}] HTTP {exc.code} ({motivo}) na tentativa "
+                            f"{tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s antes de repetir...",
+                            flush=True,
+                        )
+                        sleep_fn(espera)
+                        continue
+                    pool.marcar_esgotado(nome_chave, modelo_atual, motivo)
+                    break
+
+                if exc.code in (500, 502, 503, 504) and tentativa < len(retry_esperas):
+                    espera = float(retry_esperas[tentativa])
+                    retry_after = _extrair_retry_after(exc)
+                    if retry_after is not None and retry_after > espera:
+                        espera = retry_after
+                    print(
+                        f"AVISO Gemini TTS [{nome_chave}/{modelo_atual}] HTTP {exc.code} ({motivo}) na tentativa "
+                        f"{tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s antes de repetir...",
+                        flush=True,
+                    )
+                    sleep_fn(espera)
+                    continue
+
                 print(
-                    f"AVISO Gemini TTS [{modelo_uso}] HTTP {exc.code} ({motivo}) na tentativa "
-                    f"{tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s antes de repetir...",
+                    f"ERRO Gemini TTS [{nome_chave}/{modelo_atual}] definitivo (tentativa {tentativa + 1}/{max_tentativas}): "
+                    f"HTTP {exc.code} ({motivo}).",
                     flush=True,
                 )
-                sleep_fn(espera)
-                continue
-            print(
-                f"ERRO Gemini TTS [{modelo_uso}] definitivo (tentativa {tentativa + 1}/{max_tentativas}): "
-                f"HTTP {exc.code} ({motivo}).",
-                flush=True,
-            )
-            raise
-        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, json.JSONDecodeError) as exc:
-            ultimo_erro = exc
-            motivo_net = f"{type(exc).__name__}: {exc}"
-            if tentativa < min(3, len(retry_esperas)):
-                espera = min(15.0, 4.0 * (tentativa + 1))
+                break
+            except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, json.JSONDecodeError) as exc:
+                ultimo_erro = exc
+                motivo_net = pool.sanitizar(f"{type(exc).__name__}: {exc}")
+                if tentativa < min(3, len(retry_esperas)):
+                    espera = min(15.0, 4.0 * (tentativa + 1))
+                    print(
+                        f"AVISO Gemini TTS [{nome_chave}/{modelo_atual}] instabilidade de rede/resposta ({motivo_net}) "
+                        f"na tentativa {tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s...",
+                        flush=True,
+                    )
+                    sleep_fn(espera)
+                    continue
                 print(
-                    f"AVISO Gemini TTS [{modelo_uso}] instabilidade de rede/resposta ({motivo_net}) "
-                    f"na tentativa {tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s...",
+                    f"ERRO Gemini TTS [{nome_chave}/{modelo_atual}] definitivo de rede/resposta "
+                    f"(tentativa {tentativa + 1}/{max_tentativas}): {motivo_net}.",
                     flush=True,
                 )
-                sleep_fn(espera)
-                continue
-            print(
-                f"ERRO Gemini TTS [{modelo_uso}] definitivo de rede/resposta "
-                f"(tentativa {tentativa + 1}/{max_tentativas}): {motivo_net}.",
-                flush=True,
-            )
-            raise
-        except RuntimeError as exc:
-            ultimo_erro = exc
-            if tentativa < min(3, len(retry_esperas)):
-                espera = min(12.0, 4.0 * (tentativa + 1))
+                break
+            except RuntimeError as exc:
+                ultimo_erro = exc
+                if tentativa < min(3, len(retry_esperas)):
+                    espera = min(12.0, 4.0 * (tentativa + 1))
+                    print(
+                        f"AVISO Gemini TTS [{nome_chave}/{modelo_atual}] resposta sem audio ({exc}) na tentativa "
+                        f"{tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s antes de repetir...",
+                        flush=True,
+                    )
+                    sleep_fn(espera)
+                    continue
                 print(
-                    f"AVISO Gemini TTS [{modelo_uso}] resposta sem audio ({exc}) na tentativa "
-                    f"{tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s antes de repetir...",
+                    f"ERRO Gemini TTS [{nome_chave}/{modelo_atual}] definitivo sem audio "
+                    f"(tentativa {tentativa + 1}/{max_tentativas}): {exc}.",
                     flush=True,
                 )
-                sleep_fn(espera)
-                continue
-            print(
-                f"ERRO Gemini TTS [{modelo_uso}] definitivo sem audio "
-                f"(tentativa {tentativa + 1}/{max_tentativas}): {exc}.",
-                flush=True,
-            )
-            raise
+                break
 
     assert ultimo_erro is not None
     raise ultimo_erro
@@ -1296,6 +1388,7 @@ def sintetizar_todos_blocos_com_consistencia(
     sleep_fn: Callable[[float], None] = time.sleep,
     monotonic_fn: Callable[[], float] = time.monotonic,
     min_interval_gemini_s: float | None = None,
+    gemini_pool: GeminiPool | None = None,
 ) -> tuple[str, str, dict[int, tuple[Path, float, list[dict]]], int]:
     """Sintetiza TODOS os blocos agrupados em um unico provedor (rollback total se qualquer bloco falhar)."""
     grupos_fala = [
@@ -1303,6 +1396,14 @@ def sintetizar_todos_blocos_com_consistencia(
     ]
     overrides = sintetizadores_override or {}
     ultimo_erro: Exception | None = None
+    pool_gemini_ativo = gemini_pool
+    if pool_gemini_ativo is None and "gemini-tts" in cadeia_provedores:
+        pool_gemini_ativo = GeminiPool.from_env(
+            modelos=[gemini_model],
+            chave_primaria=gemini_key or None,
+            ler_env_arquivo=False,
+            incluir_ambiente=True,
+        )
 
     for p_idx, provedor in enumerate(cadeia_provedores):
         sub_dir = tmp_dir / f"tentativa_{p_idx}_{provedor}"
@@ -1336,6 +1437,7 @@ def sintetizar_todos_blocos_com_consistencia(
                         monotonic_fn=monotonic_fn,
                         cadencia_estado=cadencia_gemini,
                         min_interval_s=min_interval_gemini_s,
+                        gemini_pool=pool_gemini_ativo,
                     )
                 elif provedor == "elevenlabs":
                     raw_words = sintetizar_elevenlabs(
@@ -1694,7 +1796,10 @@ def main() -> None:
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise SystemExit("ffmpeg e ffprobe precisam estar instalados e no PATH.")
 
-    tinha_gemini_env = bool(os.environ.get("GEMINI_API_KEY", "").strip())
+    tinha_gemini_env = any(
+        os.environ.get(nome, "").strip()
+        for nome in ("GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3")
+    )
     env_carregado = carregar_env()
     video_ativo = obter_video_atual(validar=True)
     roteiro_path = args.roteiro if args.roteiro else caminho_roteiro_atual()
@@ -1708,8 +1813,10 @@ def main() -> None:
     itens, usa_eventos_explicitos = extrair_itens_roteiro(roteiro_path)
     unidades = agrupar_blocos_fala(itens)
 
-    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    chaves_gemini = carregar_chaves_gemini(ler_env_arquivo=False)
+    gemini_key = chaves_gemini[0][1] if chaves_gemini else ""
     gemini_model = os.environ.get("GEMINI_TTS_MODEL", "").strip() or GEMINI_TTS_MODELO
+    gemini_pool = GeminiPool(chaves=chaves_gemini, modelos=[gemini_model]) if chaves_gemini else None
     eleven_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
     voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or ELEVENLABS_VOZ_PADRAO
     velocidade = obter_velocidade_voz()
@@ -1719,12 +1826,13 @@ def main() -> None:
         status_gemini = "modo --mock"
     else:
         cadeia_provedores = []
-        if gemini_key:
+        if chaves_gemini:
             cadeia_provedores.append("gemini-tts")
             origem_gem = "ambiente" if tinha_gemini_env else ".env local"
-            status_gemini = f"GEMINI_API_KEY detectada ({origem_gem})"
+            nomes_gem = ", ".join(n for n, _ in chaves_gemini)
+            status_gemini = f"Gemini Pool ({len(chaves_gemini)} chave(s): {nomes_gem} | {origem_gem})"
         else:
-            status_gemini = "GEMINI_API_KEY AUSENTE no ambiente e .env"
+            status_gemini = "GEMINI_API_KEY/2/3 AUSENTES no ambiente e .env"
         if eleven_key:
             cadeia_provedores.append("elevenlabs")
         cadeia_provedores.extend(["edge-tts", "gtts"])
@@ -1780,6 +1888,7 @@ def main() -> None:
             gemini_model=gemini_model,
             eleven_key=eleven_key,
             voice_id=voice_id,
+            gemini_pool=gemini_pool,
         )
 
         wavs_concat: list[Path] = []
