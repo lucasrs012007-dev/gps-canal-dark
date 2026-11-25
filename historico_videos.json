@@ -1,7 +1,7 @@
 {
-  "versao": 10,
+  "versao": 11,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 10,
+  "video_atual": 11,
   "videos": [
     {
       "id": 1,
@@ -233,7 +233,7 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_10.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v6",
       "parte_label": "PARTE 1",
       "cta_modo": "pausa_meio",
@@ -241,6 +241,32 @@
       "saidas_partes": [
         "output/short_10_parte1.mp4",
         "output/short_10_parte2.mp4"
+      ]
+    },
+    {
+      "id": 11,
+      "slug": "a-ilha-onde-e-crime-pisar",
+      "titulo": "A Ilha Onde É Crime Pisar",
+      "tema": "A tribo isolada da Ilha Sentinela do Norte que ataca qualquer aproximação humana",
+      "palavras_chave": [
+        "ilha sentinela",
+        "lugares proibidos",
+        "misterios reais",
+        "tribo isolada",
+        "curiosidades"
+      ],
+      "roteiro": "roteiro_11.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_11.mp4",
+      "status": "em_producao",
+      "motor": "v6",
+      "parte_label": "PARTE 1",
+      "cta_modo": "final",
+      "pilar": "misterios_reais",
+      "saidas_partes": [
+        "output/short_11_parte1.mp4",
+        "output/short_11_parte2.mp4"
       ]
     }
   ]
