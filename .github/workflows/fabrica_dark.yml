@@ -130,26 +130,19 @@ jobs:
           )
           PY
 
-      - name: Instalar dependencias Python (numpy, edge-tts, gTTS e YouTube API)
+      - name: Instalar dependencias Python (numpy, edge-tts, gTTS, Pillow, Gemini e YouTube API)
         run: |
           python3 -m pip install --upgrade pip --no-cache-dir
-          python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS google-api-python-client google-auth google-auth-oauthlib
+          python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS Pillow google-genai google-api-python-client google-auth google-auth-oauthlib
 
-      - name: Garantir FFmpeg e Google Chrome headless
+      - name: Garantir FFmpeg e fontes para legendas ASS
         run: |
-          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1 || ! fc-list : family 2>/dev/null | grep -qi "DejaVu Sans"; then
             sudo apt-get update -qq
-            sudo apt-get install -y -qq ffmpeg
-          fi
-          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq wget gnupg ca-certificates
-            wget -qO /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-            sudo apt-get install -y -qq /tmp/chrome.deb
-            rm -f /tmp/chrome.deb
+            sudo apt-get install -y -qq ffmpeg fontconfig fonts-dejavu-core
+            fc-cache -f
           fi
           ffmpeg -version | head -n 1
-          (google-chrome --version || chromium --version || chromium-browser --version)
 
       - name: Estacao 1 - Diretor IA V6 (gera episodio novo quando usar_video_atual=false)
         env:
@@ -237,7 +230,7 @@ jobs:
           python3 pipeline/historico.py verificar
           rm -f audio/mix_final.mp3 audio/voz_limpa.mp3 audio/narracao.mp3 audio/timestamps.json audio/eventos.json
 
-      - name: Estacao 2 - Narracao atuada V5.2 e Sound Design (-14 LUFS)
+      - name: Estacao 2 - Narracao natural (1.02x) e Sound Design (-14 LUFS)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
@@ -247,14 +240,18 @@ jobs:
           python3 audio/sound_design.py
           python3 pipeline/historico.py validar-audio
 
-      - name: Estacao 3 - Renderizacao 9:16 (1080x1920 @ 30fps) + Corte Parte 1 / Parte 2
+      - name: Estacao 3 - Storyboard IA 9:16 + Render FFmpeg 1080p (30fps) + Corte Parte 1 / Parte 2
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ "${MODO_TESTE}" = "true" ]; then
+            python3 gerar_cenas_visuais.py --max-cenas 2
             python3 render/renderizar.py --legendas --teste
           else
+            python3 gerar_cenas_visuais.py
             python3 render/renderizar.py --legendas
           fi
-          ls -lh output/*.mp4
+          ls -lh output/cenas/*.jpg output/*.mp4
 
       - name: Publicar no YouTube Shorts
         if: ${{ success() }}
