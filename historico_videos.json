@@ -1,7 +1,7 @@
 {
-  "versao": 13,
+  "versao": 14,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 13,
+  "video_atual": 14,
   "videos": [
     {
       "id": 1,
@@ -311,7 +311,7 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_13.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "v6",
       "parte_label": "PARTE 1",
       "cta_modo": "final",
@@ -319,6 +319,31 @@
       "saidas_partes": [
         "output/short_13_parte1.mp4",
         "output/short_13_parte2.mp4"
+      ]
+    },
+    {
+      "id": 14,
+      "slug": "sua-mao-direita-agora-tem-vontade-propia",
+      "titulo": "Sua mão direita agora tem vontade propia",
+      "tema": "A fascinante e assustadora sindrome medica da mão alheia",
+      "palavras_chave": [
+        "mao alheia",
+        "neurologia",
+        "cerebro",
+        "medicina",
+        "curiosidades"
+      ],
+      "roteiro": "roteiro_14.txt",
+      "cenas": "cenas.json",
+      "saida": "output/short_14.mp4",
+      "status": "em_producao",
+      "motor": "cinematografico_ia_30fps",
+      "parte_label": "",
+      "cta_modo": "final",
+      "pilar": "curiosidades_bizarras",
+      "saidas_partes": [
+        "output/short_14_parte1.mp4",
+        "output/short_14_parte2.mp4"
       ]
     }
   ]
