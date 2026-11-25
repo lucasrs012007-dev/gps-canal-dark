@@ -47,10 +47,6 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-from pipeline.config_canal import (  # noqa: E402
-    carregar_config_canal,
-    obter_perfil_idioma,
-)
 from pipeline.historico import (  # noqa: E402
     calcular_sha256_arquivo,
     caminho_roteiro_atual,
@@ -65,13 +61,6 @@ EVENTOS_JSON = PASTA_AUDIO / "eventos.json"
 TEXTO_TXT = PASTA_AUDIO / "narracao.txt"
 ARQUIVO_ENV = RAIZ / ".env"
 
-_CFG_CANAL = carregar_config_canal()
-_PERFIL_IDIOMA = obter_perfil_idioma(_CFG_CANAL["idioma"])
-IDIOMA_CANAL = _PERFIL_IDIOMA["codigo"]
-IDIOMA_HUMANO = _PERFIL_IDIOMA["nome_humano"]
-GTTS_LANG = _PERFIL_IDIOMA["gtts_lang"]
-GTTS_TLD = _PERFIL_IDIOMA["gtts_tld"]
-
 # Perfis vocais canonicos
 PERFIL_VOZ_PADRAO = "narrador_tenso"
 PERFIS_VOZ_CANONICOS = (
@@ -83,8 +72,8 @@ PERFIS_VOZ_CANONICOS = (
     "sussurro_twist",
 )
 
-# Velocidade natural lida de config_canal.json (padrao 1.02x) e limpeza de silencios longos
-VELOCIDADE_VOZ_PADRAO = float(_CFG_CANAL["velocidade_voz"])
+# Velocidade natural (1.02x) e limpeza de silencios longos preservando respiracao humana
+VELOCIDADE_VOZ_PADRAO = 1.02
 SILENCIO_INTERNO_MAX_S = 0.22
 SILENCIO_INTERNO_MANTER_S = 0.06
 GEMINI_TTS_MIN_INTERVAL_PADRAO = 21.0
@@ -100,28 +89,28 @@ GEMINI_TAXA_PCM_PADRAO = 24000
 
 INSTRUCOES_ATUACAO_GEMINI: dict[str, str] = {
     "narrador_tenso": (
-        f"Direcao vocal ({IDIOMA_HUMANO}): narrador masculino de voz grave, natural e envolvente, "
+        "Direcao vocal (portugues do Brasil): narrador masculino de voz grave, natural e envolvente, "
         "como alguem contando uma historia viciante de perto. Diccao nitida, ritmo fluido sem correria "
         "e sem tom robotico, mantendo respiracao natural e evitando pausas longas demais."
     ),
     "panico": (
-        f"Direcao vocal ({IDIOMA_HUMANO}): narrador tenso, urgente e alterado por perigo real, "
+        "Direcao vocal (portugues do Brasil): narrador tenso, urgente e alterado por perigo real, "
         "ritmo firme e expressivo mantendo diccao clara, respiracao natural e sem correria exagerada."
     ),
     "interfone_porteiro": (
-        f"Direcao vocal ({IDIOMA_HUMANO}): outro personagem masculino falando tenso e apressado "
+        "Direcao vocal (portugues do Brasil): outro personagem masculino falando tenso e apressado "
         "pelo interfone, voz natural e alarmada com diccao clara e sem pausas arrastadas."
     ),
     "voz_telefone": (
-        f"Direcao vocal ({IDIOMA_HUMANO}): outro personagem masculino falando alarmado e direto "
+        "Direcao vocal (portugues do Brasil): outro personagem masculino falando alarmado e direto "
         "por ligacao telefonica, voz natural e tensa com diccao nitida."
     ),
     "cta_comercial": (
-        f"Direcao vocal ({IDIOMA_HUMANO}): locutor natural, proximo e direto, falando em tom "
+        "Direcao vocal (portugues do Brasil): locutor natural, proximo e direto, falando em tom "
         "conversacional e claro, sem exageros artificiais."
     ),
     "sussurro_twist": (
-        f"Direcao vocal ({IDIOMA_HUMANO}): voz baixa, proxima do microfone, fria e precisa, "
+        "Direcao vocal (portugues do Brasil): voz baixa, proxima do microfone, fria e precisa, "
         "mantendo naturalidade e impacto ao entregar a revelacao final sem arrastar demais."
     ),
 }
@@ -170,8 +159,8 @@ PERFIS_ELEVENLABS: dict[str, dict[str, float | bool]] = {
 }
 
 # Configuracoes de voz: edge-tts multi-bloco natural (Fallback 2, taxas equilibradas +0% a +8%)
-EDGE_VOZ = _PERFIL_IDIOMA["edge_voz_principal"]
-EDGE_VOZ_SECUNDARIA = _PERFIL_IDIOMA["edge_voz_secundaria"]
+EDGE_VOZ = "pt-BR-AntonioNeural"
+EDGE_VOZ_SECUNDARIA = "pt-BR-FabioNeural"
 EDGE_VOZ_PORTEIRO = EDGE_VOZ_SECUNDARIA
 EDGE_PITCH = "-4Hz"
 EDGE_RATE = "+4%"
@@ -235,15 +224,14 @@ PADRAO_BATIDAS = re.compile(
 SEPARADOR_FRASES = re.compile(r"(?<!\.\.)(?<=[\.\!\?])\s+")
 
 
-def obter_velocidade_voz(caminho_config: Path | str | None = None) -> float:
+def obter_velocidade_voz() -> float:
     raw = os.environ.get("VELOCIDADE_VOZ", "").strip()
     if raw:
         try:
             return max(0.5, min(2.0, float(raw)))
         except ValueError:
             pass
-    cfg = carregar_config_canal(caminho_config)
-    return float(cfg["velocidade_voz"])
+    return VELOCIDADE_VOZ_PADRAO
 
 
 def obter_intervalo_min_gemini() -> float:
@@ -741,7 +729,7 @@ def montar_payload_gemini_tts(
     texto_limpo = sanitizar_texto_tts(texto)
     prompt_atuacao = (
         f"{direcao}\n"
-        f"Leia apenas o texto exato abaixo em {IDIOMA_HUMANO}, com ritmo natural e envolvente, sem adicionar nem omitir palavras:\n"
+        "Leia apenas o texto exato abaixo em portugues do Brasil, com ritmo agil, sem adicionar nem omitir palavras:\n"
         f"{texto_limpo}"
     )
     return {
@@ -791,7 +779,24 @@ def decodificar_resposta_gemini_tts(dados: dict, destino_wav: Path) -> Path:
             break
 
     if not inline:
-        raise RuntimeError("Resposta Gemini TTS nao retornou bloco inlineData de audio.")
+        motivo_cand = ""
+        if candidatos:
+            c0 = candidatos[0] if isinstance(candidatos[0], dict) else {}
+            fr = c0.get("finishReason") or c0.get("finish_reason")
+            fm = c0.get("finishMessage") or c0.get("finish_message")
+            partes_txt = [
+                str(p.get("text", "")).strip()
+                for p in ((c0.get("content") or {}).get("parts") or [])
+                if isinstance(p, dict) and p.get("text")
+            ]
+            detalhes = [x for x in (f"finishReason={fr}" if fr else "", str(fm or ""), " ".join(partes_txt)[:140]) if x]
+            motivo_cand = f" ({'; '.join(detalhes)})" if detalhes else ""
+        else:
+            pf = dados.get("promptFeedback") or {}
+            br = pf.get("blockReason")
+            if br:
+                motivo_cand = f" (promptFeedback.blockReason={br})"
+        raise RuntimeError(f"Resposta Gemini TTS nao retornou bloco inlineData de audio{motivo_cand}.")
 
     bruto = base64.b64decode(inline["data"])
     if not bruto:
@@ -865,7 +870,7 @@ def sintetizar_gemini_tts(
     min_interval_s: float | None = None,
     retry_esperas: tuple[float, ...] = GEMINI_RETRY_ESPERAS,
 ) -> list[dict]:
-    """Chama a API REST oficial do Gemini 2.5 TTS com cadencia anti-429 e ate 4 retries."""
+    """Chama a API REST oficial do Gemini 2.5 TTS com cadencia anti-429, retries com backoff e log explicito."""
     texto_limpo = sanitizar_texto_tts(texto)
     if not tem_conteudo_falavel(texto_limpo):
         raise ValueError("Texto vazio ou sem conteudo falavel para Gemini TTS.")
@@ -913,19 +918,52 @@ def sintetizar_gemini_tts(
                 if retry_after is not None and retry_after > espera:
                     espera = retry_after
                 print(
-                    f"AVISO Gemini TTS HTTP {exc.code} ({motivo}) na tentativa {tentativa + 1}/{max_tentativas}. "
-                    f"Aguardando {espera:.1f}s antes de repetir...",
+                    f"AVISO Gemini TTS [{modelo_uso}] HTTP {exc.code} ({motivo}) na tentativa "
+                    f"{tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s antes de repetir...",
                     flush=True,
                 )
                 sleep_fn(espera)
                 continue
-            print(f"ERRO Gemini TTS definitivo: HTTP {exc.code} ({motivo}).", flush=True)
+            print(
+                f"ERRO Gemini TTS [{modelo_uso}] definitivo (tentativa {tentativa + 1}/{max_tentativas}): "
+                f"HTTP {exc.code} ({motivo}).",
+                flush=True,
+            )
+            raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, json.JSONDecodeError) as exc:
+            ultimo_erro = exc
+            motivo_net = f"{type(exc).__name__}: {exc}"
+            if tentativa < min(3, len(retry_esperas)):
+                espera = min(15.0, 4.0 * (tentativa + 1))
+                print(
+                    f"AVISO Gemini TTS [{modelo_uso}] instabilidade de rede/resposta ({motivo_net}) "
+                    f"na tentativa {tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s...",
+                    flush=True,
+                )
+                sleep_fn(espera)
+                continue
+            print(
+                f"ERRO Gemini TTS [{modelo_uso}] definitivo de rede/resposta "
+                f"(tentativa {tentativa + 1}/{max_tentativas}): {motivo_net}.",
+                flush=True,
+            )
             raise
         except RuntimeError as exc:
             ultimo_erro = exc
-            if tentativa < min(1, len(retry_esperas)):
-                sleep_fn(min(5.0, float(retry_esperas[tentativa])))
+            if tentativa < min(3, len(retry_esperas)):
+                espera = min(12.0, 4.0 * (tentativa + 1))
+                print(
+                    f"AVISO Gemini TTS [{modelo_uso}] resposta sem audio ({exc}) na tentativa "
+                    f"{tentativa + 1}/{max_tentativas}. Aguardando {espera:.1f}s antes de repetir...",
+                    flush=True,
+                )
+                sleep_fn(espera)
                 continue
+            print(
+                f"ERRO Gemini TTS [{modelo_uso}] definitivo sem audio "
+                f"(tentativa {tentativa + 1}/{max_tentativas}): {exc}.",
+                flush=True,
+            )
             raise
 
     assert ultimo_erro is not None
@@ -971,27 +1009,36 @@ def alinhamento_elevenlabs_para_palavras(texto: str, alignment: dict | None) -> 
 
 
 def _extrair_motivo_http_error(exc: urllib.error.HTTPError) -> str:
-    """Extrai o motivo detalhado devolvido pela API sem expor segredos."""
+    """Extrai o motivo detalhado devolvido pela API sem expor segredos (com cache para releitura)."""
+    cache = getattr(exc, "_motivo_cache", None)
+    if isinstance(cache, str) and cache:
+        return cache
     try:
         corpo = exc.read().decode("utf-8", errors="replace").strip()
     except Exception:
         corpo = ""
+    motivo = ""
     if not corpo:
-        return str(exc.reason or f"HTTP {exc.code}")
+        motivo = str(exc.reason or f"HTTP {exc.code}")
+    else:
+        try:
+            dados = json.loads(corpo)
+            detail = dados.get("detail") or (dados.get("error") or {}).get("message")
+            if isinstance(detail, dict):
+                status = detail.get("status", "")
+                msg = detail.get("message", "")
+                motivo = f"{status}: {msg}" if (status and msg) else str(status or msg or detail)
+            elif detail:
+                motivo = str(detail)
+            else:
+                motivo = corpo[:260]
+        except Exception:
+            motivo = corpo[:260]
     try:
-        dados = json.loads(corpo)
-        detail = dados.get("detail") or (dados.get("error") or {}).get("message")
-        if isinstance(detail, dict):
-            status = detail.get("status", "")
-            msg = detail.get("message", "")
-            if status and msg:
-                return f"{status}: {msg}"
-            return str(status or msg or detail)
-        if detail:
-            return str(detail)
+        setattr(exc, "_motivo_cache", motivo)
     except Exception:
         pass
-    return corpo[:260]
+    return motivo
 
 
 def sintetizar_elevenlabs(
@@ -1156,7 +1203,7 @@ def sintetizar_gtts(
         from gtts import gTTS as cls  # type: ignore[import-not-found]
 
     destino_mp3.unlink(missing_ok=True)
-    tts = cls(text=texto_limpo, lang=GTTS_LANG, tld=GTTS_TLD)
+    tts = cls(text=texto_limpo, lang="pt", tld="com.br")
     tts.save(str(destino_mp3))
     if not destino_mp3.is_file() or destino_mp3.stat().st_size < 64:
         raise RuntimeError("gTTS gerou arquivo de audio vazio.")
@@ -1317,6 +1364,12 @@ def sintetizar_todos_blocos_com_consistencia(
                     else f"{type(exc).__name__}: {exc}"
                 )
                 prox = cadeia_provedores[p_idx + 1] if p_idx + 1 < len(cadeia_provedores) else "NENHUM"
+                if provedor == "gemini-tts":
+                    print(
+                        f"ERRO CRITICO GEMINI TTS: falha no bloco {b_num}/{len(grupos_fala)} apos retries "
+                        f"| modelo={gemini_model} | perfil={perfil} | motivo={motivo}",
+                        flush=True,
+                    )
                 print(
                     f"ROLLBACK VOCAL: provedor '{provedor}' falhou no bloco {b_num}/{len(grupos_fala)} "
                     f"({motivo}). Descartando {len(resultados)} bloco(s) parcial(is) e reiniciando "
@@ -1338,6 +1391,11 @@ def sintetizar_todos_blocos_com_consistencia(
                 "edge-tts": f"edge-tts agil V5.2 ({EDGE_VOZ} + {EDGE_VOZ_SECUNDARIA})",
                 "gtts": "gTTS emergencia (pt-BR + atempo FFmpeg)",
             }.get(provedor, provedor)
+            if provedor == "gemini-tts":
+                print(
+                    f"VOZ HUMANA GEMINI TTS CONFIRMADA: {desc_voz} ({chamadas_api} chamada(s) API).",
+                    flush=True,
+                )
             return provedor, desc_voz, resultados, chamadas_api
 
     raise RuntimeError(
@@ -1470,7 +1528,7 @@ _PREPOSICOES_ANTES_NUMERO = frozenset({"em", "de", "no", "na", "por", "ate", "ha
 _UNIDADES_APOS_NUMERO = frozenset({
     "km", "m", "cm", "mm", "metros", "metro", "quilometros", "quilometro", "milhas",
     "horas", "hora", "minutos", "minuto", "segundos", "segundo", "dias", "dia",
-    "anos", "ano", "graus", "milhoes", "milhao", "bilhoes", "bilhao", "mil", "vezes",
+    "anos", "ano", "graus", "reais", "real", "milhoes", "milhao", "bilhoes", "bilhao", "mil", "vezes",
 })
 
 
@@ -1480,7 +1538,6 @@ def _eh_token_numerico(palavra: str) -> bool:
 
 
 def _evita_corte_entre(pal_esq: str, pal_dir: str) -> bool:
-    """Impede quebrar 'em 2004', 'de 2006' ou '5 km' em blocos separados de legenda."""
     esq = normalizar_chave(re.sub(r"[^\wÀ-ÿ]", "", str(pal_esq or "")))
     dir_limpa = normalizar_chave(re.sub(r"[^\wÀ-ÿ%]", "", str(pal_dir or "")))
     if esq in _PREPOSICOES_ANTES_NUMERO and _eh_token_numerico(pal_dir):
@@ -1524,7 +1581,6 @@ def quebrar_em_grupos_legenda(palavras_frase: list[dict]) -> list[list[dict]]:
             if tam == 2 and _tamanho_texto_grupo(clausula[i : i + 2]) > MAX_CHARS_GRUPO_2:
                 tam = 1
 
-            # Nunca separar preposicao+ano ('EM 2004') ou numero+unidade ('5 KM') na fronteira do bloco
             if i + tam < n and tam >= 2:
                 if _evita_corte_entre(clausula[i + tam - 1]["palavra"], clausula[i + tam]["palavra"]):
                     if tam == 2 and falta >= 3 and _tamanho_texto_grupo(clausula[i : i + 3]) <= MAX_CHARS_GRUPO_3 + 4:

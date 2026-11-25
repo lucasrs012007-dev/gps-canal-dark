@@ -1,4 +1,4 @@
-name: Fabrica Dark V7 (Animacao 2D 30fps + Telegram)
+name: Fabrica Dark V8 (Motor Cinematografico IA 30fps + Telegram)
 
 on:
   workflow_dispatch:
@@ -160,21 +160,16 @@ jobs:
           python3 -m pip install --upgrade pip --no-cache-dir
           python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS Pillow google-genai google-api-python-client google-auth google-auth-oauthlib
 
-      - name: Garantir FFmpeg, Chrome headless e fontes
+      - name: Garantir FFmpeg e fontes
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1 || ! fc-list : family 2>/dev/null | grep -qi "DejaVu Sans"; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq ffmpeg fontconfig fonts-dejavu-core fonts-liberation
             fc-cache -f
           fi
-          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq chromium-browser || sudo apt-get install -y -qq chromium
-          fi
           ffmpeg -version | head -n 1
-          (google-chrome --version || chromium --version || chromium-browser --version)
 
-      - name: Estacao 1 - Diretor IA V7 (gera episodio novo + direcao de animacao 2D 30fps)
+      - name: Estacao 1 - Diretor IA V8 (gera episodio novo + cortes rapidos 3s-4s e prompts IA)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -210,7 +205,7 @@ jobs:
           id_antes = int(hist_antes.get("video_atual", 0))
 
           if roteiro:
-              arq = Path("/tmp/roteiro_entrada_v7.txt")
+              arq = Path("/tmp/roteiro_entrada_v8.txt")
               arq.write_text(roteiro, encoding="utf-8")
               cmd = [sys.executable, "pipeline/diretor_ia.py", "--arquivo", str(arq), "--exigir-gemini"]
               print(f"Estacao 1: roteiro fornecido -> gerando proximo episodio acima do Video {id_antes:02d} via Gemini...")
@@ -260,7 +255,7 @@ jobs:
           python3 pipeline/historico.py verificar
           rm -f audio/mix_final.mp3 audio/voz_limpa.mp3 audio/narracao.mp3 audio/timestamps.json audio/eventos.json
 
-      - name: Estacao 2 - Narracao natural (1.02x) e Sound Design (-14 LUFS)
+      - name: Estacao 2 - Narracao humana Gemini TTS (1.02x) e Sound Design (-14 LUFS)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
@@ -270,14 +265,20 @@ jobs:
           python3 audio/sound_design.py
           python3 pipeline/historico.py validar-audio
 
-      - name: Estacao 3 - Motor 2D Animado 30fps (Canvas 1080x1920 + FFmpeg) + Corte Parte 1 / Parte 2
+      - name: Estacao 3 - Motor Cinematografico IA 30fps (Gemini Image / FAL Video + FFmpeg) + Corte Parte 1 / Parte 2
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}
         run: |
+          rm -rf output/cenas
           if [ "${MODO_TESTE}" = "true" ]; then
-            python3 render/renderizar.py --motor canvas --legendas --teste
+            python3 gerar_midia_cenas.py --max-cenas 2
+            python3 render/renderizar.py --legendas --teste
           else
-            python3 render/renderizar.py --motor canvas --legendas
+            python3 gerar_midia_cenas.py
+            python3 render/renderizar.py --legendas
           fi
-          ls -lh output/*.mp4
+          ls -lh output/cenas/ output/*.mp4
 
       - name: Publicar no YouTube Shorts
         if: ${{ success() }}

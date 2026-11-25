@@ -3,9 +3,9 @@
 Este repositorio funciona como um motor completo e reutilizavel de producao e publicacao automatica de videos curtos verticais (1080x1920, 9:16). Toda a identidade do canal fica centralizada em um unico arquivo: `config_canal.json`.
 
 Em cada execucao na nuvem (GitHub Actions), a fabrica:
-1. Cria um roteiro inedito sem repetir temas anteriores e dirige animacao 2D unica por fala (`pipeline/diretor_ia.py`).
-2. Gera a narracao natural com a velocidade configurada (`audio/gerar_narracao.py`) e aplica trilha ambiente com ducking automatico e normalizacao `-14 LUFS` (`audio/trilha_mix.py`).
-3. Renderiza animacao 2D real quadro a quadro em 1080x1920 @ 30fps no HTML5 Canvas (`player_universal.html` + `render/renderizar.py`) com cenarios animados, personagem vivo, HUD de dados e legendas sincronizadas.
+1. Cria um roteiro inedito sem repetir temas anteriores e divide cada fala em cortes rapidos de 3s a 4s com `prompt_imagem` literal em ingles (`pipeline/diretor_ia.py`).
+2. Gera a narracao humana com Gemini TTS (velocidade configurada em `config_canal.json`, retries com backoff) (`audio/gerar_narracao.py`) e aplica trilha ambiente limpa com ducking automatico e normalizacao `-14 LUFS` (`audio/trilha_mix.py`).
+3. Gera midia cinematografica 9:16 por cena via Gemini Image API (gratuito) ou Video IA via `FAL_KEY` (`gerar_midia_cenas.py`) e renderiza em 1080x1920 @ 30fps com movimento dinamico de camera, transicoes `xfade` de 0.15s, vinheta, grao atmosferico e legendas ASS limpas (`render/renderizar.py`).
 4. Publica automaticamente nos canais habilitados (YouTube Shorts, Instagram Reels, TikTok) e entrega o pacote pronto no Telegram.
 
 ---
@@ -51,7 +51,7 @@ Abra o arquivo `config_canal.json` na raiz do repositorio e edite apenas os valo
 | `nome_canal` | Nome do canal usado nos prompts de roteiro e titulos de fallback | `"Mente Blindada"` |
 | `idioma` | Codigo BCP-47 do idioma do roteiro, vozes e metadados do YouTube (`pt-BR`, `en-US`, `es-MX`, `pt-PT`, `fr-FR`) | `"pt-BR"` |
 | `pilares_editoriais` | Lista de temas/pilares que a IA alterna automaticamente a cada episodio (aceita objetos completos com `id`, `nome`, `gancho`, `instrucoes`, `exemplos` ou uma lista simples de textos) | `["Financas praticas", "Psicologia do dinheiro"]` |
-| `estilo_visual_prompt` | Estilo visual em ingles aplicado a todas as imagens do storyboard | `"stylized 2.5D dark cinematic digital illustration, moody dramatic lighting, vertical 9:16 composition, no text, no watermark"` |
+| `estilo_visual_prompt` | Estilo visual em ingles aplicado a todas as imagens do storyboard | `"hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark"` |
 | `velocidade_voz` | Velocidade da narracao (`0.5` a `2.0`; recomendado entre `1.00` e `1.08`) | `1.02` |
 | `cta_final` | Frase curta de chamada para acao usada no fechamento do video e nas legendas | `"Qual dessas dicas voce vai testar hoje? Comente aqui embaixo."` |
 | `hashtags_padrao` | Lista de hashtags base (sem `#`), adaptadas automaticamente para YouTube (`#shorts`), Instagram (`#reels`) e TikTok (`#fyp`) | `["shorts", "financas", "dinheiro", "habitos"]` |
@@ -67,10 +67,10 @@ Se preferir comecar rapido, voce pode usar `pilares_editoriais` como lista simpl
   "idioma": "pt-BR",
   "pilares_editoriais": [
     "Batalhas e estrategias pouco conhecidas",
-    "Invenções antigas que mudaram o mundo",
+    "Invencoes antigas que mudaram o mundo",
     "Biografias relampago de figuras historicas"
   ],
-  "estilo_visual_prompt": "cinematic oil painting dark historical illustration, dramatic chiaroscuro lighting, vertical 9:16 composition, no text, no watermark",
+  "estilo_visual_prompt": "hyper-detailed 3D dark historical cinematic illustration, dramatic chiaroscuro volumetric lighting, Unreal Engine 5 quality, vertical 9:16 framing, no text, no letters, no watermark",
   "velocidade_voz": 1.02,
   "cta_final": "Qual episodio historico voce quer ver amanha? Comente aqui embaixo.",
   "hashtags_padrao": ["shorts", "historia", "curiosidades", "fatosreais"],
@@ -107,13 +107,19 @@ git push origin main
 
 No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions -> New repository secret**.
 
-### 1. Obrigatorio (Roteiro + Voz + Imagens)
+### 1. Obrigatorio (Roteiro + Voz Humana Gemini TTS + Imagens 9:16)
 
 | Secret | Descricao |
 |---|---|
 | `GEMINI_API_KEY` | Chave de API do Google Gemini (criada em aistudio.google.com/apikey) |
 
-### 2. YouTube Shorts (Estacao 5A, opcional)
+### 2. Upgrade Plug-and-Play para Video IA por Cena (opcional)
+
+| Secret | Descricao |
+|---|---|
+| `FAL_KEY` | Chave da API fal.ai: quando preenchida, `gerar_midia_cenas.py` gera clipes `.mp4` reais por cena via `fal-ai/wan/v2.1/t2v-480p` em 9:16 (com fallback automatico para Gemini Image API em qualquer erro) |
+
+### 3. YouTube Shorts (Estacao 5A, opcional)
 
 | Secret | Descricao |
 |---|---|
@@ -121,14 +127,14 @@ No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions 
 | `YOUTUBE_CLIENT_SECRET` | Client Secret OAuth 2.0 do Google Cloud Console |
 | `YOUTUBE_REFRESH_TOKEN` | Refresh token OAuth 2.0 com escopo `https://www.googleapis.com/auth/youtube.upload` |
 
-### 3. Telegram (Estacao 4, opcional)
+### 4. Telegram (Estacao 4, opcional)
 
 | Secret | Descricao |
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | Token do bot criado no `@BotFather` |
 | `TELEGRAM_CHAT_ID` | ID do chat, grupo ou canal que recebera os videos e avisos |
 
-### 4. Instagram Reels (Estacao 5B, opcional)
+### 5. Instagram Reels (Estacao 5B, opcional)
 
 | Secret | Descricao |
 |---|---|
@@ -136,7 +142,7 @@ No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions 
 | `IG_ACCESS_TOKEN` | Token de acesso de longa duracao com permissao `instagram_content_publish` |
 | `PUBLIC_VIDEO_URL` | Opcional: deixe vazio para usar o asset temporario automatico de GitHub Release (o repositorio precisa ser publico para a Meta baixar o arquivo) |
 
-### 5. TikTok (Estacao 5C, opcional)
+### 6. TikTok (Estacao 5C, opcional)
 
 | Secret / Variable | Tipo | Descricao |
 |---|---|---|
@@ -147,7 +153,7 @@ No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions 
 | `TIKTOK_MODE` | Variable (aba Variables) | `inbox` (padrao, envia para Rascunhos/Inbox) ou `direct` (publicacao direta) |
 | `TIKTOK_PRIVACY` | Variable (aba Variables) | Usado apenas no modo `direct`: `PUBLIC_TO_EVERYONE` ou `SELF_ONLY` (apps ainda nao auditados) |
 
-### 6. Voz alternativa (opcional)
+### 7. Voz alternativa (opcional)
 
 | Secret | Descricao |
 |---|---|
@@ -159,10 +165,10 @@ No repositorio no GitHub, acesse **Settings -> Secrets and variables -> Actions 
 ## Passo 4: Rodar o primeiro teste manual
 
 1. No GitHub, abra a aba **Actions**.
-2. Selecione o workflow **Fabrica Dark V7 (Animacao 2D 30fps + Telegram)**.
+2. Selecione o workflow **Fabrica Dark V8 (Motor Cinematografico IA 30fps + Telegram)**.
 3. Clique em **Run workflow** e preencha para o teste rapido:
    - `usar_video_atual`: desmarcado (`false`)
-   - `modo_teste`: marcado (`true`, renderiza apenas 3 segundos / 90 quadros @ 30fps para validar tudo rapido)
+   - `modo_teste`: marcado (`true`, gera 2 cenas e renderiza 3 segundos / 90 quadros @ 30fps para validar tudo rapido)
    - `youtube_privacidade`: `unlisted` (ou `config` para usar `config_canal.json`)
    - `tiktok_modo`: `inbox`
 4. Clique em **Run workflow** e acompanhe os logs passo a passo.
@@ -208,5 +214,5 @@ O workflow usa `repository_dispatch` (`novo_roteiro`) para disparos pontuais sem
 
 ```bash
 python3 -c "from pipeline.config_canal import carregar_config_canal; print(carregar_config_canal()['nome_canal'])"
-python3 render/testar_animacao_2d.py
+python3 render/testar_motor_cinematografico.py
 ```

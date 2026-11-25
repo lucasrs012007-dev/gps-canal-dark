@@ -40,9 +40,9 @@ TAXA_AMOSTRAGEM = 44100
 
 # Calibracao medida em FFmpeg 6.x:
 # - Voz principal: loudnorm I=-14 LUFS, TP=-1.5 dBTP, LRA=11
-# - Trilha base: loudnorm I=-15 + volume=+1.5dB -> pausa ~ -18 dB, ducking durante fala ~ -24 dB (-22 dB a -26 dB)
+# - Trilha base: atmosfera limpa e sutil sem zumbido (pausa ~ -21 dB, ducking durante fala ~ -25 dB)
 LOUDNORM_VOZ = "loudnorm=I=-14:TP=-1.5:LRA=11"
-LOUDNORM_TRILHA_BASE = "loudnorm=I=-15:TP=-2.5:LRA=7,volume=+1.5dB"
+LOUDNORM_TRILHA_BASE = "loudnorm=I=-21:TP=-3.0:LRA=7"
 SIDECHAIN_DUCKING = "sidechaincompress=threshold=0.045:ratio=3.0:attack=15:release=260:knee=4:makeup=1"
 LIMITER_FINAL = "alimiter=limit=0.89:attack=5:release=50"
 
@@ -121,17 +121,17 @@ def montar_filtro_trilha_sintetizada(
     label_saida: str = "bgm_base",
     sample_rate: int = TAXA_AMOSTRAGEM,
 ) -> str:
-    """Sintetiza trilha ambiente dark/suspense sutil via anoisesrc + sine filtrado em grave baixo."""
+    """Sintetiza atmosfera dark/suspense limpa e sutil (grave suave, sem zumbido incomodo)."""
     dur = max(0.5, float(duracao))
     dur_proc = max(3.5, dur) if duracao_processamento is None else max(dur, float(duracao_processamento))
     fade_in = min(0.45, dur * 0.20)
     fade_out = min(0.65, dur * 0.25)
     fade_out_ini = max(0.0, dur - fade_out)
     return (
-        f"anoisesrc=color=pink:sample_rate={sample_rate}:amplitude=0.35:duration={dur_proc:.3f},"
-        "highpass=f=40,lowpass=f=190[bgm_noise];"
-        f"sine=frequency=55:sample_rate={sample_rate}:duration={dur_proc:.3f},volume=0.22,lowpass=f=120[bgm_sub];"
-        f"sine=frequency=82.41:sample_rate={sample_rate}:duration={dur_proc:.3f},volume=0.11,lowpass=f=160[bgm_fifth];"
+        f"anoisesrc=color=pink:sample_rate={sample_rate}:amplitude=0.28:duration={dur_proc:.3f},"
+        "highpass=f=75,lowpass=f=420[bgm_noise];"
+        f"sine=frequency=55:sample_rate={sample_rate}:duration={dur_proc:.3f},volume=0.045,lowpass=f=100[bgm_sub];"
+        f"sine=frequency=82.41:sample_rate={sample_rate}:duration={dur_proc:.3f},volume=0.025,lowpass=f=140[bgm_fifth];"
         "[bgm_noise][bgm_sub][bgm_fifth]amix=inputs=3:duration=first:normalize=0,"
         f"aformat=sample_rates={sample_rate}:channel_layouts=stereo,"
         f"{LOUDNORM_TRILHA_BASE},"

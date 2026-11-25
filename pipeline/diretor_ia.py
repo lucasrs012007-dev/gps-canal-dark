@@ -1,14 +1,14 @@
-"""Estacao 1 (Motor V6.0): Diretor IA que cria ou adapta um roteiro em producao completa.
+"""Estacao 1 (Motor V8.0 Cinematografico IA 30fps): Diretor IA de cortes rapidos (3s-4s).
 
 Aceita texto livre (`--roteiro-texto`, `--arquivo`) OU geracao 100% autonoma (`--gerar-inedito`),
 gerando automaticamente:
-1. Novo registro inedito em `historico_videos.json` (motor="v6", player="player_universal.html",
-   cta_modo="final", parte_label="PARTE 1" e saidas_partes quando > 130 palavras).
+1. Novo registro inedito em `historico_videos.json` (motor="cinematografico_ia_30fps",
+   cta_modo="final" e saidas_partes quando > 130 palavras).
 2. `roteiro_XX.txt` pronto para a Estacao 2 (tags [VOZ:perfil], [SFX:...], gancho/CTA curto
    de 1 frase apenas no final sem pausa comercial no meio, e [CORTE_PARTE_2] acima de 130 palavras).
-3. `cenas.json` (schema versionado "6.0", validado e auto-corrigido em Python) com campo
-   obrigatorio `prompt_imagem` em ingles por cena, mantendo o mesmo estilo visual cinematografico
-   em todo o video, alem dos modulos visuais do `player_universal.html`, paleta, protagonista e Katana hits.
+3. `cenas.json` (schema versionado "8.0", validado e auto-corrigido em Python) com 14 a 18 cenas
+   curtas (1 corte visual a cada 3s-4s) e campo obrigatorio `prompt_imagem` em ingles descrevendo
+   LITERALMENTE o objeto/cena exata daquela fala com estilo 3D cinematografico UE5 consistente.
 
 Uso (na raiz do repositorio):
     python3 pipeline/diretor_ia.py --gerar-inedito --exigir-gemini
@@ -49,8 +49,8 @@ from pipeline.historico import (  # noqa: E402
     validar_historico,
 )
 
-SCHEMA_VERSION = "7.0"
-MOTOR_RENDER_PADRAO = "canvas_2d_30fps"
+SCHEMA_VERSION = "8.0"
+MOTOR_RENDER_PADRAO = "cinematografico_ia_30fps"
 GEMINI_MODELO_PADRAO = "gemini-3.5-flash-lite"
 GEMINI_MODELOS_FALLBACK: tuple[str, ...] = (
     "gemini-3.5-flash-lite",
@@ -65,6 +65,8 @@ ARQUIVO_ENV = RAIZ / ".env"
 ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
 LIMITE_PALAVRAS_PARTE_2 = 130
+MAX_PALAVRAS_POR_TOMADA = 13
+PALAVRAS_POR_SEGUNDO_EST = 2.95
 
 CONFIG_CANAL: dict = {}
 CANAL_NOME: str = "E Se Você?"
@@ -72,8 +74,9 @@ IDIOMA_CANAL: str = "pt-BR"
 IDIOMA_HUMANO: str = "português do Brasil"
 CTA_FINAL_PADRAO: str = "E você, o que faria nessa situação, me conta aqui nos comentários?"
 ESTILO_VISUAL_PROMPT_IMAGEM: str = (
-    "stylized 2.5D dark cinematic digital illustration, moody dramatic lighting, "
-    "vertical 9:16 composition, no text, no watermark"
+    "hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, "
+    "Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, "
+    "no text, no letters, no watermark"
 )
 PILARES_EDITORIAIS: tuple[dict[str, str], ...] = ()
 PILARES_POR_ID: dict[str, dict[str, str]] = {}
@@ -161,10 +164,11 @@ EXPRESSOES_VALIDAS: tuple[str, ...] = ("neutral", "worry", "shock", "fear", "smu
 CAMERAS_VALIDAS: tuple[str, ...] = (
     "push_in",
     "pull_out",
+    "pan_diag_tl",
+    "pan_diag_br",
     "pan_left",
     "pan_right",
     "shake_impact",
-    "float_cam",
 )
 
 PALETA_JAQUETAS: tuple[tuple[str, str, str], ...] = (
@@ -1030,23 +1034,191 @@ def escolher_camera_alternada(
     cenario: str,
     idx: int,
     anterior: str = "",
+    *,
+    mood: str = "navy",
 ) -> str:
-    """Alterna continuamente entre as 6 cameras canonicas sem nunca repetir duas falas seguidas."""
+    """Alterna continuamente entre movimentos cinematograficos sem repetir duas cenas seguidas."""
     cand = _CAM_ALIASES.get(str(sugestao or "").strip().lower(), str(sugestao or "").strip().lower())
     if cand in CAMERAS_VALIDAS and cand != anterior:
         return cand
 
-    if acao_cena in ("explosao_choque", "chuva_flechas", "onda_gigante") and anterior != "shake_impact":
+    if (
+        mood == "red"
+        or acao_cena in ("explosao_choque", "chuva_flechas", "onda_gigante")
+    ) and anterior != "shake_impact":
         return "shake_impact"
-    if (acao_cena == "flutuando_gravidade" or cenario in ("espaco_orbita", "oceano_ilha", "ceu_nuvens")) and anterior != "float_cam":
-        return "float_cam"
 
-    ciclo = ("push_in", "pan_right", "pull_out", "pan_left", "float_cam", "shake_impact")
+    ciclo = ("push_in", "pan_diag_tl", "pull_out", "pan_right", "pan_diag_br", "pan_left", "shake_impact")
     for offset in range(len(ciclo)):
         c = ciclo[(idx + offset) % len(ciclo)]
         if c != anterior:
             return c
     return "push_in" if anterior != "push_in" else "pull_out"
+
+
+def garantir_estilo_prompt_imagem(prompt_en: str) -> str:
+    """Garante estilo cinematografico UE5 vertical 9:16 sem texto ou marca d'agua no prompt_imagem."""
+    base = sanitizar_texto(prompt_en)
+    base = re.sub(r"\s+", " ", base).strip(" ,.;:")
+    estilo = ESTILO_VISUAL_PROMPT_IMAGEM.strip()
+    base_low = base.lower()
+    if "unreal engine 5" in base_low and "no watermark" in base_low and "9:16" in base_low:
+        return base
+    # Remove sufixos antigos parciais para nao duplicar
+    base = re.sub(
+        r",?\s*(?:stylized 2\.5d|hyper-detailed 3d)[^.]{0,180}(?:watermark|framing|composition)\b",
+        "",
+        base,
+        flags=re.IGNORECASE,
+    ).strip(" ,.;:")
+    if not base:
+        return f"Dark cinematic atmospheric suspense scene with dramatic volumetric light, {estilo}"
+    return f"{base}, {estilo}"
+
+
+_REGRAS_PROMPT_LITERAL: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        ("pedagio", "cabine de pedagio", "cancela", "guiche"),
+        "Isolated highway toll booth enveloped in dense nocturnal fog, flickering sodium overhead lamp, wet black asphalt and glowing red barrier arm",
+    ),
+    (
+        ("nota de vinte", "nota de 20", "nota suja", "dinheiro", "cedula", "lama", "mao palida"),
+        "Extreme close-up of a pale cold hand emerging from shadow holding a crumpled muddy banknote smeared with wet dark dirt, dramatic rim light on fingers",
+    ),
+    (
+        ("submarino", "escotilha", "profundidade", "casco de aco", "lastro", "valvula"),
+        "Claustrophobic steel submarine interior flooded in crimson emergency alert lights, riveted metal hatch, condensation droplets and glowing pressure gauges",
+    ),
+    (
+        ("ilha", "sentinela", "praia", "coqueiro", "tribo", "flecha", "flechas", "arco"),
+        "Forbidden dark tropical island shrouded in storm mist rising from rough midnight ocean waves, dense shadowy jungle shoreline and wooden boat at a distance",
+    ),
+    (
+        ("tsunami", "onda gigante", "mare", "oceano", "mar", "ponto nemo", "pacifico", "navio"),
+        "Towering dark ocean swell under lightning-lit storm clouds, turbulent sea spray and deep abyssal blue water seen from a dramatic low angle",
+    ),
+    (
+        ("helicoptero", "helice", "sobrevo", "resgate aereo", "holofote"),
+        "Dark rescue helicopter hovering through heavy storm clouds at night, slicing volumetric white searchlight beam piercing rain and fog below",
+    ),
+    (
+        ("satelite", "orbita", "estacao espacial", "espaco", "planeta", "lua", "asteroide"),
+        "Dramatic orbital view of Earth dark terminator line from space, sleek metallic satellite drifting above glowing cyan atmosphere and deep starfield",
+    ),
+    (
+        ("cofre", "svalbard", "gelo", "artico", "geleira", "montanha congelada", "neve"),
+        "Massive brutalist concrete vault entrance embedded into a frozen Arctic snow mountain at twilight, icy fog drifting around glowing security beacons",
+    ),
+    (
+        ("metro", "vagao", "tunel", "trilhos", "estacao fechada", "letreiro"),
+        "Empty late-night subway train car stalled inside a dark subterranean tunnel, flickering cold fluorescent overhead tubes and eerie reflections in black windows",
+    ),
+    (
+        ("elevador", "subsolo", "botoeira", "terreo", "andar"),
+        "Dimly lit metallic elevator cabin with glowing red floor indicator panel, reflections on scratched steel doors and uneasy shadows in corners",
+    ),
+    (
+        ("carro", "estrada", "rodovia", "farol", "volante", "retrovisor", "asfalto", "motorista"),
+        "Interior POV of a car driving along a misty empty night highway, rain beads on the windshield, dim dashboard glow and eerie rearview mirror reflection",
+    ),
+    (
+        ("interfone", "portaria", "celular", "mensagem", "notificacao", "ligacao", "tela", "whatsapp"),
+        "Tight macro close-up of a glowing smartphone screen illuminating a tense face in a pitch-dark room, cold cyan screen light and deep shadows",
+    ),
+    (
+        ("camera", "cctv", "vigilancia", "monitor", "laboratorio", "cientista", "radar", "sonar", "hidrofone", "semente"),
+        "Dark high-tech monitoring laboratory with glowing oscilloscope monitors, sweeping green radar display and flickering security camera feeds",
+    ),
+    (
+        ("espelho", "reflexo", "banheiro", "vidro", "sorrindo", "sorriu"),
+        "Chilling close-up of a dimly lit foggy mirror reflecting an unsettling silhouette standing just behind the viewer in shadow",
+    ),
+    (
+        ("floresta", "mata", "selva", "arvore", "neblina", "trilha", "caverna"),
+        "Dense nocturnal forest trail shrouded in cold silver mist, towering dark pine silhouettes and a single flashlight beam cutting through fog",
+    ),
+    (
+        ("escritorio", "lapiseira", "xicara", "cafe", "teto de gesso", "gravidade", "flutua", "levita"),
+        "Modern glass skyscraper office at night with floating chairs, suspended coffee droplets and glowing computer monitors drifting in zero gravity",
+    ),
+    (
+        ("porta", "macaneta", "fechadura", "corredor", "hall", "hotel", "hospital", "quarto", "cama"),
+        "Long eerie dimly lit night corridor leading to a slightly ajar dark wooden door, cold rim light spilling across the empty floor",
+    ),
+)
+
+_ENQUADRAMENTOS_CENA: tuple[str, ...] = (
+    "dramatic wide establishing shot",
+    "tight cinematic close-up shot",
+    "low-angle atmospheric shot looking up",
+    "over-the-shoulder suspenseful framing",
+    "macro detail shot with shallow depth of field",
+    "high-contrast dutch-angle cinematic shot",
+)
+
+
+def gerar_prompt_imagem_literal(
+    texto: str,
+    titulo: str,
+    idx: int,
+    total: int,
+    *,
+    mood: str = "navy",
+    prompts_usados: set[str] | None = None,
+) -> str:
+    """Gera prompt em ingles literal e unico baseado diretamente nos elementos concretos da frase."""
+    norm = normalizar_texto(texto)
+    norm_all = normalizar_texto(f"{texto} {titulo}")
+
+    desc_base = ""
+    melhor_score = 0
+    for termos, descricao in _REGRAS_PROMPT_LITERAL:
+        score = sum(3 for termo in termos if termo in norm) + sum(1 for termo in termos if termo in norm_all)
+        if score > melhor_score:
+            melhor_score = score
+            desc_base = descricao
+
+    if not desc_base:
+        desc_base = (
+            "Suspenseful dark atmospheric scene illustrating an eerie real-world mystery, "
+            "dramatic mist, sharp silhouette and rich environmental textures"
+        )
+
+    # Enriquecimento literal de detalhes concretos mencionados na frase
+    extras: list[str] = []
+    if any(k in norm for k in ("neblina", "nevoa", "fumaca")):
+        extras.append("thick drifting volumetric fog")
+    if any(k in norm for k in ("chuva", "molhad", "tempestade", "raio")):
+        extras.append("rain streaks reflecting cold light on wet surfaces")
+    if any(k in norm for k in ("vermelh", "alerta", "emergencia", "panico", "sirene")) or mood == "red":
+        extras.append("intense crimson emergency accent light cutting through deep dark shadows")
+    elif mood == "yellow":
+        extras.append("warm amber tungsten beam contrasting against cold midnight blue shadows")
+    else:
+        extras.append("cold cyan volumetric rim light and deep abyssal blue shadows")
+    if any(k in norm for k in ("olhos", "olhou", "olhando", "encara", "rosto", "pavor", "choque")):
+        extras.append("expressive intense gaze catching dramatic specular highlights")
+    if any(k in norm for k in ("mao", "maos", "dedo", "segura", "gira", "puxa")):
+        extras.append("tactile foreground focus on trembling hands interacting with the object")
+    if idx == total - 1:
+        extras.append("lingering eerie wide composition inviting the viewer into the mystery")
+
+    enquadramento = _ENQUADRAMENTOS_CENA[idx % len(_ENQUADRAMENTOS_CENA)]
+    candidato = f"{enquadramento}, {desc_base}, {', '.join(extras)}"
+
+    if prompts_usados is not None:
+        chave = candidato.lower()
+        if chave in prompts_usados:
+            var_angulos = (
+                "from an alternate side perspective with foreground depth",
+                "from a tighter intense telephoto angle",
+                "from a dramatic overhead surveillance perspective",
+                "with dramatic backlit mist and sharp rim highlights",
+            )
+            candidato = f"{candidato}, {var_angulos[idx % len(var_angulos)]}"
+        prompts_usados.add(candidato.lower())
+
+    return garantir_estilo_prompt_imagem(candidato)
 
 
 def _extrair_palavras_chave(titulo: str, texto: str, qtd: int = 7) -> list[str]:
@@ -1063,78 +1235,137 @@ def _extrair_palavras_chave(titulo: str, texto: str, qtd: int = 7) -> list[str]:
     return ranqueadas[:qtd] or ["suspense", "madrugada", "misterio", "vulto", "alerta"]
 
 
+def _dividir_fala_em_tomadas_curtas(
+    texto: str,
+    max_palavras: int = MAX_PALAVRAS_POR_TOMADA,
+) -> list[str]:
+    """Divide qualquer fala > ~4s (> max_palavras) em 2 ou 3 tomadas visuais curtas e naturais."""
+    limpo = sanitizar_texto(texto)
+    if not limpo:
+        return []
+    palavras = limpo.split()
+    if len(palavras) <= max_palavras:
+        return [limpo]
+
+    # 1. Primeiro divide por frases completas (. ! ?)
+    frases = [f.strip() for f in RE_SEPARAR_FRASES.split(limpo) if f.strip()]
+    resultado: list[str] = []
+    conjuncoes = frozenset({"e", "mas", "quando", "porque", "onde", "enquanto", "entao", "ate", "como", "que", "so"})
+
+    for frase in frases:
+        pals = frase.split()
+        if len(pals) <= max_palavras:
+            resultado.append(frase)
+            continue
+
+        # 2. Divide frase longa em 2 ou 3 tomadas respeitando virgulas/ponto-e-virgula ou conjuncoes
+        num_partes = 3 if len(pals) > max_palavras * 2 else 2
+        alvo = max(5, round(len(pals) / num_partes))
+        cursor = 0
+        for p_idx in range(num_partes):
+            if cursor >= len(pals):
+                break
+            if p_idx == num_partes - 1:
+                trecho = " ".join(pals[cursor:]).strip()
+                if trecho:
+                    resultado.append(trecho)
+                break
+            fim_ideal = min(len(pals) - 4, cursor + alvo)
+            if fim_ideal <= cursor + 3:
+                trecho = " ".join(pals[cursor:]).strip()
+                if trecho:
+                    resultado.append(trecho)
+                break
+
+            # Procura melhor ponto de corte proximo a fim_ideal (virgula/dois-pontos ou conjuncao)
+            melhor_corte = fim_ideal
+            melhor_dist = 999
+            janela_ini = max(cursor + 4, fim_ideal - 4)
+            janela_fim = min(len(pals) - 3, fim_ideal + 4)
+            for k in range(janela_ini, janela_fim + 1):
+                tok_ant = pals[k - 1]
+                tok_atu = normalizar_texto(pals[k])
+                dist = abs(k - fim_ideal)
+                if tok_ant.endswith((",", ";", ":")):
+                    if dist < melhor_dist:
+                        melhor_dist = dist
+                        melhor_corte = k
+                elif tok_atu in conjuncoes and (dist + 1) < melhor_dist:
+                    melhor_dist = dist + 1
+                    melhor_corte = k
+
+            trecho = " ".join(pals[cursor:melhor_corte]).strip()
+            if trecho:
+                resultado.append(trecho)
+            cursor = melhor_corte
+
+    # Reagrupa fragmentos minusculos (< 4 palavras) ao vizinho quando possivel
+    compactado: list[str] = []
+    for seg in resultado:
+        if compactado and len(seg.split()) < 4 and len(compactado[-1].split()) + len(seg.split()) <= max_palavras + 3:
+            compactado[-1] = f"{compactado[-1]} {seg}".strip()
+        else:
+            compactado.append(seg)
+    return compactado or [limpo]
+
+
 def _dividir_em_blocos_narrativos(roteiro_bruto: str) -> list[str]:
-    """Divide o roteiro bruto em 6 a 14 blocos narrativos equilibrados para cenas."""
+    """Divide o roteiro em tomadas visuais rapidas (1 corte a cada 3s-4s, ~14 a 18 cenas em 60s)."""
     limpo = sanitizar_texto(roteiro_bruto)
     frases = [f.strip() for f in RE_SEPARAR_FRASES.split(limpo) if f.strip()]
     if not frases:
         raise ValueError("Roteiro bruto vazio apos sanitizacao.")
 
-    # Garante pontuacao final em cada frase
-    frases_fmt: list[str] = []
+    tomadas: list[str] = []
     for f in frases:
-        if not f.endswith((".", "!", "?")):
-            f = f + "."
-        frases_fmt.append(f)
+        for sub in _dividir_fala_em_tomadas_curtas(f, max_palavras=MAX_PALAVRAS_POR_TOMADA):
+            sub_limpo = sub.strip()
+            if not sub_limpo:
+                continue
+            if not sub_limpo.endswith((".", "!", "?", ",", ";", ":")):
+                sub_limpo = sub_limpo + "."
+            tomadas.append(sub_limpo)
 
-    total_palavras = sum(len(f.split()) for f in frases_fmt)
-    alvo_blocos = 10 if total_palavras > LIMITE_PALAVRAS_PARTE_2 else 7
-    if len(frases_fmt) <= alvo_blocos:
-        # Se houver frases longas e poucos blocos, divide em virgulas ou ponto medio garantindo >= 3 blocos
-        min_blocos = 4 if total_palavras >= 28 else 3
-        while len(frases_fmt) < min_blocos:
-            idx_maior = max(range(len(frases_fmt)), key=lambda i: len(frases_fmt[i].split()))
-            maior = frases_fmt[idx_maior]
-            palavras_m = maior.split()
-            if len(palavras_m) < 6:
-                break
-            if "," in maior:
-                partes = [p.strip() for p in maior.split(",") if p.strip()]
-                meio = max(1, len(partes) // 2)
-                p1 = ", ".join(partes[:meio]).rstrip(".,!?") + "."
-                p2 = ", ".join(partes[meio:])
+    # Se houver frases muito curtas seguidas (< 6 palavras) e total > 18, une pares contiguos
+    # mantendo o limite <= 13 palavras (~4s) e preservando twist e CTA final intactos
+    if len(tomadas) > 18:
+        preservar_fim = 2 if len(tomadas) >= 4 and _eh_bloco_cta_final(tomadas[-1]) else 1
+        corpo = tomadas[:-preservar_fim]
+        finais = tomadas[-preservar_fim:]
+        unidas: list[str] = []
+        for seg in corpo:
+            if (
+                unidas
+                and len(unidas) + (len(corpo) - len(unidas)) > 16
+                and len(unidas[-1].split()) + len(seg.split()) <= MAX_PALAVRAS_POR_TOMADA
+            ):
+                unidas[-1] = f"{unidas[-1]} {seg}".strip()
             else:
-                meio = len(palavras_m) // 2
-                p1 = " ".join(palavras_m[:meio]).rstrip(".,!?") + "."
-                p2 = " ".join(palavras_m[meio:])
-            if p2:
-                p2 = p2[0].upper() + p2[1:]
-                if not p2.endswith((".", "!", "?")):
-                    p2 += "."
-            frases_fmt = frases_fmt[:idx_maior] + [p1, p2] + frases_fmt[idx_maior + 1 :]
-        return frases_fmt
+                unidas.append(seg)
+        tomadas = unidas + finais
 
-    # Agrupa frases curtas consecutivas mantendo twist e gancho/CTA final isolados
-    if len(frases_fmt) >= 4 and _eh_bloco_cta_final(frases_fmt[-1]):
-        finais = [frases_fmt[-2], frases_fmt[-1]]
-        corpo = frases_fmt[:-2]
-    else:
-        finais = [frases_fmt[-1]]
-        corpo = frases_fmt[:-1]
+    # Se o roteiro for muito curto e gerar menos de 4 tomadas, subdivide a maior
+    total_palavras = sum(len(t.split()) for t in tomadas)
+    min_tomadas = 4 if total_palavras >= 28 else 3
+    while len(tomadas) < min_tomadas:
+        idx_maior = max(range(len(tomadas)), key=lambda i: len(tomadas[i].split()))
+        pals = tomadas[idx_maior].split()
+        if len(pals) < 6:
+            break
+        meio = len(pals) // 2
+        p1 = " ".join(pals[:meio]).strip()
+        p2 = " ".join(pals[meio:]).strip()
+        if not p1.endswith((".", "!", "?", ",")):
+            p1 += ","
+        if p2 and not p2.endswith((".", "!", "?")):
+            p2 += "."
+        tomadas = tomadas[:idx_maior] + [p1, p2] + tomadas[idx_maior + 1 :]
 
-    max_corpo = max(4, alvo_blocos - len(finais))
-    palavras_por_bloco = max(12, int(sum(len(f.split()) for f in corpo) / max_corpo))
-
-    blocos: list[str] = []
-    atual: list[str] = []
-    p_atual = 0
-    for f in corpo:
-        pf = len(f.split())
-        if atual and (p_atual + pf > palavras_por_bloco + 6) and len(blocos) < max_corpo - 1:
-            blocos.append(" ".join(atual))
-            atual = [f]
-            p_atual = pf
-        else:
-            atual.append(f)
-            p_atual += pf
-    if atual:
-        blocos.append(" ".join(atual))
-    blocos.extend(finais)
-    return blocos
+    return tomadas
 
 
 def _escolher_katana_hits(blocos: list[dict], total_desejado: int = 4) -> list[dict]:
-    """Seleciona 3 a 5 palavras de impacto reais presentes nos blocos para Katana Hits."""
+    """Seleciona 3 a 5 palavras de impacto reais presentes nos blocos para destaque vermelho."""
     palavras_impacto = (
         "travou", "sumiu", "vazio", "vazia", "ninguem", "alguem", "sorriu", "sorri",
         "atras", "dentro", "olhos", "apagou", "apaga", "nunca", "morto", "morta",
@@ -1210,7 +1441,7 @@ def diretor_mock_deterministico(
     titulo_forcado: str | None = None,
     catalogo_sfx: dict[str, float] | None = None,
 ) -> dict:
-    """Modo deterministico offline (--mock e fallback de seguranca do Gemini)."""
+    """Modo deterministico offline (--mock e fallback de seguranca do Gemini) com cortes 3s-4s."""
     catalogo = catalogo_sfx or carregar_catalogo_sfx()
     limpo = restaurar_acentos_ptbr(sanitizar_texto(roteiro_bruto))
     blocos_txt = _dividir_em_blocos_narrativos(limpo)
@@ -1219,13 +1450,12 @@ def diretor_mock_deterministico(
 
     horario = extrair_horario(limpo)
     nome_prot = extrair_nome_protagonista(limpo)
-    ctx_escritorio = texto_indica_escritorio(limpo)
     ctx_zero_g = texto_indica_gravidade_zero(limpo)
 
     if titulo_forcado and sanitizar_texto(titulo_forcado):
         titulo = restaurar_acentos_ptbr(sanitizar_texto(titulo_forcado))[:72]
     else:
-        primeiras = blocos_txt[0].rstrip(".!?").split()
+        primeiras = blocos_txt[0].rstrip(".!?,").split()
         titulo = " ".join(primeiras[:6]).strip() or "Suspense da Madrugada"
         titulo = titulo[0].upper() + titulo[1:]
 
@@ -1250,13 +1480,13 @@ def diretor_mock_deterministico(
     blocos: list[dict] = []
     ultimo_cenario = ""
     ultima_camera = ""
+    prompts_usados: set[str] = set()
 
     for i, txt in enumerate(blocos_txt):
         norm = normalizar_texto(txt)
         eh_final_cta = (i == n - 1) and _eh_bloco_cta_final(txt)
         eh_twist = i == idx_twist
 
-        hud_dado = None if eh_final_cta else extrair_hud_dado(txt)
         grav_zero = (not eh_final_cta) and (texto_indica_gravidade_zero(txt) or (ctx_zero_g and i >= 1))
 
         cenario = inferir_cenario_animado(
@@ -1265,7 +1495,7 @@ def diretor_mock_deterministico(
             n,
             anterior=ultimo_cenario,
             contexto_global=limpo,
-            hud_dado=hud_dado,
+            hud_dado=None,
             eh_cta=eh_final_cta,
             eh_twist=eh_twist,
         )
@@ -1274,7 +1504,7 @@ def diretor_mock_deterministico(
         acao_cena = inferir_acao_cena(
             txt,
             cenario,
-            hud_dado=hud_dado,
+            hud_dado=None,
             gravidade_zero=grav_zero,
         )
 
@@ -1290,9 +1520,9 @@ def diretor_mock_deterministico(
         elif any(k in norm for k in ("interfone", "porteiro")) and (":" in txt or '"' in txt):
             perfil = "interfone_porteiro"
             mood = "violet"
-        elif i >= max(1, int(idx_twist * 0.55)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca", "flecha", "tsunami")):
+        elif i >= max(1, int(idx_twist * 0.65)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca", "flecha", "tsunami")):
             perfil = "panico"
-            mood = "red" if (i >= max(1, idx_twist - 2) or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque")) else "violet"
+            mood = "red" if (i >= max(1, idx_twist - 3) or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque")) else "violet"
         else:
             perfil = "narrador_tenso"
             mood = "yellow" if acao_cena == "radar_alerta" else ("navy" if i % 2 == 0 else "violet")
@@ -1312,36 +1542,23 @@ def diretor_mock_deterministico(
             eh_twist=eh_twist,
             eh_cta=eh_final_cta,
         )
-        cam = escolher_camera_alternada(None, acao_cena, cenario, i, anterior=ultima_camera)
+        cam = escolher_camera_alternada(None, acao_cena, cenario, i, anterior=ultima_camera, mood=mood)
         ultima_camera = cam
 
-        obj_principal = (
-            "lapiseira" if "lapiseira" in norm
-            else ("xicara_cafe" if ("xicara" in norm or "cafe" in norm)
-                  else ("guarda_roupa" if ("armario" in norm or "guarda roupa" in norm) else "janela"))
+        prompt_imagem = gerar_prompt_imagem_literal(
+            texto=txt,
+            titulo=titulo,
+            idx=i,
+            total=n,
+            mood=mood,
+            prompts_usados=prompts_usados,
         )
-        flutuantes = inferir_props_flutuantes(txt, objeto_atual=obj_principal, gravidade_zero=grav_zero) if grav_zero else []
-        tem_vulto = (not eh_final_cta) and texto_indica_vulto(txt) and not (
-            grav_zero and not any(k in norm for k in ("vulto", "sombra", "olhos", "invasor"))
-        )
-
-        citacao = extrair_citacao_tela(txt, limite=84)
-        props = {
-            "objeto": obj_principal,
-            "vulto": tem_vulto,
-            "gravidade_zero": grav_zero,
-            "objetos_flutuantes": flutuantes,
-            "silhuetas_janela": "silhuetas_janela" in flutuantes,
-            "celular_mensagem": citacao,
-            "pose": pose,
-            "acao_cena": acao_cena,
-            "hud_dado": hud_dado,
-        }
 
         blocos.append(
             {
                 "perfil_voz": perfil,
                 "texto": txt,
+                "prompt_imagem": prompt_imagem,
                 "cenario": cenario,
                 "modulo": cenario,
                 "acao_cena": acao_cena,
@@ -1349,8 +1566,6 @@ def diretor_mock_deterministico(
                 "mood": mood,
                 "expressao": expr,
                 "camera": cam,
-                "hud_dado": hud_dado,
-                "props": props,
                 "sfx_depois": None,
             }
         )
@@ -1394,34 +1609,39 @@ def _montar_prompt_gemini(
         if pilar is not None
         else ""
     )
-    horario_ex = pilar["horario_padrao"] if pilar is not None else "15:00"
+    horario_ex = pilar["horario_padrao"] if pilar is not None else "23:18"
     resumo_pilares = ", ".join(p["nome"] for p in PILARES_EDITORIAIS)
     return (
-        f"Você é o Diretor de Animação 2D 30fps do canal '{CANAL_NOME}' (YouTube Shorts / Reels em {IDIOMA_CANAL}: "
-        f"{resumo_pilares}).\n"
-        "Transforme o roteiro bruto abaixo em um plano estruturado JSON estrito onde CADA FALA gera uma cena 2D animada única.\n"
+        f"Você é o Diretor Cinematográfico de Cortes Rápidos do canal '{CANAL_NOME}' "
+        f"(YouTube Shorts / Reels em {IDIOMA_CANAL}: {resumo_pilares}).\n"
+        "Transforme o roteiro bruto abaixo em um plano JSON estrito de ALTÍSSIMA RETENÇÃO com 1 corte visual novo a cada 3 a 4 segundos.\n"
         "REGRAS OBRIGATÓRIAS:\n"
         "1. ZERO emoji e ZERO travessão (em-dash ou en-dash) em qualquer texto.\n"
         f"2. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): preserve TODOS os acentos, cedilhas e números/anos inteiros "
-        "(ex.: 2004, 2006, 5 km, você, não, mão, pés, direção, levitação). Nunca quebre anos nem remova acentos.\n"
-        "3. RITMO HUMANO E SEM PAUSA NO MEIO: divida em 7 a 12 blocos narrativos curtos e viciantes. PROIBIDO inserir pausa "
-        "comercial, propaganda ou CTA no meio do vídeo. Deixe o gancho/CTA curto de 1 frase APENAS como último bloco.\n"
-        "4. DIREÇÃO DE ANIMAÇÃO 2D ÚNICA POR FALA (escolha cada campo alinhado ao que está sendo dito naquela frase):\n"
-        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use 'sussurro_twist' na revelação/clímax e 'narrador_tenso' no fechamento; NUNCA use 'cta_comercial').\n"
-        f"   - cenario: um de {list(CENARIOS_ANIMADOS)}. NUNCA repita o mesmo cenario em duas falas seguidas.\n"
-        f"   - acao_cena: um de {list(ACOES_CENA_VALIDAS)} (animação específica da fala, ex.: barco_navegando, chuva_flechas, helicoptero_sobrevoando, onda_gigante, radar_alerta, corrida_fuga, flutuando_gravidade, explosao_choque, contador_escala, investigando_pista).\n"
-        f"   - pose: um de {list(POSES_VALIDAS)}.\n"
-        f"   - expressao: um de {list(EXPRESSOES_VALIDAS)}.\n"
-        f"   - camera: um de {list(CAMERAS_VALIDAS)}. Alterne SEMPRE (nunca repita a mesma camera em duas falas seguidas).\n"
-        f"   - mood: um de {list(MOODS_VALIDOS)}.\n"
-        "   - hud_dado: sempre que a fala citar números, anos (ex.: 2004, 2006), distâncias (ex.: 5 KM), velocidades ou porcentagens, "
-        'preencha {"rotulo": "ZONA PROIBIDA", "valor": "5 KM", "progresso": 0.85} (progresso entre 0.0 e 1.0); caso contrário, null.\n'
-        f"   - sfx_depois: null ou um de {sfx_validos} (coloque impacto_twist imediatamente antes do bloco da revelação final; no máximo 3 SFX no total).\n"
-        f"   - props: objeto opcional com gravidade_zero (bool), objetos_flutuantes (subconjunto de {list(PROPS_FLUTUANTES_VALIDOS)}), silhuetas_janela (bool) e vulto (bool).\n"
-        "5. katana_hits: lista de 3 a 5 impactos curtos (1 a 2 palavras em MAIÚSCULAS COM ACENTUAÇÃO UTF-8 CORRETA), cada um com bloco_idx (0-based), palavra_gatilho, linhas (1 a 2 strings curtas), duracao (0.36 a 0.48), cor ('red', 'yellow' ou 'white').\n"
-        f"6. horario: string HH:MM coerente com o episódio (como '{horario_ex}').\n"
-        "7. protagonista.nome: nome do personagem ou 'Você'.\n"
-        "8. Responda APENAS com JSON válido no formato:\n"
+        "(ex.: 2004, 2006, 5 km, 20 reais, você, não, mão, pés, direção). Nunca remova acentos nem altere palavras do roteiro.\n"
+        "3. CORTES RÁPIDOS DE 3 A 4 SEGUNDOS (14 A 18 CENAS POR VÍDEO DE 60s): divida automaticamente qualquer fala longa "
+        "(com mais de 12 palavras / 4 segundos) em 2 ou 3 tomadas visuais curtas consecutivas (7 a 12 palavras por bloco), "
+        "mantendo o texto falado fluido e natural sem pausas artificiais.\n"
+        "4. ZERO CTA NO MEIO: PROIBIDO inserir pausa comercial, propaganda ou CTA no meio do vídeo. "
+        "Deixe APENAS um gancho/CTA curto de 1 única frase como último bloco.\n"
+        "5. PROMPT DE IMAGEM LITERAL E CINEMATOGRÁFICO EM INGLÊS (`prompt_imagem`) PARA CADA CENA:\n"
+        "   - Descreva LITERALMENTE o objeto, ambiente, ação e ângulo de câmera exatos do que está sendo dito naquela frase "
+        "(ex.: se a frase fala de cabine de pedágio na neblina, descreva a cabine de pedágio na neblina com luz de sódio; "
+        "se fala de uma mão pálida entregando uma nota de 20 reais suja de lama, descreva um close extremo da mão pálida segurando a nota suja de lama).\n"
+        "   - NUNCA use descrições genéricas repetidas nem peça texto/letras/números desenhados dentro da imagem.\n"
+        "   - Evite palavras que disparem filtros de segurança (evite 'blood', 'corpse', 'gore', 'murder', 'dead body'; "
+        "use equivalentes cinematográficos atmosféricos como 'eerie shadow', 'crimson reflection', 'abandoned scene', 'mysterious silhouette').\n"
+        f"   - TERMINE TODO `prompt_imagem` com exatamente este estilo consistente: \"{ESTILO_VISUAL_PROMPT_IMAGEM}\".\n"
+        "6. CAMPOS DE CADA BLOCO EM `blocos`:\n"
+        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (mantenha 'narrador_tenso' na maior parte para preservar a voz contínua do Gemini TTS; use 'sussurro_twist' na revelação final; NUNCA use 'cta_comercial').\n"
+        "   - texto: trecho curto falado (7 a 12 palavras) preservando 100% do sentido do roteiro.\n"
+        "   - prompt_imagem: descrição visual LITERAL em inglês + estilo cinematográfico travado acima.\n"
+        f"   - camera: um de {list(CAMERAS_VALIDAS)} (use 'shake_impact' em cenas de tensão/clímax; NUNCA repita a mesma câmera em duas cenas seguidas).\n"
+        f"   - mood: um de {list(MOODS_VALIDOS)} ('red' para tensão/clímax, 'navy'/'violet'/'yellow' para suspense).\n"
+        f"   - sfx_depois: null ou um de {sfx_validos} (coloque 'impacto_twist' imediatamente antes do bloco da revelação final; máximo 3 SFX no total).\n"
+        "7. katana_hits: lista de 3 a 5 palavras de impacto reais do roteiro (MAIÚSCULAS com acento UTF-8) para destaque vermelho nas legendas.\n"
+        f"8. horario: string HH:MM coerente com o episódio (ex.: '{horario_ex}').\n"
+        "9. Responda APENAS com JSON válido no formato:\n"
         "{\n"
         '  "titulo": "...",\n'
         '  "tema": "resumo curto em 1 frase",\n'
@@ -1429,8 +1649,8 @@ def _montar_prompt_gemini(
         f'  "horario": "{horario_ex}",\n'
         '  "protagonista": {"nome": "Você", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
         '  "paleta": {"bg_navy": "#0A0F1D", "bg_violet": "#130926", "bg_red": "#3B0A0A", "accent": "#38D9FF", "alert": "#FF3B30", "yellow": "#FFD400"},\n'
-        '  "blocos": [{"perfil_voz": "narrador_tenso", "texto": "...", "cenario": "oceano_ilha", "acao_cena": "barco_navegando", "pose": "falando", "expressao": "focus", "camera": "push_in", "mood": "navy", "hud_dado": {"rotulo": "ZONA PROIBIDA", "valor": "5 KM", "progresso": 0.85}, "sfx_depois": null, "props": {"gravidade_zero": false, "objetos_flutuantes": [], "silhuetas_janela": false, "vulto": false}}],\n'
-        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "flechas", "linhas": ["CHUVA DE", "FLECHAS"], "duracao": 0.42, "cor": "red"}]\n'
+        '  "blocos": [{"perfil_voz": "narrador_tenso", "texto": "A cabine de pedágio sumiu na neblina densa da rodovia.", "prompt_imagem": "Wide cinematic shot of an isolated highway toll booth swallowed by dense nocturnal fog, flickering amber sodium lamp, wet black asphalt, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark", "camera": "push_in", "mood": "navy", "sfx_depois": null}],\n'
+        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "neblina", "linhas": ["NEBLINA"], "duracao": 0.42, "cor": "red"}]\n'
         "}\n\n"
         f"{pilar_hint}"
         f"{titulo_hint}"
@@ -2103,15 +2323,6 @@ def validar_e_corrigir_plano(
     blocos_validos: list[dict] = []
     sfx_permitidos = set(catalogo_sfx.keys()) - {"glitch_cta", "cta_pop"}
     prompts_usados: set[str] = set()
-    pose_aliases = {
-        "float": "flutuando",
-        "floating": "flutuando",
-        "levitando": "flutuando",
-        "hold_desk": "segurando_mesa",
-        "segurando": "segurando_mesa",
-        "falling": "caindo",
-        "queda": "caindo",
-    }
 
     ultimo_cenario = ""
     ultima_camera = ""
@@ -2123,10 +2334,12 @@ def validar_e_corrigir_plano(
             if not isinstance(b, dict):
                 continue
             txt_raw = str(b.get("texto", ""))
-            txt = restaurar_acentos_ptbr(sanitizar_texto(re.sub(r"\[/?(?:CTA_PAUSA|VOZ(?::[a-zA-Z0-9_]+)?)\]", "", txt_raw, flags=re.IGNORECASE)))
+            txt = restaurar_acentos_ptbr(
+                sanitizar_texto(re.sub(r"\[/?(?:CTA_PAUSA|VOZ(?::[a-zA-Z0-9_]+)?)\]", "", txt_raw, flags=re.IGNORECASE))
+            )
             if not txt:
                 continue
-            if not txt.endswith((".", "!", "?")):
+            if not txt.endswith((".", "!", "?", ",", ";", ":")):
                 txt += "."
             norm_txt = normalizar_texto(txt)
             perfil_orig = str(b.get("perfil_voz", "narrador_tenso")).strip().lower()
@@ -2148,61 +2361,8 @@ def validar_e_corrigir_plano(
                 perfil = "narrador_tenso"
                 avisos.append(f"Bloco {idx + 1}: perfil_voz corrigido para narrador_tenso.")
 
-            hud_dado = None if eh_cta_in else extrair_hud_dado(txt, hud_raw=b.get("hud_dado"))
-
-            props_in = b.get("props") if isinstance(b.get("props"), dict) else {}
-            grav_zero_expl = props_in.get("gravidade_zero")
-            if isinstance(grav_zero_expl, bool):
-                grav_zero = grav_zero_expl or texto_indica_gravidade_zero(txt)
-            else:
-                grav_zero = texto_indica_gravidade_zero(txt) or (ctx_zero_g and idx >= 1)
-
-            cen_raw = str(b.get("cenario") or b.get("modulo") or "").strip().lower()
-            cen_norm = _CENARIO_ALIASES.get(cen_raw, cen_raw)
-            if cen_norm not in CENARIOS_ANIMADOS or cen_norm == ultimo_cenario:
-                cen_norm = inferir_cenario_animado(
-                    txt,
-                    len(blocos_validos),
-                    total_in,
-                    anterior=ultimo_cenario,
-                    contexto_global=roteiro_bruto,
-                    hud_dado=hud_dado,
-                    eh_cta=eh_cta_in,
-                    eh_twist=(idx == total_in - 2),
-                )
-                if cen_raw and cen_raw != cen_norm:
-                    avisos.append(f"Bloco {idx + 1}: cenario ajustado para '{cen_norm}' (sem repeticao consecutiva).")
-            ultimo_cenario = cen_norm
-
-            acao_raw = str(b.get("acao_cena") or props_in.get("acao_cena") or "").strip().lower()
-            if acao_raw not in ACOES_CENA_VALIDAS:
-                acao_norm = inferir_acao_cena(txt, cen_norm, hud_dado=hud_dado, gravidade_zero=grav_zero)
-            else:
-                acao_norm = acao_raw
-
-            mood = str(b.get("mood", "navy")).strip().lower()
-            if mood not in MOODS_VALIDOS:
-                mood = "red" if acao_norm in ("explosao_choque", "chuva_flechas", "onda_gigante") else "navy"
-
-            expr_raw = str(b.get("expressao", "")).strip().lower()
-            expr = _EXPR_ALIASES.get(expr_raw, expr_raw)
-            if expr not in EXPRESSOES_VALIDAS:
-                expr = inferir_expressao_animada(
-                    txt,
-                    perfil,
-                    acao_norm,
-                    eh_twist=(idx == total_in - 2),
-                    eh_cta=eh_cta_in,
-                )
-
-            cam = escolher_camera_alternada(
-                b.get("camera"),
-                acao_norm,
-                cen_norm,
-                len(blocos_validos),
-                anterior=ultima_camera,
-            )
-            ultima_camera = cam
+            mood_raw = str(b.get("mood", "navy")).strip().lower()
+            mood = mood_raw if mood_raw in MOODS_VALIDOS else ("red" if perfil in ("panico", "sussurro_twist") else "navy")
 
             sfx_dep = b.get("sfx_depois")
             sfx_limpo: str | None = None
@@ -2214,106 +2374,133 @@ def validar_e_corrigir_plano(
                 else:
                     avisos.append(f"Bloco {idx + 1}: sfx_depois '{sfx_dep}' ignorado.")
 
-            obj_str = sanitizar_texto(str(props_in.get("objeto", "janela")))[:32] or "janela"
-            pose_raw = sanitizar_texto(str(b.get("pose") or props_in.get("pose") or "")).lower()
-            pose_norm = _POSE_ALIASES.get(pose_raw, pose_raw)
-            if pose_norm not in POSES_VALIDAS or (pose_norm == "em_pe" and (grav_zero or acao_norm in ("corrida_fuga", "chuva_flechas", "onda_gigante"))):
-                pose_norm = inferir_pose_animada(
-                    txt,
-                    cen_norm,
-                    acao_norm,
-                    perfil,
-                    gravidade_zero=grav_zero,
-                    eh_cta=eh_cta_in,
-                )
-
-            flut_list: list[str] = []
-            raw_flut = props_in.get("objetos_flutuantes")
-            if isinstance(raw_flut, list):
-                for item in raw_flut:
-                    k_it = normalizar_texto(str(item)).replace(" ", "_")
-                    if "lapiseira" in k_it or "caneta" in k_it:
-                        cand_it = "lapiseira"
-                    elif "xicara" in k_it or "cafe" in k_it:
-                        cand_it = "xicara_cafe"
-                    elif "cadeira" in k_it:
-                        cand_it = "cadeiras"
-                    elif "silhueta" in k_it or "janela" in k_it:
-                        cand_it = "silhuetas_janela"
-                    else:
-                        cand_it = k_it
-                    if cand_it in PROPS_FLUTUANTES_VALIDOS and cand_it not in flut_list:
-                        flut_list.append(cand_it)
-            if grav_zero or any(k in normalizar_texto(obj_str) for k in ("lapiseira", "xicara", "cafe", "cadeira")):
-                for inf_it in inferir_props_flutuantes(txt, objeto_atual=obj_str, gravidade_zero=grav_zero):
-                    if inf_it not in flut_list:
-                        flut_list.append(inf_it)
-
-            silhuetas_jan = bool(props_in.get("silhuetas_janela")) or ("silhuetas_janela" in flut_list)
-            if silhuetas_jan and "silhuetas_janela" not in flut_list:
-                flut_list.append("silhuetas_janela")
-
-            if "vulto" in props_in:
-                tem_vulto = bool(props_in.get("vulto"))
-                if tem_vulto and grav_zero and not texto_indica_vulto(txt):
-                    tem_vulto = False
-            else:
-                tem_vulto = texto_indica_vulto(txt)
-
-            citacao = extrair_citacao_tela(txt, limite=84)
-            props = {
-                "objeto": obj_str,
-                "vulto": tem_vulto,
-                "gravidade_zero": grav_zero,
-                "objetos_flutuantes": flut_list,
-                "silhuetas_janela": silhuetas_jan,
-                "celular_mensagem": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("celular_mensagem", ""))))[:92] or citacao,
-                "pose": pose_norm,
-                "acao_cena": acao_norm,
-                "hud_dado": hud_dado,
-            }
-
-            blocos_validos.append(
-                {
-                    "perfil_voz": perfil,
-                    "texto": txt,
-                    "cenario": cen_norm,
-                    "modulo": cen_norm,
-                    "acao_cena": acao_norm,
-                    "pose": pose_norm,
-                    "mood": mood,
-                    "expressao": expr,
-                    "camera": cam,
-                    "hud_dado": hud_dado,
-                    "props": props,
-                    "sfx_depois": sfx_limpo,
-                }
+            # Subdivide automaticamente falas > 4s (> MAX_PALAVRAS_POR_TOMADA palavras) em 2 ou 3 tomadas curtas
+            sub_falas = (
+                [txt]
+                if eh_cta_in or len(txt.split()) <= MAX_PALAVRAS_POR_TOMADA + 1
+                else _dividir_fala_em_tomadas_curtas(txt, max_palavras=MAX_PALAVRAS_POR_TOMADA)
             )
+            prompt_bruto = sanitizar_texto(str(b.get("prompt_imagem", "")))
+            tomadas_prompts_raw = b.get("tomadas_prompts") if isinstance(b.get("tomadas_prompts"), list) else []
+
+            for sub_i, sub_txt in enumerate(sub_falas):
+                sub_txt_fmt = sub_txt.strip()
+                if not sub_txt_fmt:
+                    continue
+                if not sub_txt_fmt.endswith((".", "!", "?", ",", ";", ":")):
+                    sub_txt_fmt += "."
+                eh_ultima_sub = sub_i == len(sub_falas) - 1
+
+                cen_norm = inferir_cenario_animado(
+                    sub_txt_fmt,
+                    len(blocos_validos),
+                    max(total_in, len(blocos_validos) + 2),
+                    anterior=ultimo_cenario,
+                    contexto_global=roteiro_bruto,
+                    hud_dado=None,
+                    eh_cta=eh_cta_in,
+                    eh_twist=(idx == total_in - 2 and eh_ultima_sub),
+                )
+                ultimo_cenario = cen_norm
+
+                acao_norm = inferir_acao_cena(
+                    sub_txt_fmt,
+                    cen_norm,
+                    hud_dado=None,
+                    gravidade_zero=texto_indica_gravidade_zero(sub_txt_fmt),
+                )
+                cam = escolher_camera_alternada(
+                    b.get("camera") if sub_i == 0 else None,
+                    acao_norm,
+                    cen_norm,
+                    len(blocos_validos),
+                    anterior=ultima_camera,
+                    mood=mood,
+                )
+                ultima_camera = cam
+
+                # Resolve prompt_imagem literal e unico para cada tomada
+                p_cand = ""
+                if sub_i < len(tomadas_prompts_raw) and isinstance(tomadas_prompts_raw[sub_i], str):
+                    p_cand = sanitizar_texto(tomadas_prompts_raw[sub_i])
+                elif sub_i == 0 and len(prompt_bruto) >= 24:
+                    p_cand = prompt_bruto
+
+                if len(p_cand) >= 24:
+                    prompt_final = garantir_estilo_prompt_imagem(p_cand)
+                    if prompt_final.lower() in prompts_usados:
+                        prompt_final = gerar_prompt_imagem_literal(
+                            texto=sub_txt_fmt,
+                            titulo=titulo,
+                            idx=len(blocos_validos),
+                            total=max(total_in, len(blocos_validos) + 2),
+                            mood=mood,
+                            prompts_usados=prompts_usados,
+                        )
+                    else:
+                        prompts_usados.add(prompt_final.lower())
+                else:
+                    prompt_final = gerar_prompt_imagem_literal(
+                        texto=sub_txt_fmt,
+                        titulo=titulo,
+                        idx=len(blocos_validos),
+                        total=max(total_in, len(blocos_validos) + 2),
+                        mood=mood,
+                        prompts_usados=prompts_usados,
+                    )
+
+                blocos_validos.append(
+                    {
+                        "perfil_voz": perfil,
+                        "texto": sub_txt_fmt,
+                        "prompt_imagem": prompt_final,
+                        "cenario": cen_norm,
+                        "modulo": cen_norm,
+                        "acao_cena": acao_norm,
+                        "pose": inferir_pose_animada(sub_txt_fmt, cen_norm, acao_norm, perfil, eh_cta=eh_cta_in),
+                        "mood": mood,
+                        "expressao": inferir_expressao_animada(
+                            sub_txt_fmt,
+                            perfil,
+                            acao_norm,
+                            eh_twist=(idx == total_in - 2 and eh_ultima_sub),
+                            eh_cta=eh_cta_in,
+                        ),
+                        "camera": cam,
+                        "sfx_depois": sfx_limpo if eh_ultima_sub else None,
+                    }
+                )
 
     if len(blocos_validos) < 3:
         avisos.append("Blocos insuficientes no retorno do Gemini: blocos gerados pelo fallback deterministico.")
         blocos_validos = fallback["blocos"]
-        ultimo_cenario = blocos_validos[-1]["cenario"]
         ultima_camera = blocos_validos[-1]["camera"]
+        prompts_usados = {b["prompt_imagem"].lower() for b in blocos_validos}
 
     # Garante apenas 1 frase curta de gancho/CTA no finalzinho do video (nunca no meio)
     if not _eh_bloco_cta_final(blocos_validos[-1]["texto"]):
         cen_cta = "big_face" if blocos_validos[-1]["cenario"] != "big_face" else "arena_comparacao"
-        cam_cta = escolher_camera_alternada("push_in", "investigando_pista", cen_cta, len(blocos_validos), anterior=blocos_validos[-1]["camera"])
-        props_cta = {
-            **blocos_validos[-1]["props"],
-            "vulto": False,
-            "gravidade_zero": False,
-            "objetos_flutuantes": [],
-            "silhuetas_janela": False,
-            "pose": "apontando",
-            "acao_cena": "investigando_pista",
-            "hud_dado": None,
-        }
+        cam_cta = escolher_camera_alternada(
+            "pull_out",
+            "investigando_pista",
+            cen_cta,
+            len(blocos_validos),
+            anterior=blocos_validos[-1]["camera"],
+            mood="navy",
+        )
+        prompt_cta = gerar_prompt_imagem_literal(
+            texto=CTA_FINAL_PADRAO,
+            titulo=titulo,
+            idx=len(blocos_validos),
+            total=len(blocos_validos) + 1,
+            mood="navy",
+            prompts_usados=prompts_usados,
+        )
         blocos_validos.append(
             {
                 "perfil_voz": "narrador_tenso",
                 "texto": CTA_FINAL_PADRAO,
+                "prompt_imagem": prompt_cta,
                 "cenario": cen_cta,
                 "modulo": cen_cta,
                 "acao_cena": "investigando_pista",
@@ -2321,8 +2508,6 @@ def validar_e_corrigir_plano(
                 "mood": "navy",
                 "expressao": "smug",
                 "camera": cam_cta,
-                "hud_dado": None,
-                "props": props_cta,
                 "sfx_depois": None,
             }
         )
@@ -2342,7 +2527,7 @@ def validar_e_corrigir_plano(
         if not any(b.get("sfx_depois") == "impacto_twist" for b in blocos_validos):
             blocos_validos[-2]["sfx_depois"] = "impacto_twist"
 
-    # Valida e normaliza 3 a 5 katana_hits ligados a palavras reais dos blocos da historia (sem cobrir CTA final)
+    # Valida e normaliza 3 a 5 palavras de impacto (katana_hits) ligadas aos blocos reais da historia
     hits_in = plano_bruto.get("katana_hits")
     hits_validos: list[dict] = []
     blocos_com_hit: set[int] = set()
@@ -2405,11 +2590,10 @@ def validar_e_corrigir_plano(
             )
 
     if len(hits_validos) < 3:
-        avisos.append("Menos de 3 Katana hits validos: completando automaticamente com base no roteiro.")
+        avisos.append("Menos de 3 destaques de impacto validos: completando automaticamente com base no roteiro.")
         blocos_hist = blocos_validos[: max_hit_idx + 1]
         hits_validos = _escolher_katana_hits(blocos_hist, total_desejado=4 if len(blocos_hist) >= 6 else 3)
 
-    # Ordena hits cronologicamente e renumera hit_01..hit_NN
     hits_validos.sort(key=lambda x: x["bloco_idx"])
     for idx_h, h in enumerate(hits_validos, start=1):
         hid = f"hit_{idx_h:02d}"
@@ -2437,7 +2621,7 @@ def compor_roteiro_e_cenas(
     slug: str,
     catalogo_sfx: dict[str, float],
 ) -> tuple[str, dict, bool]:
-    """Gera o texto de roteiro_XX.txt, o dict de cenas.json (schema 6.0) e flag tem_parte_2."""
+    """Gera roteiro_XX.txt, cenas.json (schema 8.0 cinematografico IA 30fps) e flag tem_parte_2."""
     blocos = plano["blocos"]
     hits_por_bloco: dict[int, dict] = {int(h["bloco_idx"]): h for h in plano["katana_hits"]}
 
@@ -2465,18 +2649,17 @@ def compor_roteiro_e_cenas(
 
     linhas_rot: list[str] = [
         f'ROTEIRO {video_id:02d}: "{plano["titulo"].upper()}"',
-        f"Formato: YouTube Shorts / Reels 9:16 (1080x1920) | {'Serie em 2 Partes' if tem_parte_2 else 'Short Unico'} (Motor V6.0)",
-        "Gerado automaticamente por pipeline/diretor_ia.py | Player: player_universal.html + cenas.json",
-        f"Protagonista: {plano['protagonista']['nome']} (jaqueta {plano['protagonista']['jaqueta']})",
+        f"Formato: YouTube Shorts / Reels 9:16 (1080x1920 @ 30fps) | {'Serie em 2 Partes' if tem_parte_2 else 'Short Unico'} (Motor V8.0 Cinematografico IA)",
+        "Gerado automaticamente por pipeline/diretor_ia.py | Estacao 3: gerar_midia_cenas.py + render/renderizar.py",
         "Perfis vocais: narrador_tenso, panico, interfone_porteiro, voz_telefone, sussurro_twist.",
-        "Retencao continua: zero pausa comercial no meio; apenas 1 frase curta de gancho/CTA no finalzinho.",
+        "Retencao continua: 1 corte visual novo a cada 3s-4s; zero pausa comercial no meio; apenas 1 frase curta no final.",
         "",
         "Estrutura de cada bloco:",
-        "[Tempo em Segundos] | [Texto Exato da Narracao com Tags VOZ] | [Direcao visual e modulo] | [Eventos e pausas]",
+        "[Tempo em Segundos] | [Texto Exato da Narracao com Tags VOZ] | [Direcao visual cinematografica] | [Eventos e pausas]",
         "",
         "============================================================",
         "",
-        f"PARTE 1: {plano['titulo'].upper()} ({plano['horario']})",
+        f"BLOCO INICIAL: {plano['titulo'].upper()} ({plano['horario']})",
         "",
     ]
 
@@ -2486,6 +2669,7 @@ def compor_roteiro_e_cenas(
         "sozinho", "sozinha", "escuro", "escura", "vulto", "sombra", "silencio",
         "sangue", "medo", "panico", "olhos", "sorriu", "sorri", "atras", "dentro",
         "vazio", "vazia", "ninguem", "alguem", "camera", "espelho", "porta", "travou",
+        "neblina", "pedagio", "lama", "palida", "morto", "morta", "proibido", "proibida",
     }
 
     for i, b in enumerate(blocos):
@@ -2497,13 +2681,13 @@ def compor_roteiro_e_cenas(
                     f"[{t_c:02d} - {t_c:02d}] | [CORTE_PARTE_2] | Ponto de corte automatico FFmpeg entre Parte 1 e Parte 2. | corte_parte_2",
                     "============================================================",
                     "",
-                    "PARTE 2: A REVELACAO",
+                    "CONTINUACAO: A REVELACAO",
                     "",
                 ]
             )
 
         cena_id = f"cena_{i + 1:02d}"
-        dur_est = max(2.0, len(b["texto"].split()) / 2.45)
+        dur_est = max(2.2, len(b["texto"].split()) / PALAVRAS_POR_SEGUNDO_EST)
         t0 = int(round(t_cursor))
         t1 = max(t0 + 1, int(round(t_cursor + dur_est)))
         t_cursor += dur_est
@@ -2531,10 +2715,8 @@ def compor_roteiro_e_cenas(
 
         ev_str = ", ".join(eventos_bloco)
         perfil = b["perfil_voz"]
-        cen = b.get("cenario") or b["modulo"]
-        acao = b.get("acao_cena", "investigando_pista")
-        pose_b = b.get("pose") or b["props"].get("pose", "falando")
-        direcao = f"Cenario {cen} (acao={acao}, pose={pose_b}, mood={b['mood']}, expr={b['expressao']}, cam={b['camera']})"
+        prompt_img = garantir_estilo_prompt_imagem(str(b.get("prompt_imagem", "")))
+        direcao = f"Tomada {cena_id} (cam={b['camera']}, mood={b['mood']}): {prompt_img[:90]}"
         linhas_rot.append(
             f"[{t0:02d} - {t1:02d}] | [VOZ:{perfil}] {b['texto']} [/VOZ] | {direcao} | {ev_str}"
         )
@@ -2553,17 +2735,13 @@ def compor_roteiro_e_cenas(
             {
                 "id": cena_id,
                 "evento_inicio": cena_id,
-                "cenario": cen,
-                "modulo": cen,
-                "acao_cena": acao,
-                "pose": pose_b,
-                "mood": b["mood"],
-                "expressao": b["expressao"],
-                "camera": b["camera"],
-                "vig": 0.72 if b["mood"] in ("red", "dark") else 0.58,
-                "hud_dado": b.get("hud_dado"),
                 "fala": b["texto"],
-                "props": b["props"],
+                "prompt_imagem": prompt_img,
+                "camera": b["camera"],
+                "mood": b["mood"],
+                "vig": 0.72 if b["mood"] in ("red", "dark") else 0.58,
+                "duracao_estimada_s": round(dur_est, 2),
+                "tensao": b["mood"] == "red" or b["camera"] == "shake_impact" or i == idx_twist,
             }
         )
 
@@ -2571,10 +2749,9 @@ def compor_roteiro_e_cenas(
         [
             "",
             "============================================================",
-            "NOTAS TECNICAS V7.0 (MOTOR 2D ANIMADO 30FPS)",
-            f"- Palavras faladas da historia: {total_palavras} ({'com [CORTE_PARTE_2]' if tem_parte_2 else 'Short unico sem corte Parte 2'}).",
-            f"- Cenarios animados 30fps em cenas.json: {', '.join(c['cenario'] for c in cenas_json_lista)}.",
-            f"- Katana Hits ({len(plano['katana_hits'])}): {', '.join(' / '.join(h['linhas']) for h in plano['katana_hits'])}.",
+            "NOTAS TECNICAS V8.0 (MOTOR CINEMATOGRAFICO DE CORTES RAPIDOS IA 30FPS)",
+            f"- Palavras faladas: {total_palavras} | Total de cenas visuais: {len(cenas_json_lista)} (~{t_cursor / max(1, len(cenas_json_lista)):.1f}s por corte).",
+            f"- Palavras de destaque vermelho: {', '.join(' / '.join(h['linhas']) for h in plano['katana_hits'])}.",
             "",
         ]
     )
@@ -2603,10 +2780,11 @@ def compor_roteiro_e_cenas(
         "video_id": video_id,
         "slug": slug,
         "titulo": plano["titulo"],
-        "parte_label": "PARTE 1",
+        "parte_label": "",
         "horario": plano["horario"],
         "cta_modo": "final",
         "tem_parte_2": tem_parte_2,
+        "estilo_visual_prompt": ESTILO_VISUAL_PROMPT_IMAGEM,
         "paleta": plano["paleta"],
         "protagonista": plano["protagonista"],
         "cta": {
@@ -2622,22 +2800,20 @@ def compor_roteiro_e_cenas(
 
 
 def validar_cenas_json(cenas: dict) -> list[str]:
-    """Validador estrito do schema cenas.json V7.0 (Motor 2D Animado 30fps; lista vazia = valido)."""
+    """Validador estrito do schema cenas.json V8.0 (Motor Cinematografico IA 30fps; lista vazia = valido)."""
     erros: list[str] = []
     if not isinstance(cenas, dict):
         return ["cenas.json precisa ser um objeto JSON."]
     if cenas.get("schema_version") != SCHEMA_VERSION:
         erros.append(f"schema_version={cenas.get('schema_version')!r} (esperado {SCHEMA_VERSION!r}).")
+    if cenas.get("motor") != MOTOR_RENDER_PADRAO:
+        erros.append(f"motor={cenas.get('motor')!r} (esperado {MOTOR_RENDER_PADRAO!r}).")
     if not isinstance(cenas.get("video_id"), int) or cenas["video_id"] < 1:
         erros.append("video_id precisa ser inteiro >= 1.")
     if not str(cenas.get("titulo", "")).strip():
         erros.append("titulo ausente.")
     if not RE_HORARIO.fullmatch(str(cenas.get("horario", ""))):
         erros.append(f"horario invalido: {cenas.get('horario')!r}.")
-
-    prot = cenas.get("protagonista")
-    if not isinstance(prot, dict) or not RE_HEX.fullmatch(str(prot.get("jaqueta", ""))):
-        erros.append("protagonista.jaqueta precisa ser cor hexadecimal #RRGGBB.")
 
     pal = cenas.get("paleta")
     if not isinstance(pal, dict):
@@ -2651,32 +2827,25 @@ def validar_cenas_json(cenas: dict) -> list[str]:
     if not isinstance(lista_cenas, list) or len(lista_cenas) < 3:
         erros.append("cenas precisa ter pelo menos 3 itens.")
     else:
-        cen_anterior = ""
         cam_anterior = ""
+        prompts_vistos: set[str] = set()
         for idx, c in enumerate(lista_cenas):
             if not isinstance(c, dict):
                 erros.append(f"cenas[{idx}] invalido.")
                 continue
-            cen = c.get("cenario") or c.get("modulo")
-            if cen not in CENARIOS_ANIMADOS:
-                erros.append(f"cenas[{idx}].cenario invalido: {cen!r}.")
-            elif cen == cen_anterior:
-                erros.append(f"cenas[{idx}].cenario repete o cenario consecutivo anterior ({cen!r}).")
-            cen_anterior = str(cen or "")
-
-            acao = c.get("acao_cena")
-            if acao not in ACOES_CENA_VALIDAS:
-                erros.append(f"cenas[{idx}].acao_cena invalida: {acao!r}.")
-
-            pose_c = c.get("pose")
-            if pose_c not in POSES_VALIDAS:
-                erros.append(f"cenas[{idx}].pose invalida: {pose_c!r}.")
+            p_img = str(c.get("prompt_imagem", "")).strip()
+            if len(p_img) < 40:
+                erros.append(f"cenas[{idx}].prompt_imagem ausente ou curto demais.")
+            else:
+                p_low = p_img.lower()
+                if "no watermark" not in p_low or "9:16" not in p_low:
+                    erros.append(f"cenas[{idx}].prompt_imagem sem estilo cinematografico travado (9:16 / no watermark).")
+                if p_low in prompts_vistos:
+                    erros.append(f"cenas[{idx}].prompt_imagem duplicado de cena anterior.")
+                prompts_vistos.add(p_low)
 
             if c.get("mood") not in MOODS_VALIDOS:
                 erros.append(f"cenas[{idx}].mood invalido: {c.get('mood')!r}.")
-
-            if c.get("expressao") not in EXPRESSOES_VALIDAS:
-                erros.append(f"cenas[{idx}].expressao invalida: {c.get('expressao')!r}.")
 
             cam = c.get("camera")
             if cam not in CAMERAS_VALIDAS:
@@ -2684,29 +2853,6 @@ def validar_cenas_json(cenas: dict) -> list[str]:
             elif cam == cam_anterior:
                 erros.append(f"cenas[{idx}].camera repete a camera consecutiva anterior ({cam!r}).")
             cam_anterior = str(cam or "")
-
-            hud = c.get("hud_dado")
-            if hud is not None:
-                if not isinstance(hud, dict):
-                    erros.append(f"cenas[{idx}].hud_dado precisa ser objeto ou null.")
-                else:
-                    if not str(hud.get("rotulo", "")).strip() or not str(hud.get("valor", "")).strip():
-                        erros.append(f"cenas[{idx}].hud_dado precisa ter rotulo e valor nao vazios.")
-                    prog_h = hud.get("progresso")
-                    if not isinstance(prog_h, (int, float)) or not (0.0 <= float(prog_h) <= 1.0):
-                        erros.append(f"cenas[{idx}].hud_dado.progresso fora de 0.0..1.0: {prog_h!r}.")
-
-            props_c = c.get("props")
-            if not isinstance(props_c, dict):
-                erros.append(f"cenas[{idx}].props precisa ser objeto.")
-            else:
-                if "gravidade_zero" in props_c and not isinstance(props_c.get("gravidade_zero"), bool):
-                    erros.append(f"cenas[{idx}].props.gravidade_zero precisa ser booleano.")
-                flut_c = props_c.get("objetos_flutuantes")
-                if flut_c is not None and (
-                    not isinstance(flut_c, list) or not all(isinstance(x, str) for x in flut_c)
-                ):
-                    erros.append(f"cenas[{idx}].props.objetos_flutuantes precisa ser lista de strings.")
 
     hits = cenas.get("katana_hits")
     if not isinstance(hits, list) or not (3 <= len(hits) <= 5):
@@ -2731,7 +2877,6 @@ def _garantir_unicidade_registro(
         slug = f"{slug}-v{novo_reg['id']:02d}"
         novo_reg["slug"] = slug
 
-    # Evita falso positivo em palavras_chave genericas (ex.: "camera", "corredor")
     kws_anteriores = {
         normalizar_texto(k)
         for v in dados_hist.get("videos", [])
@@ -2759,7 +2904,7 @@ def _preparar_novo_registro_historico(
     caminho_historico: Path = ARQUIVO_HISTORICO,
     pilar: str | None = None,
 ) -> tuple[int, str, dict, dict]:
-    """Prepara e valida o proximo registro V6 em memoria antes de gravar qualquer arquivo."""
+    """Prepara e valida o proximo registro V8 em memoria antes de gravar qualquer arquivo."""
     dados = carregar_historico(caminho_historico)
     id_anterior = int(dados.get("video_atual") or 0)
     novo_id = proximo_numero_livre(dados)
@@ -2777,11 +2922,10 @@ def _preparar_novo_registro_historico(
         "palavras_chave": list(plano["palavras_chave"]),
         "roteiro": f"roteiro_{novo_id:02d}.txt",
         "cenas": "cenas.json",
-        "player": "player_universal.html",
         "saida": f"output/short_{novo_id:02d}.mp4",
         "status": "em_producao",
-        "motor": "v6",
-        "parte_label": "PARTE 1",
+        "motor": MOTOR_RENDER_PADRAO,
+        "parte_label": "",
         "cta_modo": "final",
     }
     if pilar and pilar in PILARES_POR_ID:

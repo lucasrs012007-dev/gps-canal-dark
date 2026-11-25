@@ -117,8 +117,9 @@ CONFIG_PADRAO: dict[str, Any] = {
     "idioma": "pt-BR",
     "pilares_editoriais": [dict(p) for p in PILARES_PADRAO],
     "estilo_visual_prompt": (
-        "stylized 2.5D dark cinematic digital illustration, moody dramatic lighting, "
-        "vertical 9:16 composition, no text, no watermark"
+        "hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, "
+        "Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, "
+        "no text, no letters, no watermark"
     ),
     "velocidade_voz": 1.02,
     "cta_final": "E você, o que faria nessa situação, me conta aqui nos comentários?",

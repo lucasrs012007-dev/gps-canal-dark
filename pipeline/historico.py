@@ -390,13 +390,13 @@ def validar_artefatos_audio(
                         )
         else:
             motor_esp = esperado.get("motor", "")
-            if motor_esp == "v6":
+            if motor_esp.startswith(("v6", "v7", "v8", "canvas", "cinematografico")):
                 dur_ref = float(ev_dados.get("duracao_total") or ts_dados.get("duracao_total") or 0.0)
                 for nome_arq, dados in (("timestamps.json", ts_dados), ("eventos.json", ev_dados)):
                     modo_arq = str(dados.get("cta_modo", "")).strip().lower()
                     if modo_arq != "final":
                         erros.append(
-                            f"{nome_arq}: cta_modo={modo_arq!r} difere do esperado 'final' (V6)"
+                            f"{nome_arq}: cta_modo={modo_arq!r} difere do esperado 'final' ({motor_esp})"
                         )
                     if dados.get("cta_meio_inicio") is not None or dados.get("cta_meio_fim") is not None:
                         erros.append(
@@ -418,7 +418,7 @@ def validar_artefatos_audio(
                                     )
                 palavras = ts_dados.get("palavras") or []
                 if len(palavras) < 5:
-                    erros.append("timestamps.json: narracao V6 sem palavras finais validas.")
+                    erros.append(f"timestamps.json: narracao ({motor_esp}) sem palavras finais validas.")
             else:
                 palavras = ts_dados.get("palavras") or []
                 ultimas_palavras = " ".join(str(p.get("palavra", "")) for p in palavras[-14:])
@@ -493,7 +493,7 @@ def main() -> None:
                 f"CTA 'COMENTE EU QUERO' confirmada [modo=meio, "
                 f"{float(ev['cta_meio_inicio']):.2f}s..{float(ev['cta_meio_fim']):.2f}s]"
             )
-        elif c.get("motor") == "v6":
+        elif str(c.get("motor", "")).startswith(("v6", "v7", "v8", "canvas", "cinematografico")):
             corte_info = (
                 f", corte_parte_2={float(ev['corte_parte_2']):.2f}s"
                 if ev.get("corte_parte_2") is not None

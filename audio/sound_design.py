@@ -339,7 +339,7 @@ def _normalizar_pico_estereo(esq, dir_, alvo: float = 0.88):
 
 def _eh_video_07(ev: dict) -> bool:
     motor = str(ev.get("motor", "")).strip().lower()
-    if motor.startswith("v6"):
+    if motor.startswith(("v6", "v7", "v8", "canvas", "cinematografico")):
         return False
     return (
         ("trava_porta_carro" in ev)
@@ -351,7 +351,7 @@ def _eh_video_07(ev: dict) -> bool:
 
 def _eh_video_v6(ev: dict) -> bool:
     motor = str(ev.get("motor", "")).strip().lower()
-    if motor.startswith("v6"):
+    if motor.startswith(("v6", "v7", "v8", "canvas", "cinematografico")):
         return True
     if _eh_video_07(ev):
         return False
