@@ -1,7 +1,7 @@
 {
-  "versao": 17,
+  "versao": 18,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 17,
+  "video_atual": 18,
   "videos": [
     {
       "id": 1,
@@ -414,11 +414,36 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_17.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "canvas_2d_30fps",
       "parte_label": "",
       "cta_modo": "final",
       "pilar": "cenarios_hipoteticos"
+    },
+    {
+      "id": 18,
+      "slug": "por-que-o-espaco-cheira-a-metal-queimado",
+      "titulo": "Por que o Espaço Cheira a Metal Queimado",
+      "tema": "O odor bizarro de metal queimado e pólvora que os astronautas trazem do espaço sideral",
+      "palavras_chave": [
+        "espaco",
+        "astronauta",
+        "metal",
+        "ciencia"
+      ],
+      "roteiro": "roteiro_18.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_18.mp4",
+      "status": "em_producao",
+      "motor": "canvas_2d_30fps",
+      "parte_label": "",
+      "cta_modo": "final",
+      "pilar": "curiosidades_bizarras",
+      "saidas_partes": [
+        "output/short_18_parte1.mp4",
+        "output/short_18_parte2.mp4"
+      ]
     }
   ]
 }
