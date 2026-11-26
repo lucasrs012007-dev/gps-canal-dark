@@ -307,33 +307,30 @@ jobs:
           rm -f output/youtube_url.txt
           python3 upload_youtube.py
 
-      - name: Verificar credenciais da Estacao 5B (Instagram Reels)
-        id: check_ig
-        if: ${{ success() }}
-        env:
-          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-        run: |
-          if [ -n "${IG_ACCESS_TOKEN}" ]; then
-            echo "habilitado=true" >> "${GITHUB_OUTPUT}"
-            echo "Estacao 5B (Instagram Reels): IG_ACCESS_TOKEN detectado; upload condicional habilitado."
-          else
-            echo "habilitado=false" >> "${GITHUB_OUTPUT}"
-            echo "AVISO Estacao 5B (Instagram Reels): IG_ACCESS_TOKEN vazio; pulando release temporaria e upload sem interromper a pipeline."
-          fi
-
       - name: Publicar no Instagram Reels (Estacao 5B)
-        if: ${{ success() && steps.check_ig.outputs.habilitado == 'true' }}
+        if: ${{ success() }}
         continue-on-error: true
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           PUBLIC_VIDEO_URL: ${{ secrets.PUBLIC_VIDEO_URL }}
+          IG_GRAPH_BASE_URL: ${{ vars.IG_GRAPH_BASE_URL }}
+          IG_API_VERSION: ${{ vars.IG_API_VERSION }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rm -f output/instagram_url.txt
           if [ -z "${IG_ACCESS_TOKEN}" ] || [ -z "${IG_USER_ID}" ]; then
             python3 upload_instagram.py
             exit 0
+          fi
+
+          if [ -z "${IG_GRAPH_BASE_URL}" ]; then
+            case "${IG_ACCESS_TOKEN}" in
+              IG*)
+                export IG_GRAPH_BASE_URL="https://graph.instagram.com"
+                echo "Estacao 5B: token Instagram Login (IG*) detectado; usando https://graph.instagram.com."
+                ;;
+            esac
           fi
 
           if [ -z "${PUBLIC_VIDEO_URL}" ]; then

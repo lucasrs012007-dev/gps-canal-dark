@@ -114,6 +114,7 @@ client/public/__manus__/version.json
 
 # Rendered videos
 output/
+preview_teste_2d.mp4
 
 # Segredos locais (nunca versionar chaves de API)
 .env.*

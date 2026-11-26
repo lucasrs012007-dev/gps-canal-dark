@@ -121,7 +121,7 @@ const PAL = {
 
 const DEVICE_SCENES = new Set(['celular_notificacao', 'camera_cctv']);
 const URL_PARTE = new URLSearchParams(location.search).get('parte');
-let parteLabel = (URL_PARTE !== null ? URL_PARTE : (typeof window.parteLabel === 'string' ? window.parteLabel : 'PARTE 1')).trim();
+let parteLabel = (URL_PARTE !== null ? URL_PARTE : (typeof window.parteLabel === 'string' ? window.parteLabel : '')).trim();
 
 /* Configuracao padrao de Modo Previa caso cenas.json ainda nao exista */
 const CENAS_PREVIEW = {
@@ -130,7 +130,7 @@ const CENAS_PREVIEW = {
   video_id: 0,
   slug: 'previa-motor-2d-30fps',
   titulo: 'Previa Motor 2D Animado 30fps',
-  parte_label: 'PARTE 1',
+  parte_label: '',
   horario: '15:00',
   cta_modo: 'final',
   tem_parte_2: false,
@@ -641,17 +641,12 @@ function buildKatanaHitsFromConfig(cfg, ev, dur){
 }
 
 function katanaStateAt(t){
-  if (isFullScreenCtaActive(t)) return null;
-  for (let i = 0; i < KATANA_HITS.length; i++) {
-    const h = KATANA_HITS[i];
-    if (t >= h.start && t < h.end) return { hit: h, dt: t - h.start, p: clamp((t - h.start) / h.dur) };
-  }
+  /* Splash em tela cheia desativado para nunca interromper falas com palavras soltas (ex.: VOCE, DIAS) */
   return null;
 }
 
 function drawKatanaOverlay(t){
-  const st = katanaStateAt(t);
-  if (!st) return false;
+  return false;
   const { hit, dt } = st;
   const frame = Math.floor(dt * 30);
 
@@ -2911,7 +2906,7 @@ function drawBigFace(t, shot, f, localP=0){
     const rad = lerp(220, 720, easeOut(phase));
     g.strokeStyle = rgba(accent, (1 - phase) * 0.42);
     g.lineWidth = lerp(8, 2, phase);
-    g.beginPath(); g.arc(540, 885, rad, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.arc(540, 840, rad, 0, Math.PI * 2); g.stroke();
   }
   drawSpeedLines(t, isRed ? 0.85 : 0.45, accent);
   g.restore();
@@ -2923,7 +2918,7 @@ function drawBigFace(t, shot, f, localP=0){
   const faceEx = (shot.expressao && shot.expressao !== 'neutral') ? shot.expressao : 'shock';
 
   g.save();
-  g.translate(540 + jitX, 915 + jitY);
+  g.translate(540 + jitX, 855 + jitY);
   g.fillStyle = PAL.top;
   rr(-310, 265, 620, 880, 175); g.fill();
   g.save();
@@ -2947,6 +2942,16 @@ function drawBigFace(t, shot, f, localP=0){
   });
   glow(0, 340, 380, PAL.cyan, 0.22);
   glow(320, -20, 420, accent, 0.36);
+  g.restore();
+
+  /* Faixa escura suave na base para contraste maximo das legendas sem cobrir o rosto */
+  g.save();
+  const scrim = g.createLinearGradient(0, 1280, 0, 1920);
+  scrim.addColorStop(0, 'rgba(6, 9, 18, 0)');
+  scrim.addColorStop(0.45, 'rgba(6, 9, 18, 0.72)');
+  scrim.addColorStop(1, 'rgba(6, 9, 18, 0.94)');
+  g.fillStyle = scrim;
+  g.fillRect(0, 1280, W, 640);
   g.restore();
 }
 
@@ -4186,19 +4191,28 @@ function drawClock(t, shot){
 function formatAnimatedHudValue(rawVal, k){
   const str = String(rawVal || '').trim();
   if (!str) return '';
-  const m = str.match(/^(.*?)(\d+(?:[.,]\d+)?)(.*)$/);
+  const m = str.match(/^(.*?)(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)(.*)$/);
   if (!m) return toPtUpper(str);
   const pre = m[1], numStr = m[2], suf = m[3];
+  const isPtThousands = /^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(numStr);
   const hasComma = numStr.includes(',');
   const hasDot = numStr.includes('.');
-  const target = parseFloat(numStr.replace(',', '.'));
+  const cleanNum = isPtThousands ? numStr.replace(/\./g, '').replace(',', '.') : numStr.replace(',', '.');
+  const target = parseFloat(cleanNum);
   if (!isFinite(target)) return toPtUpper(str);
-  const decimals = (hasComma || hasDot) ? (numStr.split(/[.,]/)[1] || '').length : 0;
+  const decimals = isPtThousands
+    ? (hasComma ? (numStr.split(',')[1] || '').length : 0)
+    : ((hasComma || hasDot) ? (numStr.split(/[.,]/)[1] || '').length : 0);
   /* Para anos (1900..2099), inicia proximo para contagem rapida e nitida */
-  const startVal = (decimals === 0 && target >= 1900 && target <= 2099) ? Math.max(1900, target - 24) : 0;
+  const startVal = (!isPtThousands && decimals === 0 && target >= 1900 && target <= 2099) ? Math.max(1900, target - 24) : 0;
   const curVal = lerp(startVal, target, easeOut(clamp(k)));
-  let formatted = decimals > 0 ? curVal.toFixed(decimals) : String(Math.round(curVal));
-  if (hasComma) formatted = formatted.replace('.', ',');
+  let formatted;
+  if (isPtThousands && decimals === 0) {
+    formatted = Math.round(curVal).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  } else {
+    formatted = decimals > 0 ? curVal.toFixed(decimals) : String(Math.round(curVal));
+    if (hasComma) formatted = formatted.replace('.', ',');
+  }
   return toPtUpper(`${pre}${formatted}${suf}`);
 }
 
@@ -4213,43 +4227,43 @@ function drawHudDado(t, shot){
   if (!rawValor) return;
 
   const sceneAge = Math.max(0, t - (shot.sceneStart ?? shot.start));
-  const enterK = easeOut(clamp(sceneAge / 0.24));
-  const countK = clamp(sceneAge / 0.85);
+  const enterK = easeOut(clamp(sceneAge / 0.20));
+  const countK = clamp(sceneAge / 0.42);
   const targetProg = clamp(Number(hud.progresso ?? 0.75), 0.08, 1.0);
   const barProg = clamp(targetProg * easeOut(countK), 0.04, 1.0);
   const isRed = (shot.mood === 'red' || shot.acao_cena === 'radar_alerta' || shot.acao_cena === 'explosao_choque');
   const accent = isRed ? PAL.alert : (shot.mood === 'yellow' ? PAL.yellow : PAL.cyan);
   const dispValor = formatAnimatedHudValue(rawValor, countK);
 
-  const bw = 500, bh = 118;
-  const bx = 540 - bw / 2, by = 148 - (1 - enterK) * 18;
+  const bw = 540, bh = 148;
+  const bx = 540 - bw / 2, by = 128 - (1 - enterK) * 18;
 
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalAlpha = clamp(enterK * 1.15);
 
   /* Cartao com borda completa em hairline (nunca borda lateral unica) */
-  g.fillStyle = 'rgba(8, 13, 26, 0.88)';
-  rr(bx, by, bw, bh, 18); g.fill();
-  g.strokeStyle = rgba(accent, 0.62);
+  g.fillStyle = 'rgba(8, 13, 26, 0.90)';
+  rr(bx, by, bw, bh, 20); g.fill();
+  g.strokeStyle = rgba(accent, 0.65);
   g.lineWidth = 2.5;
-  rr(bx, by, bw, bh, 18); g.stroke();
+  rr(bx, by, bw, bh, 20); g.stroke();
 
-  /* Indicador luminoso pulsante + rotulo */
+  /* Linha 1: indicador pulsante + rotulo limpo no topo (largura total, zero colisao com o valor) */
   const dotPulse = 0.55 + 0.45 * Math.sin(t * 7.5);
   glow(bx + 30, by + 30, 22, accent, 0.35 * dotPulse);
   g.fillStyle = accent;
   circ(bx + 30, by + 30, 6);
 
-  g.fillStyle = 'rgba(203, 213, 225, 0.90)';
-  drawFittedText(rotulo, bx + 48, by + 31, bw - 250, 22, SANS, '800', 'left');
+  g.fillStyle = 'rgba(203, 213, 225, 0.92)';
+  drawFittedText(rotulo, bx + 48, by + 31, bw - 72, 22, SANS, '800', 'left');
 
-  /* Valor numerico animado (count-up) alinhado a direita */
+  /* Linha 2: valor numerico grande abaixo do rotulo com folga vertical garantida */
   g.fillStyle = isRed ? '#FCA5A5' : '#FFFFFF';
-  drawFittedText(dispValor, bx + bw - 24, by + 46, 225, 48, MONO, '900', 'right');
+  drawFittedText(dispValor, bx + bw / 2, by + 79, bw - 48, 46, MONO, '900', 'center');
 
-  /* Barra de progresso / gauge animada */
-  const gx = bx + 24, gy = by + 84, gw = bw - 48, gh = 14;
+  /* Linha 3: barra de progresso / gauge animada na base do cartao */
+  const gx = bx + 24, gy = by + 116, gw = bw - 48, gh = 13;
   g.fillStyle = 'rgba(148, 163, 184, 0.18)';
   rr(gx, gy, gw, gh, 7); g.fill();
   const fillW = Math.max(18, gw * barProg);
@@ -4404,18 +4418,18 @@ function layoutCaptionGroup(grp){
 
   const POP_MAX = 1.09;
   const MAX_LINE_W = 876;
-  let fs = 78;
-  let lw = 16, gap = 36, wds = [], boxes = [], tw = 0;
+  let fs = 84;
+  let lw = 18, gap = 36, wds = [], boxes = [], tw = 0;
 
   for (let iter = 0; iter < 16; iter++) {
     g.font = `900 ${fs}px ${COND}`;
-    lw = Math.max(10, Math.round(fs * 0.20));
+    lw = Math.max(12, Math.round(fs * 0.22));
     gap = Math.max(26, Math.round(fs * 0.36) + Math.round(lw * 0.50));
     wds = words.map(w => g.measureText(w.txt).width);
     boxes = wds.map(w => w * POP_MAX + lw);
     tw = boxes.reduce((a, b) => a + b, 0) + gap * (words.length - 1);
-    if (tw <= MAX_LINE_W || fs <= 30) break;
-    const nextFs = Math.max(30, Math.floor(fs * (MAX_LINE_W / tw)) - (iter > 2 ? 1 : 0));
+    if (tw <= MAX_LINE_W || fs <= 32) break;
+    const nextFs = Math.max(32, Math.floor(fs * (MAX_LINE_W / tw)) - (iter > 2 ? 1 : 0));
     if (nextFs >= fs) fs -= 2; else fs = nextFs;
   }
 
@@ -4477,8 +4491,7 @@ function drawCaptions(t){
 
   lay.items.forEach((w, i) => {
     const isAct = i === active;
-    const isRed = RED_WORDS.has(w.key);
-    const fill = isAct ? (isRed ? PAL.alert : PAL.yellow) : '#FFFFFF';
+    const fill = isAct ? PAL.yellow : '#FFFFFF';
     const wPop = isAct ? lerp(1.09, 1.04, easeOut(clamp((t - w.inicio) / 0.09))) : 1.0;
 
     g.save();
@@ -4547,10 +4560,7 @@ function rebuildTimeline(cenasData, evData, audioDur){
   };
   EV = evData ? { ...baseEv, ...evData, duracao_total: dur } : baseEv;
 
-  if (URL_PARTE === null && typeof window.parteLabel !== 'string') {
-    const lbl = (evData && evData.parte_label) || CENAS.parte_label || 'PARTE 1';
-    if (typeof lbl === 'string' && lbl.trim()) parteLabel = lbl.trim();
-  }
+  /* Selo de parte fica vazio por padrao em video continuo; so exibe se passado explicitamente via ?parte= ou setParteLabel */
 
   document.title = `${CENAS.titulo || 'Short V7'}: Estudio 2D Animado 30fps`;
   const h1 = document.getElementById('pageTitle');
@@ -4607,8 +4617,6 @@ function renderAt(t){
     finish(shot.vig || 0.60);
     if (shot.hud_dado) {
       drawHudDado(t, shot);
-    } else {
-      drawClock(t, shot);
     }
 
     const cutAge = t - shot.start;
@@ -4732,7 +4740,48 @@ async function load(){
   rebuildTimeline(cenasData, evData, audio ? audio.duration : null);
 
   if (tsData && Array.isArray(tsData.grupos) && tsData.grupos.length) {
-    captionGroups = tsData.grupos;
+    const normGrps = tsData.grupos.map(gr => ({
+      ...gr,
+      palavras: Array.isArray(gr.palavras) ? gr.palavras.map(p => ({ ...p })) : []
+    })).filter(gr => gr.palavras.length > 0);
+    if (normGrps.length) {
+      /* Garante primeira legenda ancorada em 0.0s e evita flash de 1 palavra (<0.45s) na abertura */
+      normGrps[0].inicio = 0;
+      if (normGrps[0].palavras[0]) normGrps[0].palavras[0].inicio = 0;
+      if (
+        normGrps.length >= 2 &&
+        normGrps[0].palavras.length === 1 &&
+        (Number(normGrps[0].fim) - Number(normGrps[0].inicio)) < 0.45
+      ) {
+        const combPals = [...normGrps[0].palavras, ...normGrps[1].palavras];
+        const combTxt = combPals.map(p => String(p.palavra || '')).join(' ');
+        if (combPals.length <= 4 && combTxt.length <= 26) {
+          normGrps[0] = {
+            ...normGrps[0],
+            inicio: 0,
+            fim: normGrps[1].fim,
+            palavras: combPals
+          };
+          normGrps.splice(1, 1);
+        }
+      }
+      for (let i = 0; i < normGrps.length - 1; i++) {
+        const curP = normGrps[i].palavras;
+        const nxtP = normGrps[i + 1].palavras;
+        if (curP.length >= 2 && nxtP.length >= 1) {
+          const lastTok = String(curP[curP.length - 1].palavra || '').trim().toUpperCase();
+          if ((lastTok === 'R$' || lastTok === 'US$') && nxtP.length < 4) {
+            const moved = curP.pop();
+            nxtP.unshift(moved);
+            normGrps[i].fim = curP[curP.length - 1].fim ?? normGrps[i].fim;
+            normGrps[i + 1].inicio = moved.inicio ?? normGrps[i + 1].inicio;
+          }
+        }
+      }
+      captionGroups = normGrps;
+    } else {
+      buildPreviewCaptions();
+    }
   } else {
     buildPreviewCaptions();
   }

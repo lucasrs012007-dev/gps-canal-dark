@@ -68,8 +68,8 @@ ARQUIVO_ENV = RAIZ / ".env"
 ARQUIVO_CATALOGO_SFX = RAIZ / "assets" / "sfx" / "catalogo.json"
 ARQUIVO_CENAS_PADRAO = RAIZ / "cenas.json"
 LIMITE_PALAVRAS_PARTE_2 = 130
-MAX_PALAVRAS_POR_TOMADA = 13
-PALAVRAS_POR_SEGUNDO_EST = 2.95
+MAX_PALAVRAS_POR_TOMADA = 9
+PALAVRAS_POR_SEGUNDO_EST = 3.15
 
 CONFIG_CANAL: dict = {}
 CANAL_NOME: str = "E Se Você?"
@@ -712,37 +712,139 @@ def _normalizar_hud_raw(hud_raw: object) -> dict | None:
     return {"rotulo": rotulo, "valor": valor, "progresso": prog}
 
 
+_ABERTURAS_LENTAS_PROIBIDAS: tuple[str, ...] = (
+    "oi pessoal",
+    "ola pessoal",
+    "fala galera",
+    "e ai galera",
+    "e ai pessoal",
+    "bem vindo",
+    "bem vindos",
+    "hoje vamos",
+    "hoje eu vou",
+    "hoje voce vai",
+    "nesse video",
+    "neste video",
+    "no video de hoje",
+    "voce sabia",
+    "voce ja parou",
+    "voce ja pensou",
+    "era uma vez",
+    "existe um lugar",
+    "existe uma porta",
+    "imagine um mundo",
+    "quase ninguem percebe",
+)
+
+
+def _eh_abertura_lenta(texto: str) -> bool:
+    """Retorna True se a abertura do roteiro usar saudacao, setup generico ou gancho lento proibido."""
+    inicio = normalizar_texto(texto)[:90]
+    if not inicio:
+        return True
+    return any(inicio.startswith(pref) or f" {pref}" in inicio[:55] for pref in _ABERTURAS_LENTAS_PROIBIDAS)
+
+
+def _alternar_estado_visual_consecutivo(
+    pose_atual: str,
+    expr_atual: str,
+    pose_ant: str,
+    expr_ant: str,
+    idx: int,
+) -> tuple[str, str]:
+    """Garante variacao visual de pose ou expressao entre blocos consecutivos (1.5s a 2.5s)."""
+    if not pose_ant and not expr_ant:
+        return pose_atual, expr_atual
+    if pose_atual != pose_ant or expr_atual != expr_ant:
+        return pose_atual, expr_atual
+    ciclo_poses = ("apontando", "assustado", "falando", "pensando", "correndo", "em_pe")
+    ciclo_exprs = ("shock", "focus", "fear", "worry", "smug")
+    nova_pose = next((p for p in ciclo_poses[idx % len(ciclo_poses):] + ciclo_poses[:idx % len(ciclo_poses)] if p != pose_ant), pose_atual)
+    nova_expr = next((e for e in ciclo_exprs[idx % len(ciclo_exprs):] + ciclo_exprs[:idx % len(ciclo_exprs)] if e != expr_ant), expr_atual)
+    return nova_pose, nova_expr
+
+
+def _parse_num_ptbr(raw: str) -> float:
+    s = str(raw or "").strip()
+    if re.fullmatch(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?", s):
+        s = s.replace(".", "").replace(",", ".")
+    else:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return 1.0
+
+
 def extrair_hud_dado(texto: str, hud_raw: object = None) -> dict | None:
-    """Extrai medidor/contador animado (rotulo, valor, progresso) sempre que a fala citar dados numericos."""
+    """Extrai medidor/contador animado (rotulo, valor, progresso) para numeros, dias, niveis, dinheiro e medidas."""
     valido = _normalizar_hud_raw(hud_raw)
     if valido is not None:
         return valido
 
     limpo = sanitizar_texto(texto)
     norm = normalizar_texto(limpo)
+    num_pat = r"(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)"
+
+    # 0A. Dinheiro / valores monetarios (ex.: R$ 100, R$ 50 mil, R$ 10 milhoes, 500 reais, US$ 1 milhao)
+    m_din = re.search(
+        rf"(?:(R\$|US\$|\$)\s*({num_pat})(?:\s*(milh[oõ]es|milh[aã]o|bilh[oõ]es|bilh[aã]o|mil))?"
+        rf"|({num_pat})(?:\s*(milh[oõ]es|milh[aã]o|bilh[oõ]es|bilh[aã]o|mil))?\s*(?:de\s+)?(reais|real|d[oó]lares|d[oó]lar|euros?))",
+        limpo,
+        flags=re.IGNORECASE,
+    )
+    if m_din:
+        if m_din.group(1):
+            moeda = m_din.group(1).upper()
+            n_str = m_din.group(2)
+            escala = (m_din.group(3) or "").upper()
+            val = f"{moeda} {n_str}" + (f" {escala}" if escala else "")
+        else:
+            n_str = m_din.group(4)
+            escala = (m_din.group(5) or "").upper()
+            unid_m = m_din.group(6).lower()
+            pref = "US$" if "dol" in unid_m or "dól" in unid_m else ("EUR" if "eur" in unid_m else "R$")
+            val = f"{pref} {n_str}" + (f" {escala}" if escala else "")
+        rot = "PRÊMIO" if any(k in norm for k in ("premio", "ganhar", "pagar", "receber", "aceitaria")) else "VALOR"
+        return {"rotulo": rot, "valor": val[:22], "progresso": 0.88}
+
+    # 0B. Niveis / estagios / categorias (ex.: nivel 5, estagio 3, alerta 4, categoria 5)
+    m_niv = re.search(
+        r"\b(n[ií]vel|est[aá]gio|categoria|alerta|fase|grau)\s+(?:de\s+alerta\s+)?(\d{1,2})\b",
+        limpo,
+        flags=re.IGNORECASE,
+    )
+    if m_niv:
+        rot_raw = m_niv.group(1).upper()
+        n_val = int(m_niv.group(2))
+        prog = round(max(0.18, min(1.0, n_val / (5.0 if n_val <= 5 else 10.0))), 2)
+        rot = "NÍVEL DE ALERTA" if "nivel" in normalizar_texto(rot_raw) or "alerta" in normalizar_texto(rot_raw) else rot_raw
+        return {"rotulo": rot, "valor": f"{rot_raw} {n_val}", "progresso": prog}
+
+    # 0C. Marcador explicito de dia (ex.: Dia 1, Dia 14, Dia 30)
+    m_dia_mar = re.search(r"\bdia\s+(\d{1,3})\b", limpo, flags=re.IGNORECASE)
+    if m_dia_mar:
+        n_dia = int(m_dia_mar.group(1))
+        prog = round(max(0.12, min(1.0, n_dia / (30.0 if n_dia <= 30 else 100.0))), 2)
+        return {"rotulo": "CRONÔMETRO", "valor": f"DIA {n_dia}", "progresso": prog}
 
     # 1. Porcentagens (ex.: 90%, 99,5%, 50 por cento)
-    m_pct = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:%|por\s+cento\b)", limpo, flags=re.IGNORECASE)
+    m_pct = re.search(rf"({num_pat})\s*(?:%|por\s+cento\b)", limpo, flags=re.IGNORECASE)
     if m_pct:
-        num_s = m_pct.group(1).replace(",", ".")
-        try:
-            num_f = float(num_s)
-        except ValueError:
-            num_f = 50.0
+        num_f = _parse_num_ptbr(m_pct.group(1))
         val_txt = m_pct.group(1).replace(".", ",") + "%"
         return {"rotulo": "TAXA / ÍNDICE", "valor": val_txt, "progresso": round(max(0.08, min(1.0, num_f / 100.0)), 2)}
 
     # 2. Velocidades (ex.: 120 km/h)
-    m_vel = re.search(r"(\d+(?:[.,]\d+)?)\s*(km/h|m/s|quil[oô]metros\s+por\s+hora)", limpo, flags=re.IGNORECASE)
+    m_vel = re.search(rf"({num_pat})\s*(km/h|m/s|quil[oô]metros\s+por\s+hora)", limpo, flags=re.IGNORECASE)
     if m_vel:
-        num_s = m_vel.group(1).replace(",", ".")
-        num_f = float(num_s) if num_s.replace(".", "", 1).isdigit() else 100.0
+        num_f = _parse_num_ptbr(m_vel.group(1))
         unid = "M/S" if "m/s" in m_vel.group(2).lower() else "KM/H"
         return {"rotulo": "VELOCIDADE", "valor": f"{m_vel.group(1)} {unid}", "progresso": round(max(0.15, min(1.0, num_f / 300.0)), 2)}
 
-    # 3. Distancias (ex.: 5 km, 300 metros, 2600 quilometros)
+    # 3. Distancias (ex.: 5 km, 300 metros, 2.600 km, 5.000 quilometros)
     m_dist = re.search(
-        r"(\d+(?:[.,]\d+)?)\s*(km|quil[oô]metros?|metros?|m\b|milhas?)",
+        rf"({num_pat})\s*(km|quil[oô]metros?|metros?|m\b|milhas?)",
         limpo,
         flags=re.IGNORECASE,
     )
@@ -753,10 +855,7 @@ def extrair_hud_dado(texto: str, hud_raw: object = None) -> dict | None:
         rot = "ZONA PROIBIDA" if any(k in norm for k in ("proibid", "ilha", "exclusao", "limite", "perimetro")) else (
             "PROFUNDIDADE" if any(k in norm for k in ("profund", "submarino", "fundo", "oceano", "abismo")) else "DISTÂNCIA"
         )
-        try:
-            num_f = float(num_str.replace(",", "."))
-        except ValueError:
-            num_f = 5.0
+        num_f = _parse_num_ptbr(num_str)
         prog = min(1.0, max(0.25, num_f / (10.0 if num_f <= 10 else (500.0 if num_f <= 500 else 5000.0))))
         return {"rotulo": rot, "valor": f"{num_str} {unid}", "progresso": round(prog, 2)}
 
@@ -771,7 +870,7 @@ def extrair_hud_dado(texto: str, hud_raw: object = None) -> dict | None:
         return {"rotulo": rot, "valor": str(ano), "progresso": prog}
 
     # 5. Temperaturas (ex.: -18 graus, 6 graus)
-    m_temp = re.search(r"(-?\d+(?:[.,]\d+)?)\s*(?:°c|graus?(?:\s+negativos?)?)", limpo, flags=re.IGNORECASE)
+    m_temp = re.search(rf"(-?{num_pat})\s*(?:°c|graus?(?:\s+negativos?)?)", limpo, flags=re.IGNORECASE)
     if m_temp:
         neg = "negativo" in m_temp.group(0).lower() and not m_temp.group(1).startswith("-")
         val_t = f"-{m_temp.group(1)} °C" if neg else f"{m_temp.group(1)} °C"
@@ -779,31 +878,32 @@ def extrair_hud_dado(texto: str, hud_raw: object = None) -> dict | None:
 
     # 6. Duracoes (ex.: 48 horas, 60 segundos, 30 dias, 40 minutos)
     m_dur = re.search(
-        r"(\d+(?:[.,]\d+)?)\s*(segundos?|minutos?|horas?|dias?|anos?)",
+        rf"({num_pat})\s*(segundos?|minutos?|horas?|dias?|anos?)",
         limpo,
         flags=re.IGNORECASE,
     )
     if m_dur:
         num_str = m_dur.group(1)
         unid = m_dur.group(2).upper()
-        rot = "OXIGÊNIO" if "oxigenio" in norm else ("CONTAGEM" if "segundo" in unid.lower() else "TEMPO")
-        try:
-            num_f = float(num_str.replace(",", "."))
-        except ValueError:
-            num_f = 30.0
+        rot = (
+            "OXIGÊNIO" if "oxigenio" in norm else (
+                "CONTAGEM DE DIAS" if "DIA" in unid else ("CONTAGEM" if "SEGUNDO" in unid else "TEMPO")
+            )
+        )
+        num_f = _parse_num_ptbr(num_str)
         prog = round(max(0.20, min(0.95, num_f / (60.0 if num_f <= 60 else 120.0))), 2)
         return {"rotulo": rot, "valor": f"{num_str} {unid}", "progresso": prog}
 
     # 7. Grandes escalas / quantias (ex.: 10 milhoes, 1 milhao, 5 mil)
-    m_esc = re.search(r"(\d+(?:[.,]\d+)?)\s*(milh[oõ]es|milh[aã]o|bilh[oõ]es|bilh[aã]o|mil)\b", limpo, flags=re.IGNORECASE)
+    m_esc = re.search(rf"({num_pat})\s*(milh[oõ]es|milh[aã]o|bilh[oõ]es|bilh[aã]o|mil)\b", limpo, flags=re.IGNORECASE)
     if m_esc:
         return {"rotulo": "ESCALA", "valor": f"{m_esc.group(1)} {m_esc.group(2).upper()}", "progresso": 0.86}
 
-    # 8. Numeros por extenso comuns com unidade (ex.: "cinco quilometros", "quarenta e oito horas", "trezentos metros")
+    # 8. Numeros por extenso comuns com unidade (ex.: "cinco quilometros", "quarenta e oito horas", "trinta dias", "dez mil reais")
     m_ext = re.search(
         r"\b(um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|cento|duzentos|trezentos|quinhentos|mil)\b"
         r"(?:\s+e\s+(um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|vinte|trinta|quarenta|cinquenta|sessenta|oitenta|noventa))?"
-        r"\s+(quilometros?|metros?|horas?|minutos?|segundos?|dias?|anos?|graus?|milhoes?|milhao|bilhoes?)",
+        r"\s+(quilometros?|metros?|horas?|minutos?|segundos?|dias?|anos?|graus?|reais|dolares|milhoes?|milhao|bilhoes?)",
         norm,
     )
     if m_ext:
@@ -819,13 +919,16 @@ def extrair_hud_dado(texto: str, hud_raw: object = None) -> dict | None:
             elif "grau" in unid_raw:
                 sinal = "-" if "negativo" in norm else ""
                 return {"rotulo": "TEMPERATURA", "valor": f"{sinal}{total_n} °C", "progresso": 0.76}
+            elif "reais" in unid_raw or "dolar" in unid_raw:
+                pref = "US$" if "dolar" in unid_raw else "R$"
+                return {"rotulo": "VALOR", "valor": f"{pref} {total_n}", "progresso": 0.84}
             elif "milh" in unid_raw:
                 unid_fmt, rot = "MILHÕES", "ESCALA"
             elif "bilh" in unid_raw:
                 unid_fmt, rot = "BILHÕES", "ESCALA"
             else:
                 unid_fmt = unid_raw.upper()
-                rot = "OXIGÊNIO" if "oxigenio" in norm else "CONTAGEM"
+                rot = "OXIGÊNIO" if "oxigenio" in norm else ("CONTAGEM DE DIAS" if "dia" in unid_raw else "CONTAGEM")
             prog = round(max(0.22, min(0.95, total_n / (10.0 if total_n <= 10 else (100.0 if total_n <= 100 else 500.0)))), 2)
             return {"rotulo": rot, "valor": f"{total_n} {unid_fmt}", "progresso": prog}
 
@@ -843,7 +946,7 @@ def inferir_cenario_animado(
     eh_cta: bool = False,
     eh_twist: bool = False,
 ) -> str:
-    """Escolhe o cenario 2D animado exato para a fala atual, sem nunca repetir o cenario anterior."""
+    """Escolhe o cenario 2D animado fiel as palavras-chave reais da fala atual."""
     norm = normalizar_texto(texto)
     norm_g = normalizar_texto(contexto_global)
 
@@ -852,81 +955,133 @@ def inferir_cenario_animado(
             if cand != anterior:
                 return cand
 
-    pontos: dict[str, float] = {c: 0.0 for c in CENARIOS_ANIMADOS}
+    pontos_local: dict[str, float] = {c: 0.0 for c in CENARIOS_ANIMADOS}
+    pontos_ctx: dict[str, float] = {c: 0.0 for c in CENARIOS_ANIMADOS}
 
     regras: dict[str, tuple[tuple[str, ...], float]] = {
         "oceano_ilha": (
-            ("ilha", "sentinela", "mar", "oceano", "barco", "pescador", "tsunami", "onda", "navio", "submarino", "costa", "praia", "agua", "pacifico", "ponto nemo", "marinha", "casco", "escotilha"),
-            4.0,
+            (
+                "ilha", "ilhas", "sentinela", "mar", "oceano", "barco", "pescador",
+                "tsunami", "onda", "navio", "submarino", "costa", "praia", "agua",
+                "peixe", "peixes", "pacifico", "ponto nemo", "marinha", "casco",
+                "escotilha", "resgate", "gelo", "debaixo da agua", "fundo do mar",
+                "fundo", "abismo", "profundidade", "salv", "isolamento",
+            ),
+            4.5,
         ),
         "espaco_orbita": (
-            ("espaco", "orbita", "planeta", "terra", "lua", "marte", "satelite", "asteroide", "estrela", "estacao espacial", "nave", "galaxia", "universo", "foguete", "gravidade zero", "cosmo"),
-            4.2,
+            (
+                "espaco", "espacia", "orbita", "planeta", "lua", "marte", "satelite",
+                "satelites", "asteroide", "estrela", "estacao espacial", "nave",
+                "naves", "galaxia", "universo", "foguete", "gravidade zero", "cosmo",
+            ),
+            4.6,
         ),
         "ceu_nuvens": (
-            ("ceu", "nuvem", "nuvens", "aviao", "helicoptero", "sobrevo", "voar", "voando", "altitude", "tempestade", "raio", "trov", "paraquedas", "teleferico", "atmosfera", "helice", "resgate aereo"),
-            4.0,
+            (
+                "ceu", "nuvem", "nuvens", "aviao", "helicoptero", "sobrevo", "voar",
+                "voando", "altitude", "tempestade", "raio", "trov", "paraquedas",
+                "teleferico", "atmosfera", "helice", "resgate aereo",
+            ),
+            4.2,
         ),
         "floresta_noite": (
-            ("floresta", "mata", "selva", "arvore", "arvores", "tribo", "flecha", "flechas", "arco", "lanca", "trilha", "neblina", "animais", "caverna", "ilha fechada", "escuro na mata", "vagalume"),
-            4.0,
+            (
+                "floresta", "mata", "selva", "arvore", "arvores", "tribo", "flecha",
+                "flechas", "arco", "lanca", "trilha", "neblina", "animais", "caverna",
+                "ilha fechada", "escuro na mata", "vagalume",
+            ),
+            4.2,
         ),
         "laboratorio": (
-            ("laboratorio", "cientista", "ciencia", "experimento", "radar", "sonar", "microfone", "hidrofone", "sensor", "estudo", "pesquisa", "dna", "cerebro", "cofre", "semente", "svalbard", "radio", "sinal", "camera", "protocolo", "governo", "arquivo", "satelite militar"),
-            3.8,
+            (
+                "laboratorio", "cientista", "ciencia", "experimento", "radar", "sonar",
+                "microfone", "microfones", "hidrofone", "sensor", "sensores", "estudo",
+                "pesquisa", "dna", "cerebro", "cofre", "semente", "sementes", "svalbard",
+                "radio", "sinal", "camera", "protocolo", "governo", "governos", "arquivo",
+                "gravaram", "rugido", "captaram",
+            ),
+            4.0,
         ),
         "cidade_rua": (
-            ("cidade", "rua", "avenida", "predio", "transito", "metro", "vagao", "tunel", "estacao", "carro", "estacionamento", "ponte", "sirene", "policia", "hotel", "hospital", "pedagio", "corredor", "apartamento"),
-            3.8,
+            (
+                "cidade", "rua", "avenida", "predio", "transito", "metro", "vagao",
+                "tunel", "estacao", "carro", "estacionamento", "ponte", "sirene",
+                "policia", "hotel", "hospital", "pedagio", "corredor", "apartamento",
+                "trem", "trilhos", "garagem",
+            ),
+            4.0,
         ),
         "escritorio": (
-            ("escritorio", "monitor", "monitores", "mesa", "computador", "teclado", "lapiseira", "xicara", "teto de gesso", "carpete", "chefe", "empresa", "reuniao", "andar comercial", "cadeira"),
-            3.9,
+            (
+                "escritorio", "monitor", "monitores", "mesa", "computador", "teclado",
+                "lapiseira", "xicara", "teto de gesso", "carpete", "chefe", "empresa",
+                "reuniao", "andar comercial", "cadeira",
+            ),
+            4.0,
         ),
         "sala_cozinha": (
-            ("casa", "cozinha", "sala", "quarto", "porta", "sofa", "geladeira", "cama", "espelho", "janela de casa", "apartamento", "celular", "interfone", "baba eletronica"),
-            3.6,
+            (
+                "casa", "cozinha", "sala", "quarto", "porta", "sofa", "geladeira",
+                "cama", "espelho", "janela de casa", "celular", "interfone",
+                "baba eletronica", "reflexo", "vidro",
+            ),
+            3.8,
         ),
         "arena_comparacao": (
-            ("comparacao", "vezes maior", "escala", "quilometro", "metros", "milhoes", "bilhoes", "por cento", "recorde", "ranking", "velocidade", "temperatura", "profundidade", "distancia", "limite", "perimetro"),
-            3.4,
+            (
+                "comparacao", "vezes maior", "escala", "milhoes", "bilhoes", "por cento",
+                "recorde", "ranking", "velocidade", "temperatura", "distancia", "limite",
+                "perimetro", "premio", "pagando", "reais", "dolares", "custou",
+            ),
+            3.6,
         ),
         "big_face": (
-            ("coracao", "panico", "susto", "terror", "olhos", "sem piscar", "sorrindo", "atras de voce", "voce paralisa", "silencio", "ninguem voltou", "nunca mais", "revelacao", "choque", "medo"),
-            3.2,
+            (
+                "coracao", "panico", "susto", "terror", "olhos", "sem piscar", "sorrindo",
+                "atras de voce", "voce paralisa", "silencio", "ninguem voltou", "nunca mais",
+                "revelacao", "choque", "medo", "alerta maximo", "escondido",
+            ),
+            3.6,
         ),
     }
 
     for cen, (termos, peso) in regras.items():
         for termo in termos:
             if termo in norm:
-                pontos[cen] += peso
-            elif termo in norm_g:
-                pontos[cen] += peso * 0.18
+                pontos_local[cen] += peso
+            elif termo in norm_g and cen != "espaco_orbita":
+                # Nunca vazar espaco_orbita por contexto global quando a fala atual nao menciona espaco
+                pontos_ctx[cen] += peso * 0.14
 
+    # 1. Palavras-chave diretas da fala atual SEMPRE vencem (mesmo mantendo cenario em falas seguidas sobre o mesmo local)
+    melhor_local = max(CENARIOS_ANIMADOS, key=lambda c: (pontos_local[c], 1 if c != anterior else 0))
+    if pontos_local[melhor_local] >= 3.0:
+        return melhor_local
+
+    # 2. Para falas puramente narrativas/numericas sem palavra de cenario direta:
+    pontos_totais = {c: pontos_local[c] + pontos_ctx[c] for c in CENARIOS_ANIMADOS}
     if hud_dado is not None:
-        pontos["arena_comparacao"] += 2.2
-        pontos["laboratorio"] += 0.9
+        pontos_totais["arena_comparacao"] += 2.6
+        pontos_totais["laboratorio"] += 1.0
     if eh_twist:
-        pontos["big_face"] += 4.5
-    elif idx == max(1, total - 3):
-        pontos["big_face"] += 2.0
+        pontos_totais["big_face"] += 4.5
 
-    # Ordena por pontuacao mantendo determinismo e proibindo repetir o cenario anterior
     ordenados = sorted(
         CENARIOS_ANIMADOS,
-        key=lambda c: (pontos[c], -abs((CENARIOS_ANIMADOS.index(c) - idx) % len(CENARIOS_ANIMADOS))),
+        key=lambda c: (pontos_totais[c], -abs((CENARIOS_ANIMADOS.index(c) - idx) % len(CENARIOS_ANIMADOS))),
         reverse=True,
     )
     for cand in ordenados:
-        if cand != anterior and pontos[cand] > 0.2:
+        if cand == "espaco_orbita" and pontos_local["espaco_orbita"] <= 0:
+            continue
+        if cand != anterior and pontos_totais[cand] > 0.2:
             return cand
 
-    # Rotacao tematica limpa caso a frase seja puramente narrativa/transicional
+    # Fallback neutro seguro (nunca salta para espaco_orbita sem motivo)
     ciclo_fallback = (
-        "oceano_ilha", "laboratorio", "cidade_rua", "arena_comparacao",
-        "ceu_nuvens", "floresta_noite", "espaco_orbita", "big_face",
-        "escritorio", "sala_cozinha",
+        "oceano_ilha", "arena_comparacao", "laboratorio", "big_face",
+        "ceu_nuvens", "cidade_rua", "floresta_noite", "escritorio", "sala_cozinha",
     )
     for offset in range(len(ciclo_fallback)):
         cand = ciclo_fallback[(idx + offset) % len(ciclo_fallback)]
@@ -1241,11 +1396,31 @@ def _extrair_palavras_chave(titulo: str, texto: str, qtd: int = 7) -> list[str]:
     return ranqueadas[:qtd] or ["suspense", "madrugada", "misterio", "vulto", "alerta"]
 
 
+_NAO_TERMINAR_CHUNK: frozenset[str] = frozenset(
+    {
+        "o", "a", "os", "as", "um", "uma", "uns", "umas",
+        "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas",
+        "por", "pelo", "pela", "para", "pro", "pra", "com", "sem", "sob", "sobre",
+        "entre", "ate", "que", "e", "ou", "mas", "nem", "se", "como", "quando", "onde",
+        "era", "sao", "estao", "esta", "foi", "vai", "tem", "r$", "us$", "nivel", "dia",
+        "la", "ca", "debaixo", "acima", "dentro", "fora",
+    }
+)
+_UNIDADES_NUM_CHUNK: frozenset[str] = frozenset(
+    {
+        "km", "m", "metro", "metros", "quilometro", "quilometros", "milha", "milhas",
+        "mil", "milhao", "milhoes", "bilhao", "bilhoes", "real", "reais", "dolar", "dolares",
+        "dia", "dias", "hora", "horas", "minuto", "minutos", "segundo", "segundos",
+        "ano", "anos", "grau", "graus", "por", "cento", "%",
+    }
+)
+
+
 def _dividir_fala_em_tomadas_curtas(
     texto: str,
     max_palavras: int = MAX_PALAVRAS_POR_TOMADA,
 ) -> list[str]:
-    """Divide qualquer fala > ~4s (> max_palavras) em 2 ou 3 tomadas visuais curtas e naturais."""
+    """Divide qualquer fala longa em tomadas curtas naturais sem cortar artigos/preposicoes nem unidades."""
     limpo = sanitizar_texto(texto)
     if not limpo:
         return []
@@ -1256,7 +1431,8 @@ def _dividir_fala_em_tomadas_curtas(
     # 1. Primeiro divide por frases completas (. ! ?)
     frases = [f.strip() for f in RE_SEPARAR_FRASES.split(limpo) if f.strip()]
     resultado: list[str] = []
-    conjuncoes = frozenset({"e", "mas", "quando", "porque", "onde", "enquanto", "entao", "ate", "como", "que", "so"})
+    conjuncoes = frozenset({"e", "mas", "quando", "porque", "onde", "enquanto", "entao", "ate", "como", "que", "so", "nem"})
+    preposicoes_inicio = frozenset({"de", "do", "da", "em", "no", "na", "para", "com", "um", "uma", "por"})
 
     for frase in frases:
         pals = frase.split()
@@ -1264,9 +1440,9 @@ def _dividir_fala_em_tomadas_curtas(
             resultado.append(frase)
             continue
 
-        # 2. Divide frase longa em 2 ou 3 tomadas respeitando virgulas/ponto-e-virgula ou conjuncoes
+        # 2. Divide frase longa respeitando pausas naturais, nunca deixando artigo/preposicao solto no fim
         num_partes = 3 if len(pals) > max_palavras * 2 else 2
-        alvo = max(5, round(len(pals) / num_partes))
+        alvo = max(4, round(len(pals) / num_partes))
         cursor = 0
         for p_idx in range(num_partes):
             if cursor >= len(pals):
@@ -1276,28 +1452,43 @@ def _dividir_fala_em_tomadas_curtas(
                 if trecho:
                     resultado.append(trecho)
                 break
-            fim_ideal = min(len(pals) - 4, cursor + alvo)
-            if fim_ideal <= cursor + 3:
+            fim_ideal = min(len(pals) - 3, cursor + alvo)
+            if fim_ideal <= cursor + 2:
                 trecho = " ".join(pals[cursor:]).strip()
                 if trecho:
                     resultado.append(trecho)
                 break
 
-            # Procura melhor ponto de corte proximo a fim_ideal (virgula/dois-pontos ou conjuncao)
             melhor_corte = fim_ideal
-            melhor_dist = 999
-            janela_ini = max(cursor + 4, fim_ideal - 4)
-            janela_fim = min(len(pals) - 3, fim_ideal + 4)
+            melhor_score = 999.0
+            janela_ini = max(cursor + 3, fim_ideal - 4)
+            janela_fim = min(len(pals) - 2, fim_ideal + 3)
             for k in range(janela_ini, janela_fim + 1):
-                tok_ant = pals[k - 1]
-                tok_atu = normalizar_texto(pals[k])
-                dist = abs(k - fim_ideal)
-                if tok_ant.endswith((",", ";", ":")):
-                    if dist < melhor_dist:
-                        melhor_dist = dist
-                        melhor_corte = k
-                elif tok_atu in conjuncoes and (dist + 1) < melhor_dist:
-                    melhor_dist = dist + 1
+                tok_ant_raw = pals[k - 1]
+                tok_atu_raw = pals[k]
+                tok_ant = normalizar_texto(tok_ant_raw)
+                tok_atu = normalizar_texto(tok_atu_raw)
+                score = float(abs(k - fim_ideal))
+
+                # Forte bonus apos virgula/ponto-e-virgula/dois-pontos
+                if tok_ant_raw.endswith((",", ";", ":")):
+                    score -= 4.0
+                elif tok_atu in conjuncoes:
+                    score -= 2.5
+                elif tok_atu in preposicoes_inicio:
+                    score -= 1.2
+
+                # Penaliza fortemente deixar preposicao/artigo/auxiliar pendurado no fim do chunk
+                if tok_ant in _NAO_TERMINAR_CHUNK or tok_ant_raw.lower() in ("r$", "us$"):
+                    score += 18.0
+                # Penaliza cortar entre numero/moeda e unidade (ex.: "10" + "milhoes", "2.600" + "km", "15" + "dias")
+                if (re.search(r"\d", tok_ant_raw) and (tok_atu in _UNIDADES_NUM_CHUNK or re.search(r"\d", tok_atu_raw))) or (
+                    tok_ant in ("nivel", "dia", "hora", "r", "us") and re.search(r"\d", tok_atu_raw)
+                ):
+                    score += 24.0
+
+                if score < melhor_score:
+                    melhor_score = score
                     melhor_corte = k
 
             trecho = " ".join(pals[cursor:melhor_corte]).strip()
@@ -1305,10 +1496,10 @@ def _dividir_fala_em_tomadas_curtas(
                 resultado.append(trecho)
             cursor = melhor_corte
 
-    # Reagrupa fragmentos minusculos (< 4 palavras) ao vizinho quando possivel
+    # Reagrupa fragmentos minusculos (< 3 palavras) ao vizinho quando possivel
     compactado: list[str] = []
     for seg in resultado:
-        if compactado and len(seg.split()) < 4 and len(compactado[-1].split()) + len(seg.split()) <= max_palavras + 3:
+        if compactado and len(seg.split()) < 3 and len(compactado[-1].split()) + len(seg.split()) <= max_palavras + 3:
             compactado[-1] = f"{compactado[-1]} {seg}".strip()
         else:
             compactado.append(seg)
@@ -1316,7 +1507,7 @@ def _dividir_fala_em_tomadas_curtas(
 
 
 def _dividir_em_blocos_narrativos(roteiro_bruto: str) -> list[str]:
-    """Divide o roteiro em tomadas visuais rapidas (1 corte a cada 3s-4s, ~14 a 18 cenas em 60s)."""
+    """Divide o roteiro em tomadas visuais rapidas (1.5s a 2.5s) sem inserir ponto final no meio da frase."""
     limpo = sanitizar_texto(roteiro_bruto)
     frases = [f.strip() for f in RE_SEPARAR_FRASES.split(limpo) if f.strip()]
     if not frases:
@@ -1324,25 +1515,38 @@ def _dividir_em_blocos_narrativos(roteiro_bruto: str) -> list[str]:
 
     tomadas: list[str] = []
     for f in frases:
-        for sub in _dividir_fala_em_tomadas_curtas(f, max_palavras=MAX_PALAVRAS_POR_TOMADA):
+        subs = _dividir_fala_em_tomadas_curtas(f, max_palavras=MAX_PALAVRAS_POR_TOMADA)
+        for s_idx, sub in enumerate(subs):
             sub_limpo = sub.strip()
             if not sub_limpo:
                 continue
-            if not sub_limpo.endswith((".", "!", "?", ",", ";", ":")):
+            # Apenas o fim real da frase preserva/recebe pontuacao final; nunca carimba '.' no meio de uma frase dividida
+            if s_idx == len(subs) - 1 and not sub_limpo.endswith((".", "!", "?", ",", ";", ":")):
                 sub_limpo = sub_limpo + "."
             tomadas.append(sub_limpo)
 
-    # Se houver frases muito curtas seguidas (< 6 palavras) e total > 18, une pares contiguos
-    # mantendo o limite <= 13 palavras (~4s) e preservando twist e CTA final intactos
-    if len(tomadas) > 18:
+    # Compacta fragmentos curtissimos (< 4 palavras, como "VOCE! E, VOCE MESMO!") com o vizinho ate MAX_PALAVRAS_POR_TOMADA
+    compactadas: list[str] = []
+    for seg in tomadas:
+        if (
+            compactadas
+            and (len(compactadas[-1].split()) < 4 or len(seg.split()) < 4)
+            and len(compactadas[-1].split()) + len(seg.split()) <= MAX_PALAVRAS_POR_TOMADA
+        ):
+            compactadas[-1] = f"{compactadas[-1]} {seg}".strip()
+        else:
+            compactadas.append(seg)
+    tomadas = compactadas
+
+    # Se houver muitas tomadas pequenas, une pares contiguos preservando o teto de 9 palavras (~2.5s) e o gancho/twist/CTA
+    if len(tomadas) > 22:
         preservar_fim = 2 if len(tomadas) >= 4 and _eh_bloco_cta_final(tomadas[-1]) else 1
         corpo = tomadas[:-preservar_fim]
         finais = tomadas[-preservar_fim:]
-        unidas: list[str] = []
-        for seg in corpo:
+        unidas: list[str] = [corpo[0]] if corpo else []
+        for seg in corpo[1:]:
             if (
-                unidas
-                and len(unidas) + (len(corpo) - len(unidas)) > 16
+                len(unidas) > 1
                 and len(unidas[-1].split()) + len(seg.split()) <= MAX_PALAVRAS_POR_TOMADA
             ):
                 unidas[-1] = f"{unidas[-1]} {seg}".strip()
@@ -1361,8 +1565,6 @@ def _dividir_em_blocos_narrativos(roteiro_bruto: str) -> list[str]:
         meio = len(pals) // 2
         p1 = " ".join(pals[:meio]).strip()
         p2 = " ".join(pals[meio:]).strip()
-        if not p1.endswith((".", "!", "?", ",")):
-            p1 += ","
         if p2 and not p2.endswith((".", "!", "?")):
             p2 += "."
         tomadas = tomadas[:idx_maior] + [p1, p2] + tomadas[idx_maior + 1 :]
@@ -1370,14 +1572,25 @@ def _dividir_em_blocos_narrativos(roteiro_bruto: str) -> list[str]:
     return tomadas
 
 
+_STOPWORDS_KATANA: frozenset[str] = STOPWORDS_PT | frozenset(
+    {
+        "voce", "voces", "dias", "dia", "horas", "hora", "minutos", "minuto", "segundos",
+        "anos", "ano", "acha", "hoje", "aqui", "agora", "tudo", "mesmo", "mesma", "outro",
+        "outra", "qualquer", "menos", "mais", "igual", "nada", "algo", "coisa", "gente",
+        "mundo", "lugar", "ponto", "sobre", "antes", "depois", "ainda", "apenas", "quase",
+    }
+)
+
+
 def _escolher_katana_hits(blocos: list[dict], total_desejado: int = 4) -> list[dict]:
-    """Seleciona 3 a 5 palavras de impacto reais presentes nos blocos para destaque vermelho."""
+    """Seleciona 3 a 5 palavras reais de alto impacto dramatico (nunca pronomes ou unidades como VOCE/DIAS)."""
     palavras_impacto = (
-        "travou", "sumiu", "vazio", "vazia", "ninguem", "alguem", "sorriu", "sorri",
-        "atras", "dentro", "olhos", "apagou", "apaga", "nunca", "morto", "morta",
+        "travou", "sumiu", "vazio", "vazia", "ninguem", "sorriu", "sorri",
+        "atras", "olhos", "apagou", "apaga", "nunca", "morto", "morta", "mortos",
         "sangue", "grito", "sombra", "vulto", "espelho", "camera", "subsolo",
-        "minutos", "horas", "ligacao", "mensagem", "porta", "janela", "silencio",
-        "voce", "igual", "outro", "outra", "errado", "falso", "armario", "cama",
+        "silencio", "errado", "falso", "armario", "isolamento", "cemiterio",
+        "rugido", "colossal", "alerta", "maximo", "escondido", "proibido",
+        "proibida", "explosao", "tsunami", "flechas", "salvar", "panico", "choque",
     )
     n = len(blocos)
     if n == 0:
@@ -1405,24 +1618,22 @@ def _escolher_katana_hits(blocos: list[dict], total_desejado: int = 4) -> list[d
     for h_i, b_idx in enumerate(indices_candidatos[:5], start=1):
         texto_b = str(blocos[b_idx].get("texto", ""))
         tokens = [re.sub(r"[^A-Za-zÀ-ÿ0-9]", "", t) for t in texto_b.split()]
-        tokens = [t for t in tokens if len(t) >= 3]
+        tokens = [t for t in tokens if len(t) >= 4]
 
         escolhida = ""
         for tok in tokens:
             chave = normalizar_texto(tok)
-            if chave in palavras_impacto and chave not in usadas:
+            if chave in palavras_impacto and chave not in usadas and chave not in _STOPWORDS_KATANA:
                 escolhida = tok
                 break
         if not escolhida:
             for tok in reversed(tokens):
                 chave = normalizar_texto(tok)
-                if len(chave) >= 4 and chave not in STOPWORDS_PT and chave not in usadas:
+                if len(chave) >= 5 and chave not in _STOPWORDS_KATANA and chave not in usadas and not chave.isdigit():
                     escolhida = tok
                     break
-        if not escolhida and tokens:
-            escolhida = tokens[-1]
         if not escolhida:
-            escolhida = "CHOQUE"
+            escolhida = "ALERTA" if "alerta" not in usadas else "CHOQUE"
 
         gatilho = re.sub(r"[^a-z0-9]", "", normalizar_texto(escolhida)) or "choque"
         usadas.add(gatilho)
@@ -1486,7 +1697,8 @@ def diretor_mock_deterministico(
     blocos: list[dict] = []
     ultimo_cenario = ""
     ultima_camera = ""
-    prompts_usados: set[str] = set()
+    ultima_pose = ""
+    ultima_expr = ""
 
     for i, txt in enumerate(blocos_txt):
         norm = normalizar_texto(txt)
@@ -1496,61 +1708,74 @@ def diretor_mock_deterministico(
         hud_dado = None if eh_final_cta else extrair_hud_dado(txt)
         grav_zero = (not eh_final_cta) and (texto_indica_gravidade_zero(txt) or (ctx_zero_g and i >= 1))
 
-        cenario = inferir_cenario_animado(
-            txt,
-            i,
-            n,
-            anterior=ultimo_cenario,
-            contexto_global=limpo,
-            hud_dado=hud_dado,
-            eh_cta=eh_final_cta,
-            eh_twist=eh_twist,
-        )
-        ultimo_cenario = cenario
-
-        acao_cena = inferir_acao_cena(
-            txt,
-            cenario,
-            hud_dado=hud_dado,
-            gravidade_zero=grav_zero,
-        )
-
-        if eh_final_cta:
-            perfil = "narrador_tenso"
-            mood = "navy"
-        elif eh_twist:
-            perfil = "sussurro_twist"
-            mood = "red"
-        elif any(k in norm for k in ("ligacao", "chamada", "telefone", "na linha", "celular")) and (":" in txt or '"' in txt):
-            perfil = "voz_telefone"
-            mood = "violet"
-        elif any(k in norm for k in ("interfone", "porteiro")) and (":" in txt or '"' in txt):
-            perfil = "interfone_porteiro"
-            mood = "violet"
-        elif i >= max(1, int(idx_twist * 0.65)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca", "flecha", "tsunami")):
+        if i == 0:
+            # Cena 1 (0s-3s): gancho agressivo obrigatorio com close extremo, choque e shake_impact
+            cenario = "big_face"
+            acao_cena = "explosao_choque"
             perfil = "panico"
-            mood = "red" if (i >= max(1, idx_twist - 3) or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque")) else "violet"
+            mood = "red"
+            pose = "assustado"
+            expr = "shock"
+            cam = "shake_impact"
         else:
-            perfil = "narrador_tenso"
-            mood = "yellow" if acao_cena == "radar_alerta" else ("navy" if i % 2 == 0 else "violet")
+            cenario = inferir_cenario_animado(
+                txt,
+                i,
+                n,
+                anterior=ultimo_cenario,
+                contexto_global=limpo,
+                hud_dado=hud_dado,
+                eh_cta=eh_final_cta,
+                eh_twist=eh_twist,
+            )
+            acao_cena = inferir_acao_cena(
+                txt,
+                cenario,
+                hud_dado=hud_dado,
+                gravidade_zero=grav_zero,
+            )
 
-        pose = inferir_pose_animada(
-            txt,
-            cenario,
-            acao_cena,
-            perfil,
-            gravidade_zero=grav_zero,
-            eh_cta=eh_final_cta,
-        )
-        expr = inferir_expressao_animada(
-            txt,
-            perfil,
-            acao_cena,
-            eh_twist=eh_twist,
-            eh_cta=eh_final_cta,
-        )
-        cam = escolher_camera_alternada(None, acao_cena, cenario, i, anterior=ultima_camera, mood=mood)
+            if eh_final_cta:
+                perfil = "narrador_tenso"
+                mood = "navy"
+            elif eh_twist:
+                perfil = "sussurro_twist"
+                mood = "red"
+            elif any(k in norm for k in ("ligacao", "chamada", "telefone", "na linha", "celular")) and (":" in txt or '"' in txt):
+                perfil = "voz_telefone"
+                mood = "violet"
+            elif any(k in norm for k in ("interfone", "porteiro")) and (":" in txt or '"' in txt):
+                perfil = "interfone_porteiro"
+                mood = "violet"
+            elif i >= max(1, int(idx_twist * 0.65)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca", "flecha", "tsunami")):
+                perfil = "panico"
+                mood = "red" if (i >= max(1, idx_twist - 3) or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque")) else "violet"
+            else:
+                perfil = "narrador_tenso"
+                mood = "yellow" if acao_cena == "radar_alerta" else ("navy" if i % 2 == 0 else "violet")
+
+            pose = inferir_pose_animada(
+                txt,
+                cenario,
+                acao_cena,
+                perfil,
+                gravidade_zero=grav_zero,
+                eh_cta=eh_final_cta,
+            )
+            expr = inferir_expressao_animada(
+                txt,
+                perfil,
+                acao_cena,
+                eh_twist=eh_twist,
+                eh_cta=eh_final_cta,
+            )
+            pose, expr = _alternar_estado_visual_consecutivo(pose, expr, ultima_pose, ultima_expr, i)
+            cam = escolher_camera_alternada(None, acao_cena, cenario, i, anterior=ultima_camera, mood=mood)
+
+        ultimo_cenario = cenario
         ultima_camera = cam
+        ultima_pose = pose
+        ultima_expr = expr
 
         obj_principal = (
             "lapiseira" if "lapiseira" in norm
@@ -1635,29 +1860,34 @@ def _montar_prompt_gemini(
     return (
         f"Você é o Diretor de Animação 2D 30fps do canal '{CANAL_NOME}' "
         f"(YouTube Shorts / Reels em {IDIOMA_CANAL}: {resumo_pilares}).\n"
-        "Transforme o roteiro bruto abaixo em um plano estruturado JSON estrito onde CADA FALA gera uma cena 2D animada única.\n"
+        "Transforme o roteiro bruto abaixo em um plano estruturado JSON estrito onde CADA FALA (1.5s a 2.5s) gera uma cena 2D animada única.\n"
         "REGRAS OBRIGATÓRIAS:\n"
         "1. ZERO emoji e ZERO travessão (em-dash ou en-dash) em qualquer texto.\n"
         f"2. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): preserve TODOS os acentos, cedilhas e números/anos inteiros "
-        "(ex.: 2004, 2006, 5 km, você, não, mão, pés, direção, levitação). Nunca quebre anos nem remova acentos.\n"
-        "3. RITMO HUMANO E SEM PAUSA NO MEIO: divida em 8 a 14 blocos narrativos curtos e viciantes. PROIBIDO inserir pausa "
-        "comercial, propaganda ou CTA no meio do vídeo. Deixe o gancho/CTA curto de 1 frase APENAS como último bloco.\n"
-        "4. DIREÇÃO DE ANIMAÇÃO 2D ÚNICA POR FALA (escolha cada campo alinhado ao que está sendo dito naquela frase):\n"
-        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (mantenha 'narrador_tenso' na maior parte para preservar a voz contínua do Gemini TTS; use 'sussurro_twist' na revelação final; NUNCA use 'cta_comercial').\n"
+        "(ex.: 2004, 2006, 5 km, R$ 100 mil, Dia 30, Nível 5, você, não, mão, pés). Nunca quebre anos nem remova acentos.\n"
+        "3. GANCHO AGRESSIVO 0-3s NA CENA 1 (PROIBIDO INTRO LENTA, SAUDACAO OU SETUP GENERICO):\n"
+        "   - NUNCA abra com 'Oi pessoal', 'Você sabia', 'Existe um lugar', 'Hoje vamos falar' ou 'Era uma vez'.\n"
+        "   - O Bloco 1 (0s a 3s, 6 a 9 palavras) DEVE quebrar o padrão em 2ª pessoa PT-BR com choque/urgência/4ª parede "
+        "(ex.: 'VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA!').\n"
+        "   - O Bloco 1 DEVE usar obrigatoriamente: cenario='big_face', acao_cena='explosao_choque', pose='assustado', expressao='shock', camera='shake_impact', mood='red', perfil_voz='panico'.\n"
+        "4. RITMO DE RETENÇÃO (MUDANÇA VISUAL A CADA 1.5s A 2.5s): divida em 12 a 20 blocos bem curtos (6 a 9 palavras por bloco). "
+        "PROIBIDO inserir pausa comercial, propaganda ou CTA no meio do vídeo. Deixe o gancho/CTA curto de 1 frase APENAS como último bloco.\n"
+        "5. DIREÇÃO DE ANIMAÇÃO 2D ÚNICA POR FALA (altere cenario, camera e pose/expressao entre cenas seguidas):\n"
+        f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use 'panico' no Bloco 1 e clímax, 'sussurro_twist' na revelação final, 'narrador_tenso' no restante; NUNCA use 'cta_comercial').\n"
         f"   - cenario: um de {list(CENARIOS_ANIMADOS)}. NUNCA repita o mesmo cenario em duas falas seguidas.\n"
         f"   - acao_cena: um de {list(ACOES_CENA_VALIDAS)}.\n"
-        f"   - pose: um de {list(POSES_VALIDAS)}.\n"
-        f"   - expressao: um de {list(EXPRESSOES_VALIDAS)}.\n"
+        f"   - pose: um de {list(POSES_VALIDAS)} (varie com frequência a cada 1.5s-2.5s).\n"
+        f"   - expressao: um de {list(EXPRESSOES_VALIDAS)} (varie junto com a pose).\n"
         f"   - camera: um de {list(CAMERAS_VALIDAS)}. Alterne SEMPRE (nunca repita a mesma camera em duas falas seguidas).\n"
         f"   - mood: um de {list(MOODS_VALIDOS)}.\n"
-        "   - hud_dado: sempre que a fala citar números, anos (ex.: 2004, 2006), distâncias (ex.: 5 KM), velocidades ou porcentagens, "
-        'preencha {"rotulo": "ZONA PROIBIDA", "valor": "5 KM", "progresso": 0.85} (progresso entre 0.0 e 1.0); caso contrário, null.\n'
+        "   - hud_dado: OBRIGATÓRIO sempre que a fala citar números, dias (Dia 30), níveis (Nível 5), dinheiro (R$ 100 MIL), anos (2004, 1997), distâncias (2.600 KM) ou porcentagens: "
+        'preencha {"rotulo": "NÍVEL DE ALERTA", "valor": "NÍVEL 5", "progresso": 0.90} (progresso entre 0.0 e 1.0); caso contrário, null.\n'
         f"   - sfx_depois: null ou um de {sfx_validos} (coloque 'impacto_twist' imediatamente antes do bloco da revelação final; máximo 3 SFX no total).\n"
         f"   - props: objeto opcional com gravidade_zero (bool), objetos_flutuantes (subconjunto de {list(PROPS_FLUTUANTES_VALIDOS)}), silhuetas_janela (bool) e vulto (bool).\n"
-        "5. katana_hits: lista de 3 a 5 impactos curtos (1 a 2 palavras em MAIÚSCULAS COM ACENTUAÇÃO UTF-8 CORRETA), cada um com bloco_idx (0-based), palavra_gatilho, linhas (1 a 2 strings curtas), duracao (0.36 a 0.48), cor ('red', 'yellow' ou 'white').\n"
-        f"6. horario: string HH:MM coerente com o episódio (como '{horario_ex}').\n"
-        "7. protagonista.nome: nome do personagem ou 'Você'.\n"
-        "8. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários) no formato:\n"
+        "6. katana_hits: lista de 3 a 5 impactos curtos (1 a 2 palavras em MAIÚSCULAS COM ACENTUAÇÃO UTF-8 CORRETA), cada um com bloco_idx (0-based), palavra_gatilho, linhas (1 a 2 strings curtas), duracao (0.36 a 0.48), cor ('red', 'yellow' ou 'white').\n"
+        f"7. horario: string HH:MM coerente com o episódio (como '{horario_ex}').\n"
+        "8. protagonista.nome: nome do personagem ou 'Você'.\n"
+        "9. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários) no formato:\n"
         "{\n"
         '  "titulo": "...",\n'
         f'  "pilar": "{pilar["id"] if pilar is not None else "suspense_urbano"}",\n'
@@ -1666,8 +1896,8 @@ def _montar_prompt_gemini(
         f'  "horario": "{horario_ex}",\n'
         '  "protagonista": {"nome": "Você", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
         '  "paleta": {"bg_navy": "#0A0F1D", "bg_violet": "#130926", "bg_red": "#3B0A0A", "accent": "#38D9FF", "alert": "#FF3B30", "yellow": "#FFD400"},\n'
-        '  "blocos": [{"perfil_voz": "narrador_tenso", "texto": "...", "cenario": "oceano_ilha", "acao_cena": "barco_navegando", "pose": "falando", "expressao": "focus", "camera": "push_in", "mood": "navy", "hud_dado": {"rotulo": "ZONA PROIBIDA", "valor": "5 KM", "progresso": 0.85}, "sfx_depois": null, "props": {"gravidade_zero": false, "objetos_flutuantes": [], "silhuetas_janela": false, "vulto": false}}],\n'
-        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "flechas", "linhas": ["CHUVA DE", "FLECHAS"], "duracao": 0.42, "cor": "red"}]\n'
+        '  "blocos": [{"perfil_voz": "panico", "texto": "VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA!", "cenario": "big_face", "acao_cena": "explosao_choque", "pose": "assustado", "expressao": "shock", "camera": "shake_impact", "mood": "red", "hud_dado": null, "sfx_depois": null, "props": {"gravidade_zero": false, "objetos_flutuantes": [], "silhuetas_janela": false, "vulto": false}}],\n'
+        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "alerta", "linhas": ["NÍVEL", "MÁXIMO"], "duracao": 0.42, "cor": "red"}]\n'
         "}\n\n"
         f"{pilar_hint}"
         f"{titulo_hint}"
@@ -2257,28 +2487,31 @@ def _montar_prompt_roteiro_inedito(
         f"{aviso_rej}\n"
         "REGRAS OBRIGATÓRIAS DO ROTEIRO:\n"
         f"1. {dica_titulo}"
-        "2. Escreva entre 185 e 245 palavras em ritmo contínuo e envolvente.\n"
+        "2. Escreva entre 185 e 245 palavras em ritmo contínuo, urgente e viciante.\n"
         "3. Siga estritamente o pilar obrigatório acima (não fuja do foco editorial configurado para este episódio).\n"
-        "4. VOZ HUMANA E VICIANTE (ZERO TOM ROBÓTICO): escreva em frases curtas, diretas e faladas como um humano "
-        "contando algo viciante para um amigo. Ritmo conversacional real, verbos concretos e imagens mentais imediatas. "
-        "PROIBIDO usar clichês de IA ou linguagem de redação formal como 'mergulhe nessa história', 'prepare-se para descobrir', "
-        "'em um mundo onde', 'você não vai acreditar', 'a resposta vai te surpreender', 'no cenário atual', 'nesse contexto', "
-        "'além disso', 'por outro lado' ou 'sem dúvida'.\n"
-        "5. RETENÇÃO SEM INTERRUPÇÃO: abra com um gancho impossível de ignorar nos primeiros 3 segundos e mantenha "
-        "a tensão crescente até a virada final seca e memorável. PROIBIDO inserir qualquer pausa comercial, propaganda, "
-        "anúncio ou CTA no meio do vídeo (jamais interrompa a história por volta do segundo 14 ou no meio do roteiro). "
-        "Deixe APENAS um gancho/CTA curto e natural de 1 única frase no finalzinho do vídeo "
-        f"(referência do canal: '{CTA_FINAL_PADRAO}').\n"
-        f"6. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): escreva com acentuação e grafia UTF-8 100% corretas "
+        "4. GANCHO AGRESSIVO 0-3s (QUEBRA DE PADRÃO EM 2ª PESSOA PT-BR: PROIBIDO INTRO LENTA):\n"
+        "   - PROIBIDO abrir com cumprimentos, apresentações ou setups genéricos ('Oi pessoal', 'Você sabia que', "
+        "'Hoje vamos falar', 'Nesse vídeo', 'Existe um lugar', 'Era uma vez', 'Imagine um mundo').\n"
+        "   - A Cena 1 (primeiras 6 a 9 palavras, 0 a 3 segundos) DEVE atacar a tela em 2ª pessoa PT-BR com choque, "
+        "urgência ou quebra da 4ª parede (ex.: 'VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA!', "
+        "'OLHA PRA TELA! VOCÊ NÃO AGUENTA 48 HORAS AQUI!', 'PARA DE ROLAR! VOCÊ ACABOU DE ENTRAR NO NÍVEL 5!').\n"
+        "5. VOZ HUMANA E DADOS CONCRETOS PARA HUD: escreva em frases curtas (6 a 10 palavras) com verbos concretos e "
+        "inclua números reais, dias (Dia 1, Dia 30), níveis (Nível 5), dinheiro (R$ 100 mil), anos ou distâncias (2.600 km) "
+        "para disparar os medidores visuais na tela. PROIBIDO clichês de IA ('mergulhe nessa história', 'prepare-se para descobrir', "
+        "'você não vai acreditar', 'a resposta vai te surpreender', 'além disso', 'sem dúvida').\n"
+        "6. RETENÇÃO SEM INTERRUPÇÃO: mantenha a tensão crescente até a virada final seca e memorável. PROIBIDO inserir qualquer "
+        "pausa comercial, propaganda, anúncio ou CTA no meio do vídeo. Deixe APENAS um gancho/CTA curto e natural de 1 única frase "
+        f"no finalzinho do vídeo (referência do canal: '{CTA_FINAL_PADRAO}').\n"
+        f"7. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): escreva com acentuação e grafia UTF-8 100% corretas "
         "em TODAS as palavras. Nunca remova acentos nem cedilhas.\n"
-        "7. ZERO emoji, ZERO travessão (em-dash ou en-dash), ZERO tags [VOZ], [SFX] ou [CTA_PAUSA] "
+        "8. ZERO emoji, ZERO travessão (em-dash ou en-dash), ZERO tags [VOZ], [SFX] ou [CTA_PAUSA] "
         "(a marcação técnica será feita na etapa seguinte).\n"
-        "8. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários) no formato:\n"
+        "9. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários) no formato:\n"
         "{\n"
         '  "titulo": "Título Inédito Curto",\n'
         f'  "pilar": "{pilar_ativo["id"]}",\n'
         '  "tema": "Resumo objetivo em 1 frase da premissa inédita",\n'
-        f'  "roteiro_bruto": "Texto corrido completo do roteiro em {IDIOMA_CANAL} falado natural com grafia UTF-8 100% correta, sem pausa comercial no meio e fechando com 1 frase curta de gancho/CTA no finalzinho (185 a 245 palavras)."\n'
+        f'  "roteiro_bruto": "Texto corrido completo do roteiro em {IDIOMA_CANAL} abrindo com quebra de padrão agressiva em 2ª pessoa nos 0-3s, frases curtas com números/dias/níveis/valores concretos, sem pausa comercial no meio e fechando com 1 frase curta de gancho/CTA no finalzinho (185 a 245 palavras)."\n'
         "}\n"
     )
 
@@ -2345,6 +2578,15 @@ def gerar_roteiro_inedito_gemini(
             motivo_rej = ultimo_erro
             continue
 
+        if tentativa < 3 and _eh_abertura_lenta(roteiro_gerado):
+            ultimo_erro = (
+                "Abertura lenta ou saudacao proibida detectada nos primeiros 3s; "
+                "abra com quebra de padrao agressiva em 2a pessoa PT-BR."
+            )
+            print(f"AVISO roteiro inedito tentativa {tentativa}/3 rejeitado ({ultimo_erro}). Regerando...", flush=True)
+            motivo_rej = ultimo_erro
+            continue
+
         if not titulo_gerado:
             titulo_gerado = f"{pilar_ativo['titulo_fallback']} {prox_id:02d}"
 
@@ -2388,62 +2630,65 @@ def gerar_roteiro_inedito_mock(
         "cenarios_hipoteticos": (
             f"E Se Você Acordasse Preso no Submarino {prox_id:02d}",
             (
-                "E se você acordasse agora preso dentro de um submarino a trezentos metros de profundidade? "
-                "As luzes principais apagaram. Só o painel de emergência brilha em vermelho. "
-                "O visor marca quarenta e oito horas de oxigênio, e o rádio da superfície está mudo. "
-                "Seu primeiro instinto é correr e bater no casco de aço pedindo socorro. Só que esse é o pior erro possível. "
-                "Cada movimento apressado dobra o gasto de ar e enche a cabine de gás carbônico. "
-                "Com doze horas, o frio bate seis graus. O silêncio de metal começa a pregar peças na sua cabeça, "
-                "como se alguém estivesse andando lá fora. Na hora vinte e quatro, o ar fica pesado e sua vista escurece nas bordas. "
-                "Você acha uma válvula manual de lastro no corredor central e gira o ferro com as mãos tremendo. "
-                "O submarino inclina devagar, mas o painel acende um alerta impossível: a escotilha externa já tinha sido aberta "
-                "pelo lado de fora antes mesmo de você acordar. "
-                "Me conta nos comentários: você tentaria abrir essa escotilha ou ficaria lá dentro?"
+                "VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA! "
+                "Você acordou trancado num submarino a 300 metros de profundidade. "
+                "O painel acendeu em Alerta Nível 5 com só 48 horas de oxigênio. "
+                "Se você aceitar ficar até o Dia 3, o prêmio passa de R$ 500 mil. "
+                "Seu primeiro instinto é correr e bater no casco de aço. "
+                "Só que cada movimento rápido dobra o gasto de ar na cabine. "
+                "Com 12 horas, o frio despenca para 6 graus e o rádio morre. "
+                "Na hora 24, sua visão escurece e passos ecoam fora do metal. "
+                "Você acha a válvula de lastro no corredor e gira com as mãos tremendo. "
+                "O visor pisca o aviso impossível: a escotilha externa já estava aberta antes de você acordar. "
+                "Me conta nos comentários: você abriria essa escotilha ou ficaria lá dentro?"
             ),
         ),
         "curiosidades_bizarras": (
             f"O Fenômeno Real do Ponto Nemo {prox_id:02d}",
             (
-                "Existe um lugar no oceano tão isolado que, se você cair lá, as pessoas mais perto de você não estão na Terra. "
-                "Elas estão passando lá em cima, na Estação Espacial Internacional. "
-                "Esse ponto real se chama Ponto Nemo, no meio do Pacífico Sul, a mais de dois mil e seiscentos quilômetros de qualquer ilha habitada. "
-                "As correntes giram em volta e quase não deixam nutrientes entrar. A água vira um deserto quase sem peixes. "
-                "Por ser tão vazio, agências espaciais usam o lugar como o maior cemitério de naves do planeta. "
-                "Centenas de satélites mortos e restos de estações já foram jogados de propósito ali no fundo. "
-                "Só que o mais estranho rolou em noventa e sete. Microfones militares no fundo do mar captaram um barulho colossal vindo dali, "
-                "ouvido a cinco mil quilômetros de distância. A explicação oficial falou em um bloco de gelo se partindo, "
-                "mas ninguém nunca gravou outro som igual até hoje. "
-                "E você, acha que era só gelo ou tem coisa escondida lá embaixo, comenta aí?"
+                "VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA! "
+                "Se você cair nesse ponto do oceano, ninguém na Terra consegue te salvar. "
+                "Você estaria a 2.600 km de qualquer ilha habitada no Pacífico Sul. "
+                "Os humanos mais perto de você estão a 400 km lá em cima, na Estação Espacial. "
+                "O isolamento ali bate Nível 5 e nem os peixes sobrevivem nessa água morta. "
+                "Nem pagando R$ 10 milhões um resgate chegaria em menos de 15 dias. "
+                "Por isso, agências espaciais jogam satélites mortos ali como um cemitério gigante. "
+                "Só que em 1997, microfones militares captaram um rugido colossal vindo do fundo. "
+                "O som viajou 5.000 km debaixo da água e entrou em alerta máximo. "
+                "A versão oficial falou em gelo partindo, mas nunca gravaram nada igual até hoje. "
+                "E você, acha que era só gelo ou tem algo escondido lá embaixo, comenta aí?"
             ),
         ),
         "misterios_reais": (
             f"O Cofre Proibido no Gelo de Svalbard {prox_id:02d}",
             (
-                "Existe uma porta de concreto cravada numa montanha congelada do Ártico onde quase ninguém no mundo pode entrar. "
-                "É o Cofre Global de Sementes de Svalbard, enfiado cento e vinte metros dentro do gelo, na Noruega. "
-                "Ele foi feito para sobreviver a terremotos, explosões, apagões e até ao derretimento das geleiras. "
-                "Lá dentro ficam mais de um milhão de amostras de sementes guardadas a dezoito graus negativos. "
-                "Tem sensor de movimento, portas blindadas duplas e uma trava rígida: sem credencial diplomática, ninguém passa do primeiro corredor. "
-                "Não existe equipe morando lá dentro, mas câmeras vigiam cada grau de temperatura o tempo todo. "
-                "Até hoje, só um país precisou abrir sua caixa lacrada depois de uma guerra. "
-                "Isso mostra uma coisa bem real: o cofre não é exagero de filme, ele existe porque governos já têm plano pronto se a comida do planeta acabar. "
+                "PARA TUDO! OLHA PRA TELA AGORA! "
+                "Se você tentar cruzar essa porta no Ártico, o alarme dispara em Nível 5. "
+                "O Cofre Global de Svalbard fica 120 metros dentro de uma montanha congelada. "
+                "Lá dentro, mais de 1 milhão de sementes dormem a -18 graus negativos. "
+                "O projeto custou R$ 45 milhões para aguentar terremotos, explosões e apagões. "
+                "No Dia 1 sem comida no planeta, esse corredor blindado vira a última esperança humana. "
+                "Não existe equipe morando ali, mas sensores vigiam cada grau 24 horas por dia. "
+                "Sem credencial diplomática, ninguém passa da segunda porta de aço. "
+                "Até hoje, só um país abriu sua caixa lacrada depois de uma guerra real. "
+                "Os governos não construíram isso por filme, eles já têm data e plano pro colapso. "
                 "Você sabia que esse cofre existia, me diz aqui nos comentários?"
             ),
         ),
         "suspense_urbano": (
             f"O Último Vagão da Linha Sul {prox_id:02d}",
             (
-                "Eram onze e dezoito da noite quando Mateus entrou no último vagão vazio do metrô. "
-                "Ele sentou perto da janela escura e pôs o fone para abafar o barulho dos trilhos. "
-                "Quando o trem entrou no túnel longo, a luz do teto piscou duas vezes. "
-                "O letreiro em cima da porta travou no nome de uma estação fechada há quase trinta anos. "
-                "Mateus tirou o fone e percebeu um silêncio total, sem nenhum som de motor. "
-                "No reflexo do vidro, todos os bancos estavam vazios, menos o banco logo atrás dele. "
-                "Tinha um homem de capa escura sentado ali, de cabeça baixa. Mateus virou o pescoço na hora: o banco real atrás dele estava vazio. "
-                "O interfone perto da porta chiou alto e uma voz assustada da central perguntou como ele tinha entrado ali, "
-                "porque aquele trem estava desligado na garagem há quarenta minutos. "
-                "Mateus olhou de volta para o vidro. O homem do reflexo agora estava de pé atrás da nuca dele, sorrindo. "
-                "Me diz nos comentários: você puxava o freio de emergência ou corria pro outro vagão?"
+                "VOCÊ! É, VOCÊ MESMO! NÃO ENTRA NESSE VAGÃO! "
+                "Às 23:18, Mateus entrou no último trem vazio da Linha Sul. "
+                "Quando cruzou o túnel, a luz piscou e o painel marcou Alerta Nível 4. "
+                "O letreiro travou numa estação fechada há 30 anos. "
+                "Mateus tirou o fone e percebeu 100% de silêncio sem som de motor. "
+                "No vidro escuro, um homem de capa olhava fixo para a nuca dele. "
+                "Mateus virou o pescoço na hora: o banco real atrás dele estava vazio. "
+                "O interfone chiou alto e a central gritou em pânico na linha. "
+                "Aquele trem estava desligado na garagem há 40 minutos. "
+                "Mateus olhou de volta para o vidro e o reflexo agora estava sorrindo colado nele. "
+                "Me diz nos comentários: você puxava o freio ou corria pro outro vagão?"
             ),
         ),
     }
@@ -2455,14 +2700,13 @@ def gerar_roteiro_inedito_mock(
         titulo_fb = str(pilar_ativo.get("titulo_fallback") or nome_pilar[:44]).strip()
         titulo_padrao = f"{titulo_fb} {prox_id:02d}"
         roteiro = (
-            f"Quase ninguém percebe o que realmente acontece quando o assunto é {nome_pilar}. "
-            f"No canal {CANAL_NOME}, a gente olhou os detalhes que passam batido todo dia. "
-            "No primeiro minuto tudo parece comum e previsível, sem nenhum sinal de alerta. "
-            "Só que uma pequena escolha repetida em silêncio muda completamente o resultado final. "
-            "Quem entende esse mecanismo cedo consegue virar o jogo antes de perder tempo e energia. "
-            "Quando você junta as peças na ordem certa, o padrão fica impossível de ignorar. "
-            "O detalhe que quase todo mundo deixa de lado é exatamente o ponto onde tudo muda de direção. "
-            "No fim das contas, a diferença entre quem trava e quem avança está nesse único ajuste prático. "
+            f"VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA! "
+            f"Você está ignorando o segredo de Nível 5 por trás de {nome_pilar}. "
+            "No Dia 1 tudo parece comum, mas o risco já passou de 90% sem você notar. "
+            "Muita gente perde mais de R$ 10 mil antes de perceber o padrão escondido. "
+            "Em 48 horas, uma única escolha errada muda completamente o resultado final. "
+            "Quem enxerga esse mecanismo cedo vira o jogo antes do prazo acabar. "
+            "Quando você junta as pistas na ordem certa, a verdade fica impossível de ignorar. "
             f"{CTA_FINAL_PADRAO}"
         )
     titulo = restaurar_acentos_ptbr(sanitizar_texto(titulo_sugerido)) if titulo_sugerido else titulo_padrao
@@ -2564,6 +2808,8 @@ def validar_e_corrigir_plano(
 
     ultimo_cenario = ""
     ultima_camera = ""
+    ultima_pose = ""
+    ultima_expr = ""
 
     if isinstance(blocos_in, list) and len(blocos_in) >= 3:
         sfx_count = 0
@@ -2577,7 +2823,16 @@ def validar_e_corrigir_plano(
             )
             if not txt:
                 continue
-            if not txt.endswith((".", "!", "?", ",", ";", ":")):
+            prox_txt = ""
+            if idx + 1 < total_in and isinstance(blocos_in[idx + 1], dict):
+                prox_txt = str(
+                    blocos_in[idx + 1].get("texto")
+                    or blocos_in[idx + 1].get("fala")
+                    or blocos_in[idx + 1].get("narration")
+                    or ""
+                ).strip()
+            eh_continuacao = bool(prox_txt) and prox_txt[0].islower()
+            if (not eh_continuacao) and (not txt.endswith((".", "!", "?", ",", ";", ":"))):
                 txt += "."
             norm_txt = normalizar_texto(txt)
             perfil_orig = str(b.get("perfil_voz", "narrador_tenso")).strip().lower()
@@ -2612,7 +2867,7 @@ def validar_e_corrigir_plano(
                 else:
                     avisos.append(f"Bloco {idx + 1}: sfx_depois '{sfx_dep}' ignorado.")
 
-            # Subdivide automaticamente falas > 4s (> MAX_PALAVRAS_POR_TOMADA palavras) em 2 ou 3 tomadas curtas
+            # Subdivide automaticamente falas > 2.5s (> MAX_PALAVRAS_POR_TOMADA palavras) em tomadas curtas
             sub_falas = (
                 [txt]
                 if eh_cta_in or len(txt.split()) <= MAX_PALAVRAS_POR_TOMADA + 1
@@ -2624,19 +2879,29 @@ def validar_e_corrigir_plano(
                 sub_txt_fmt = sub_txt.strip()
                 if not sub_txt_fmt:
                     continue
-                if not sub_txt_fmt.endswith((".", "!", "?", ",", ";", ":")):
-                    sub_txt_fmt += "."
                 eh_ultima_sub = sub_i == len(sub_falas) - 1
+                if eh_ultima_sub and (not eh_continuacao) and not sub_txt_fmt.endswith((".", "!", "?", ",", ";", ":")):
+                    sub_txt_fmt += "."
+                eh_cena_1 = len(blocos_validos) == 0
                 hud_dado = None if eh_cta_in else extrair_hud_dado(sub_txt_fmt, hud_raw=b.get("hud_dado") if sub_i == 0 else None)
                 grav_zero = (not eh_cta_in) and (
                     bool(props_in.get("gravidade_zero")) or texto_indica_gravidade_zero(sub_txt_fmt)
                 )
 
-                cen_raw = str(b.get("cenario") or b.get("modulo") or "").strip().lower() if sub_i == 0 else ""
-                if cen_raw in CENARIOS_ANIMADOS and cen_raw != ultimo_cenario:
-                    cen_norm = cen_raw
+                if eh_cena_1:
+                    if _eh_abertura_lenta(sub_txt_fmt):
+                        avisos.append("Cena 1: abertura lenta/generica detectada; prefira gancho agressivo 0-3s em 2a pessoa PT-BR.")
+                    cen_norm = "big_face"
+                    acao_norm = "explosao_choque"
+                    cam = "shake_impact"
+                    pose_norm = "assustado"
+                    expr_norm = "shock"
+                    mood_bloco = "red"
+                    perfil_bloco = "panico"
                 else:
-                    cen_norm = inferir_cenario_animado(
+                    mood_bloco = mood
+                    perfil_bloco = perfil
+                    cen_inferido = inferir_cenario_animado(
                         sub_txt_fmt,
                         len(blocos_validos),
                         max(total_in, len(blocos_validos) + 2),
@@ -2646,51 +2911,63 @@ def validar_e_corrigir_plano(
                         eh_cta=eh_cta_in,
                         eh_twist=(idx == total_in - 2 and eh_ultima_sub),
                     )
+                    cen_raw = str(b.get("cenario") or b.get("modulo") or "").strip().lower() if sub_i == 0 else ""
+                    # Se o texto cita explicitamente oceano/ilha/peixes/agua, nao permite espaco_orbita errado
+                    if cen_raw in CENARIOS_ANIMADOS and not (cen_raw == "espaco_orbita" and cen_inferido == "oceano_ilha"):
+                        cen_norm = cen_raw
+                    else:
+                        cen_norm = cen_inferido
+
+                    acao_raw = str(b.get("acao_cena") or "").strip().lower() if sub_i == 0 else ""
+                    acao_norm = (
+                        acao_raw
+                        if acao_raw in ACOES_CENA_VALIDAS
+                        else inferir_acao_cena(
+                            sub_txt_fmt,
+                            cen_norm,
+                            hud_dado=hud_dado,
+                            gravidade_zero=grav_zero,
+                        )
+                    )
+                    cam = escolher_camera_alternada(
+                        b.get("camera") if sub_i == 0 else None,
+                        acao_norm,
+                        cen_norm,
+                        len(blocos_validos),
+                        anterior=ultima_camera,
+                        mood=mood_bloco,
+                    )
+
+                    pose_raw = sanitizar_texto(str((b.get("pose") or props_in.get("pose") or "") if sub_i == 0 else "")).lower()
+                    pose_norm = _POSE_ALIASES.get(pose_raw, pose_raw)
+                    if pose_norm not in POSES_VALIDAS:
+                        pose_norm = inferir_pose_animada(
+                            sub_txt_fmt,
+                            cen_norm,
+                            acao_norm,
+                            perfil_bloco,
+                            gravidade_zero=grav_zero,
+                            eh_cta=eh_cta_in,
+                        )
+
+                    expr_raw = str(b.get("expressao") or "").strip().lower() if sub_i == 0 else ""
+                    expr_norm = _EXPR_ALIASES.get(expr_raw, expr_raw)
+                    if expr_norm not in EXPRESSOES_VALIDAS:
+                        expr_norm = inferir_expressao_animada(
+                            sub_txt_fmt,
+                            perfil_bloco,
+                            acao_norm,
+                            eh_twist=(idx == total_in - 2 and eh_ultima_sub),
+                            eh_cta=eh_cta_in,
+                        )
+                    pose_norm, expr_norm = _alternar_estado_visual_consecutivo(
+                        pose_norm, expr_norm, ultima_pose, ultima_expr, len(blocos_validos)
+                    )
+
                 ultimo_cenario = cen_norm
-
-                acao_raw = str(b.get("acao_cena") or "").strip().lower() if sub_i == 0 else ""
-                acao_norm = (
-                    acao_raw
-                    if acao_raw in ACOES_CENA_VALIDAS
-                    else inferir_acao_cena(
-                        sub_txt_fmt,
-                        cen_norm,
-                        hud_dado=hud_dado,
-                        gravidade_zero=grav_zero,
-                    )
-                )
-                cam = escolher_camera_alternada(
-                    b.get("camera") if sub_i == 0 else None,
-                    acao_norm,
-                    cen_norm,
-                    len(blocos_validos),
-                    anterior=ultima_camera,
-                    mood=mood,
-                )
                 ultima_camera = cam
-
-                pose_raw = sanitizar_texto(str((b.get("pose") or props_in.get("pose") or "") if sub_i == 0 else "")).lower()
-                pose_norm = _POSE_ALIASES.get(pose_raw, pose_raw)
-                if pose_norm not in POSES_VALIDAS:
-                    pose_norm = inferir_pose_animada(
-                        sub_txt_fmt,
-                        cen_norm,
-                        acao_norm,
-                        perfil,
-                        gravidade_zero=grav_zero,
-                        eh_cta=eh_cta_in,
-                    )
-
-                expr_raw = str(b.get("expressao") or "").strip().lower() if sub_i == 0 else ""
-                expr_norm = _EXPR_ALIASES.get(expr_raw, expr_raw)
-                if expr_norm not in EXPRESSOES_VALIDAS:
-                    expr_norm = inferir_expressao_animada(
-                        sub_txt_fmt,
-                        perfil,
-                        acao_norm,
-                        eh_twist=(idx == total_in - 2 and eh_ultima_sub),
-                        eh_cta=eh_cta_in,
-                    )
+                ultima_pose = pose_norm
+                ultima_expr = expr_norm
 
                 obj_str = sanitizar_texto(str(props_in.get("objeto", "janela")))[:32] or "janela"
                 flut_list: list[str] = []
@@ -2719,13 +2996,13 @@ def validar_e_corrigir_plano(
 
                 blocos_validos.append(
                     {
-                        "perfil_voz": perfil,
+                        "perfil_voz": perfil_bloco,
                         "texto": sub_txt_fmt,
                         "cenario": cen_norm,
                         "modulo": cen_norm,
                         "acao_cena": acao_norm,
                         "pose": pose_norm,
-                        "mood": mood,
+                        "mood": mood_bloco,
                         "expressao": expr_norm,
                         "camera": cam,
                         "hud_dado": hud_dado,
@@ -3068,7 +3345,7 @@ def compor_roteiro_e_cenas(
         "video_id": video_id,
         "slug": slug,
         "titulo": plano["titulo"],
-        "parte_label": "PARTE 1" if tem_parte_2 else "",
+        "parte_label": "",
         "horario": plano["horario"],
         "cta_modo": "final",
         "tem_parte_2": tem_parte_2,
@@ -3118,7 +3395,6 @@ def validar_cenas_json(cenas: dict) -> list[str]:
     if not isinstance(lista_cenas, list) or len(lista_cenas) < 3:
         erros.append("cenas precisa ter pelo menos 3 itens.")
     else:
-        cen_anterior = ""
         cam_anterior = ""
         for idx, c in enumerate(lista_cenas):
             if not isinstance(c, dict):
@@ -3127,9 +3403,6 @@ def validar_cenas_json(cenas: dict) -> list[str]:
             cen = c.get("cenario") or c.get("modulo")
             if cen not in CENARIOS_ANIMADOS:
                 erros.append(f"cenas[{idx}].cenario invalido: {cen!r}.")
-            elif cen == cen_anterior:
-                erros.append(f"cenas[{idx}].cenario repete o cenario consecutivo anterior ({cen!r}).")
-            cen_anterior = str(cen or "")
 
             acao = c.get("acao_cena")
             if acao not in ACOES_CENA_VALIDAS:
@@ -3151,6 +3424,14 @@ def validar_cenas_json(cenas: dict) -> list[str]:
             elif cam == cam_anterior:
                 erros.append(f"cenas[{idx}].camera repete a camera consecutiva anterior ({cam!r}).")
             cam_anterior = str(cam or "")
+
+            if idx == 0:
+                if cen != "big_face":
+                    erros.append(f"cenas[0].cenario precisa ser 'big_face' para gancho agressivo 0-3s (recebido {cen!r}).")
+                if cam != "shake_impact":
+                    erros.append(f"cenas[0].camera precisa ser 'shake_impact' na Cena 1 (recebido {cam!r}).")
+                if c.get("expressao") not in ("shock", "fear"):
+                    erros.append(f"cenas[0].expressao precisa ser 'shock' ou 'fear' na Cena 1 (recebido {c.get('expressao')!r}).")
 
             hud = c.get("hud_dado")
             if hud is not None:
@@ -3239,7 +3520,7 @@ def _preparar_novo_registro_historico(
         "saida": f"output/short_{novo_id:02d}.mp4",
         "status": "em_producao",
         "motor": MOTOR_RENDER_PADRAO,
-        "parte_label": "PARTE 1" if tem_parte_2 else "",
+        "parte_label": "",
         "cta_modo": "final",
     }
     if pilar and pilar in PILARES_POR_ID:
