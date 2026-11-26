@@ -43,6 +43,7 @@ TAXA_AMOSTRAGEM = 44100
 # - Trilha base: atmosfera limpa e sutil sem zumbido (pausa ~ -21 dB, ducking durante fala ~ -25 dB)
 LOUDNORM_VOZ = "loudnorm=I=-14:TP=-1.5:LRA=11"
 LOUDNORM_TRILHA_BASE = "loudnorm=I=-21:TP=-3.0:LRA=7"
+SILENCEREMOVE_INICIO = "silenceremove=start_periods=1:start_silence=0.05:start_threshold=-40dB"
 SIDECHAIN_DUCKING = "sidechaincompress=threshold=0.045:ratio=3.0:attack=15:release=260:knee=4:makeup=1"
 LIMITER_FINAL = "alimiter=limit=0.89:attack=5:release=50"
 
@@ -162,6 +163,7 @@ def montar_filtro_mixagem_audio(
     inputs_extras: list[str] = []
     partes: list[str] = [
         f"[{voice_input_idx}:a]aformat=sample_rates={sample_rate}:channel_layouts=stereo,"
+        f"{SILENCEREMOVE_INICIO},"
         f"apad,atrim=0:{dur_proc:.3f},asetpts=PTS-STARTPTS,"
         f"{LOUDNORM_VOZ},asplit=2[v_main][v_sc]"
     ]

@@ -60,8 +60,8 @@ from pipeline.historico import (  # noqa: E402
     validar_historico,
 )
 
-SCHEMA_VERSION = "8.0"
-MOTOR_RENDER_PADRAO = "cinematografico_ia_30fps"
+SCHEMA_VERSION = "7.0"
+MOTOR_RENDER_PADRAO = "canvas_2d_30fps"
 GEMINI_MODELO_PADRAO = MODELOS_TEXTO_GEMINI_PADRAO[0]
 GEMINI_MODELOS_FALLBACK: tuple[str, ...] = MODELOS_TEXTO_GEMINI_PADRAO
 ARQUIVO_ENV = RAIZ / ".env"
@@ -167,11 +167,10 @@ EXPRESSOES_VALIDAS: tuple[str, ...] = ("neutral", "worry", "shock", "fear", "smu
 CAMERAS_VALIDAS: tuple[str, ...] = (
     "push_in",
     "pull_out",
-    "pan_diag_tl",
-    "pan_diag_br",
     "pan_left",
     "pan_right",
     "shake_impact",
+    "float_cam",
 )
 
 PALETA_JAQUETAS: tuple[tuple[str, str, str], ...] = (
@@ -693,6 +692,8 @@ _CAM_ALIASES: dict[str, str] = {
     "wide_still": "float_cam",
     "zoom_in": "push_in",
     "zoom_out": "pull_out",
+    "pan_diag_tl": "pan_left",
+    "pan_diag_br": "pan_right",
 }
 
 
@@ -1050,8 +1051,10 @@ def escolher_camera_alternada(
         or acao_cena in ("explosao_choque", "chuva_flechas", "onda_gigante")
     ) and anterior != "shake_impact":
         return "shake_impact"
+    if (acao_cena == "flutuando_gravidade" or cenario in ("espaco_orbita", "oceano_ilha", "ceu_nuvens")) and anterior != "float_cam":
+        return "float_cam"
 
-    ciclo = ("push_in", "pan_diag_tl", "pull_out", "pan_right", "pan_diag_br", "pan_left", "shake_impact")
+    ciclo = ("push_in", "pan_right", "pull_out", "pan_left", "float_cam", "shake_impact")
     for offset in range(len(ciclo)):
         c = ciclo[(idx + offset) % len(ciclo)]
         if c != anterior:
@@ -1490,6 +1493,7 @@ def diretor_mock_deterministico(
         eh_final_cta = (i == n - 1) and _eh_bloco_cta_final(txt)
         eh_twist = i == idx_twist
 
+        hud_dado = None if eh_final_cta else extrair_hud_dado(txt)
         grav_zero = (not eh_final_cta) and (texto_indica_gravidade_zero(txt) or (ctx_zero_g and i >= 1))
 
         cenario = inferir_cenario_animado(
@@ -1498,7 +1502,7 @@ def diretor_mock_deterministico(
             n,
             anterior=ultimo_cenario,
             contexto_global=limpo,
-            hud_dado=None,
+            hud_dado=hud_dado,
             eh_cta=eh_final_cta,
             eh_twist=eh_twist,
         )
@@ -1507,7 +1511,7 @@ def diretor_mock_deterministico(
         acao_cena = inferir_acao_cena(
             txt,
             cenario,
-            hud_dado=None,
+            hud_dado=hud_dado,
             gravidade_zero=grav_zero,
         )
 
@@ -1548,20 +1552,32 @@ def diretor_mock_deterministico(
         cam = escolher_camera_alternada(None, acao_cena, cenario, i, anterior=ultima_camera, mood=mood)
         ultima_camera = cam
 
-        prompt_imagem = gerar_prompt_imagem_literal(
-            texto=txt,
-            titulo=titulo,
-            idx=i,
-            total=n,
-            mood=mood,
-            prompts_usados=prompts_usados,
+        obj_principal = (
+            "lapiseira" if "lapiseira" in norm
+            else ("xicara_cafe" if ("xicara" in norm or "cafe" in norm)
+                  else ("guarda_roupa" if ("armario" in norm or "guarda roupa" in norm) else "janela"))
         )
+        flutuantes = inferir_props_flutuantes(txt, objeto_atual=obj_principal, gravidade_zero=grav_zero) if grav_zero else []
+        tem_vulto = (not eh_final_cta) and texto_indica_vulto(txt) and not (
+            grav_zero and not any(k in norm for k in ("vulto", "sombra", "olhos", "invasor"))
+        )
+        citacao = extrair_citacao_tela(txt, limite=84)
+        props = {
+            "objeto": obj_principal,
+            "vulto": tem_vulto,
+            "gravidade_zero": grav_zero,
+            "objetos_flutuantes": flutuantes,
+            "silhuetas_janela": "silhuetas_janela" in flutuantes,
+            "celular_mensagem": citacao,
+            "pose": pose,
+            "acao_cena": acao_cena,
+            "hud_dado": hud_dado,
+        }
 
         blocos.append(
             {
                 "perfil_voz": perfil,
                 "texto": txt,
-                "prompt_imagem": prompt_imagem,
                 "cenario": cenario,
                 "modulo": cenario,
                 "acao_cena": acao_cena,
@@ -1569,6 +1585,8 @@ def diretor_mock_deterministico(
                 "mood": mood,
                 "expressao": expr,
                 "camera": cam,
+                "hud_dado": hud_dado,
+                "props": props,
                 "sfx_depois": None,
             }
         )
@@ -1612,39 +1630,34 @@ def _montar_prompt_gemini(
         if pilar is not None
         else ""
     )
-    horario_ex = pilar["horario_padrao"] if pilar is not None else "23:18"
+    horario_ex = pilar["horario_padrao"] if pilar is not None else "15:00"
     resumo_pilares = ", ".join(p["nome"] for p in PILARES_EDITORIAIS)
     return (
-        f"Você é o Diretor Cinematográfico de Cortes Rápidos do canal '{CANAL_NOME}' "
+        f"Você é o Diretor de Animação 2D 30fps do canal '{CANAL_NOME}' "
         f"(YouTube Shorts / Reels em {IDIOMA_CANAL}: {resumo_pilares}).\n"
-        "Transforme o roteiro bruto abaixo em um plano JSON estrito de ALTÍSSIMA RETENÇÃO com 1 corte visual novo a cada 3 a 4 segundos.\n"
+        "Transforme o roteiro bruto abaixo em um plano estruturado JSON estrito onde CADA FALA gera uma cena 2D animada única.\n"
         "REGRAS OBRIGATÓRIAS:\n"
         "1. ZERO emoji e ZERO travessão (em-dash ou en-dash) em qualquer texto.\n"
         f"2. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): preserve TODOS os acentos, cedilhas e números/anos inteiros "
-        "(ex.: 2004, 2006, 5 km, 20 reais, você, não, mão, pés, direção). Nunca remova acentos nem altere palavras do roteiro.\n"
-        "3. CORTES RÁPIDOS DE 3 A 4 SEGUNDOS (14 A 18 CENAS POR VÍDEO DE 60s): divida automaticamente qualquer fala longa "
-        "(com mais de 12 palavras / 4 segundos) em 2 ou 3 tomadas visuais curtas consecutivas (7 a 12 palavras por bloco), "
-        "mantendo o texto falado fluido e natural sem pausas artificiais.\n"
-        "4. ZERO CTA NO MEIO: PROIBIDO inserir pausa comercial, propaganda ou CTA no meio do vídeo. "
-        "Deixe APENAS um gancho/CTA curto de 1 única frase como último bloco.\n"
-        "5. PROMPT DE IMAGEM LITERAL E CINEMATOGRÁFICO EM INGLÊS (`prompt_imagem`) PARA CADA CENA:\n"
-        "   - Descreva LITERALMENTE o objeto, ambiente, ação e ângulo de câmera exatos do que está sendo dito naquela frase "
-        "(ex.: se a frase fala de cabine de pedágio na neblina, descreva a cabine de pedágio na neblina com luz de sódio; "
-        "se fala de uma mão pálida entregando uma nota de 20 reais suja de lama, descreva um close extremo da mão pálida segurando a nota suja de lama).\n"
-        "   - NUNCA use descrições genéricas repetidas nem peça texto/letras/números desenhados dentro da imagem.\n"
-        "   - Evite palavras que disparem filtros de segurança (evite 'blood', 'corpse', 'gore', 'murder', 'dead body'; "
-        "use equivalentes cinematográficos atmosféricos como 'eerie shadow', 'crimson reflection', 'abandoned scene', 'mysterious silhouette').\n"
-        f"   - TERMINE TODO `prompt_imagem` com exatamente este estilo consistente: \"{ESTILO_VISUAL_PROMPT_IMAGEM}\".\n"
-        "6. CAMPOS DE CADA BLOCO EM `blocos`:\n"
+        "(ex.: 2004, 2006, 5 km, você, não, mão, pés, direção, levitação). Nunca quebre anos nem remova acentos.\n"
+        "3. RITMO HUMANO E SEM PAUSA NO MEIO: divida em 8 a 14 blocos narrativos curtos e viciantes. PROIBIDO inserir pausa "
+        "comercial, propaganda ou CTA no meio do vídeo. Deixe o gancho/CTA curto de 1 frase APENAS como último bloco.\n"
+        "4. DIREÇÃO DE ANIMAÇÃO 2D ÚNICA POR FALA (escolha cada campo alinhado ao que está sendo dito naquela frase):\n"
         f"   - perfil_voz: um de {list(PERFIS_VOZ)} (mantenha 'narrador_tenso' na maior parte para preservar a voz contínua do Gemini TTS; use 'sussurro_twist' na revelação final; NUNCA use 'cta_comercial').\n"
-        "   - texto: trecho curto falado (7 a 12 palavras) preservando 100% do sentido do roteiro.\n"
-        "   - prompt_imagem: descrição visual LITERAL em inglês + estilo cinematográfico travado acima.\n"
-        f"   - camera: um de {list(CAMERAS_VALIDAS)} (use 'shake_impact' em cenas de tensão/clímax; NUNCA repita a mesma câmera em duas cenas seguidas).\n"
-        f"   - mood: um de {list(MOODS_VALIDOS)} ('red' para tensão/clímax, 'navy'/'violet'/'yellow' para suspense).\n"
+        f"   - cenario: um de {list(CENARIOS_ANIMADOS)}. NUNCA repita o mesmo cenario em duas falas seguidas.\n"
+        f"   - acao_cena: um de {list(ACOES_CENA_VALIDAS)}.\n"
+        f"   - pose: um de {list(POSES_VALIDAS)}.\n"
+        f"   - expressao: um de {list(EXPRESSOES_VALIDAS)}.\n"
+        f"   - camera: um de {list(CAMERAS_VALIDAS)}. Alterne SEMPRE (nunca repita a mesma camera em duas falas seguidas).\n"
+        f"   - mood: um de {list(MOODS_VALIDOS)}.\n"
+        "   - hud_dado: sempre que a fala citar números, anos (ex.: 2004, 2006), distâncias (ex.: 5 KM), velocidades ou porcentagens, "
+        'preencha {"rotulo": "ZONA PROIBIDA", "valor": "5 KM", "progresso": 0.85} (progresso entre 0.0 e 1.0); caso contrário, null.\n'
         f"   - sfx_depois: null ou um de {sfx_validos} (coloque 'impacto_twist' imediatamente antes do bloco da revelação final; máximo 3 SFX no total).\n"
-        "7. katana_hits: lista de 3 a 5 palavras de impacto reais do roteiro (MAIÚSCULAS com acento UTF-8) para destaque vermelho nas legendas.\n"
-        f"8. horario: string HH:MM coerente com o episódio (ex.: '{horario_ex}').\n"
-        "9. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários, com 14 a 18 itens em `blocos` para vídeos de ~60s) no formato:\n"
+        f"   - props: objeto opcional com gravidade_zero (bool), objetos_flutuantes (subconjunto de {list(PROPS_FLUTUANTES_VALIDOS)}), silhuetas_janela (bool) e vulto (bool).\n"
+        "5. katana_hits: lista de 3 a 5 impactos curtos (1 a 2 palavras em MAIÚSCULAS COM ACENTUAÇÃO UTF-8 CORRETA), cada um com bloco_idx (0-based), palavra_gatilho, linhas (1 a 2 strings curtas), duracao (0.36 a 0.48), cor ('red', 'yellow' ou 'white').\n"
+        f"6. horario: string HH:MM coerente com o episódio (como '{horario_ex}').\n"
+        "7. protagonista.nome: nome do personagem ou 'Você'.\n"
+        "8. Responda APENAS com um objeto JSON estrito (sem markdown, sem comentários) no formato:\n"
         "{\n"
         '  "titulo": "...",\n'
         f'  "pilar": "{pilar["id"] if pilar is not None else "suspense_urbano"}",\n'
@@ -1653,8 +1666,8 @@ def _montar_prompt_gemini(
         f'  "horario": "{horario_ex}",\n'
         '  "protagonista": {"nome": "Você", "jaqueta": "#0F766E", "pele": "#E0B292", "cabelo": "#141720"},\n'
         '  "paleta": {"bg_navy": "#0A0F1D", "bg_violet": "#130926", "bg_red": "#3B0A0A", "accent": "#38D9FF", "alert": "#FF3B30", "yellow": "#FFD400"},\n'
-        '  "blocos": [{"perfil_voz": "narrador_tenso", "texto": "A cabine de pedágio sumiu na neblina densa da rodovia.", "prompt_imagem": "Wide cinematic shot of an isolated highway toll booth swallowed by dense nocturnal fog, flickering amber sodium lamp, wet black asphalt, hyper-detailed 3D dark cinematic digital illustration, moody volumetric lighting, Unreal Engine 5 quality, dramatic shadows, vertical 9:16 framing, no text, no letters, no watermark", "camera": "push_in", "mood": "navy", "sfx_depois": null}],\n'
-        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "neblina", "linhas": ["NEBLINA"], "duracao": 0.42, "cor": "red"}]\n'
+        '  "blocos": [{"perfil_voz": "narrador_tenso", "texto": "...", "cenario": "oceano_ilha", "acao_cena": "barco_navegando", "pose": "falando", "expressao": "focus", "camera": "push_in", "mood": "navy", "hud_dado": {"rotulo": "ZONA PROIBIDA", "valor": "5 KM", "progresso": 0.85}, "sfx_depois": null, "props": {"gravidade_zero": false, "objetos_flutuantes": [], "silhuetas_janela": false, "vulto": false}}],\n'
+        '  "katana_hits": [{"bloco_idx": 2, "palavra_gatilho": "flechas", "linhas": ["CHUVA DE", "FLECHAS"], "duracao": 0.42, "cor": "red"}]\n'
         "}\n\n"
         f"{pilar_hint}"
         f"{titulo_hint}"
@@ -1853,11 +1866,11 @@ def chamar_groq_json(
     }
 
     system_msg = (
-        "Voce e uma API JSON estrita (RFC-8259) especializada em roteiros e direcao cinematografica "
+        "Voce e uma API JSON estrita (RFC-8259) especializada em roteiros e direcao de animacao 2D 30fps "
         "para videos curtos verticais. Regras obrigatorias: "
         "(1) Responda SOMENTE com um unico objeto JSON valido, sem texto extra e sem cercas markdown. "
         "(2) Siga exatamente os nomes de campos pedidos no prompt (incluindo titulo, pilar, tema, roteiro_bruto "
-        "ou blocos com 14 a 18 cenas e prompt_imagem em ingles). "
+        "ou blocos com cenario, acao_cena, pose, expressao, camera, mood, hud_dado e props). "
         "(3) Preserve 100% da acentuacao UTF-8 em portugues, com ZERO emoji e ZERO travessao."
     )
 
@@ -2605,10 +2618,7 @@ def validar_e_corrigir_plano(
                 if eh_cta_in or len(txt.split()) <= MAX_PALAVRAS_POR_TOMADA + 1
                 else _dividir_fala_em_tomadas_curtas(txt, max_palavras=MAX_PALAVRAS_POR_TOMADA)
             )
-            prompt_bruto = sanitizar_texto(
-                str(b.get("prompt_imagem") or b.get("image_prompt") or b.get("prompt") or "")
-            )
-            tomadas_prompts_raw = b.get("tomadas_prompts") if isinstance(b.get("tomadas_prompts"), list) else []
+            props_in = b.get("props") if isinstance(b.get("props"), dict) else {}
 
             for sub_i, sub_txt in enumerate(sub_falas):
                 sub_txt_fmt = sub_txt.strip()
@@ -2617,24 +2627,37 @@ def validar_e_corrigir_plano(
                 if not sub_txt_fmt.endswith((".", "!", "?", ",", ";", ":")):
                     sub_txt_fmt += "."
                 eh_ultima_sub = sub_i == len(sub_falas) - 1
-
-                cen_norm = inferir_cenario_animado(
-                    sub_txt_fmt,
-                    len(blocos_validos),
-                    max(total_in, len(blocos_validos) + 2),
-                    anterior=ultimo_cenario,
-                    contexto_global=roteiro_bruto,
-                    hud_dado=None,
-                    eh_cta=eh_cta_in,
-                    eh_twist=(idx == total_in - 2 and eh_ultima_sub),
+                hud_dado = None if eh_cta_in else extrair_hud_dado(sub_txt_fmt, hud_raw=b.get("hud_dado") if sub_i == 0 else None)
+                grav_zero = (not eh_cta_in) and (
+                    bool(props_in.get("gravidade_zero")) or texto_indica_gravidade_zero(sub_txt_fmt)
                 )
+
+                cen_raw = str(b.get("cenario") or b.get("modulo") or "").strip().lower() if sub_i == 0 else ""
+                if cen_raw in CENARIOS_ANIMADOS and cen_raw != ultimo_cenario:
+                    cen_norm = cen_raw
+                else:
+                    cen_norm = inferir_cenario_animado(
+                        sub_txt_fmt,
+                        len(blocos_validos),
+                        max(total_in, len(blocos_validos) + 2),
+                        anterior=ultimo_cenario,
+                        contexto_global=roteiro_bruto,
+                        hud_dado=hud_dado,
+                        eh_cta=eh_cta_in,
+                        eh_twist=(idx == total_in - 2 and eh_ultima_sub),
+                    )
                 ultimo_cenario = cen_norm
 
-                acao_norm = inferir_acao_cena(
-                    sub_txt_fmt,
-                    cen_norm,
-                    hud_dado=None,
-                    gravidade_zero=texto_indica_gravidade_zero(sub_txt_fmt),
+                acao_raw = str(b.get("acao_cena") or "").strip().lower() if sub_i == 0 else ""
+                acao_norm = (
+                    acao_raw
+                    if acao_raw in ACOES_CENA_VALIDAS
+                    else inferir_acao_cena(
+                        sub_txt_fmt,
+                        cen_norm,
+                        hud_dado=hud_dado,
+                        gravidade_zero=grav_zero,
+                    )
                 )
                 cam = escolher_camera_alternada(
                     b.get("camera") if sub_i == 0 else None,
@@ -2646,54 +2669,67 @@ def validar_e_corrigir_plano(
                 )
                 ultima_camera = cam
 
-                # Resolve prompt_imagem literal e unico para cada tomada
-                p_cand = ""
-                if sub_i < len(tomadas_prompts_raw) and isinstance(tomadas_prompts_raw[sub_i], str):
-                    p_cand = sanitizar_texto(tomadas_prompts_raw[sub_i])
-                elif sub_i == 0 and len(prompt_bruto) >= 24:
-                    p_cand = prompt_bruto
-
-                if len(p_cand) >= 24:
-                    prompt_final = garantir_estilo_prompt_imagem(p_cand)
-                    if prompt_final.lower() in prompts_usados:
-                        prompt_final = gerar_prompt_imagem_literal(
-                            texto=sub_txt_fmt,
-                            titulo=titulo,
-                            idx=len(blocos_validos),
-                            total=max(total_in, len(blocos_validos) + 2),
-                            mood=mood,
-                            prompts_usados=prompts_usados,
-                        )
-                    else:
-                        prompts_usados.add(prompt_final.lower())
-                else:
-                    prompt_final = gerar_prompt_imagem_literal(
-                        texto=sub_txt_fmt,
-                        titulo=titulo,
-                        idx=len(blocos_validos),
-                        total=max(total_in, len(blocos_validos) + 2),
-                        mood=mood,
-                        prompts_usados=prompts_usados,
+                pose_raw = sanitizar_texto(str((b.get("pose") or props_in.get("pose") or "") if sub_i == 0 else "")).lower()
+                pose_norm = _POSE_ALIASES.get(pose_raw, pose_raw)
+                if pose_norm not in POSES_VALIDAS:
+                    pose_norm = inferir_pose_animada(
+                        sub_txt_fmt,
+                        cen_norm,
+                        acao_norm,
+                        perfil,
+                        gravidade_zero=grav_zero,
+                        eh_cta=eh_cta_in,
                     )
+
+                expr_raw = str(b.get("expressao") or "").strip().lower() if sub_i == 0 else ""
+                expr_norm = _EXPR_ALIASES.get(expr_raw, expr_raw)
+                if expr_norm not in EXPRESSOES_VALIDAS:
+                    expr_norm = inferir_expressao_animada(
+                        sub_txt_fmt,
+                        perfil,
+                        acao_norm,
+                        eh_twist=(idx == total_in - 2 and eh_ultima_sub),
+                        eh_cta=eh_cta_in,
+                    )
+
+                obj_str = sanitizar_texto(str(props_in.get("objeto", "janela")))[:32] or "janela"
+                flut_list: list[str] = []
+                if grav_zero or any(k in normalizar_texto(obj_str) for k in ("lapiseira", "xicara", "cafe", "cadeira")):
+                    for inf_it in inferir_props_flutuantes(sub_txt_fmt, objeto_atual=obj_str, gravidade_zero=grav_zero):
+                        if inf_it not in flut_list:
+                            flut_list.append(inf_it)
+                silhuetas_jan = bool(props_in.get("silhuetas_janela")) or ("silhuetas_janela" in flut_list)
+                if silhuetas_jan and "silhuetas_janela" not in flut_list:
+                    flut_list.append("silhuetas_janela")
+                tem_vulto = (not eh_cta_in) and (
+                    bool(props_in.get("vulto")) if "vulto" in props_in else texto_indica_vulto(sub_txt_fmt)
+                )
+                citacao = extrair_citacao_tela(sub_txt_fmt, limite=84)
+                props_bloco = {
+                    "objeto": obj_str,
+                    "vulto": tem_vulto,
+                    "gravidade_zero": grav_zero,
+                    "objetos_flutuantes": flut_list,
+                    "silhuetas_janela": silhuetas_jan,
+                    "celular_mensagem": restaurar_acentos_ptbr(sanitizar_texto(str(props_in.get("celular_mensagem", ""))))[:92] or citacao,
+                    "pose": pose_norm,
+                    "acao_cena": acao_norm,
+                    "hud_dado": hud_dado,
+                }
 
                 blocos_validos.append(
                     {
                         "perfil_voz": perfil,
                         "texto": sub_txt_fmt,
-                        "prompt_imagem": prompt_final,
                         "cenario": cen_norm,
                         "modulo": cen_norm,
                         "acao_cena": acao_norm,
-                        "pose": inferir_pose_animada(sub_txt_fmt, cen_norm, acao_norm, perfil, eh_cta=eh_cta_in),
+                        "pose": pose_norm,
                         "mood": mood,
-                        "expressao": inferir_expressao_animada(
-                            sub_txt_fmt,
-                            perfil,
-                            acao_norm,
-                            eh_twist=(idx == total_in - 2 and eh_ultima_sub),
-                            eh_cta=eh_cta_in,
-                        ),
+                        "expressao": expr_norm,
                         "camera": cam,
+                        "hud_dado": hud_dado,
+                        "props": props_bloco,
                         "sfx_depois": sfx_limpo if eh_ultima_sub else None,
                     }
                 )
@@ -2702,7 +2738,6 @@ def validar_e_corrigir_plano(
         avisos.append("Blocos insuficientes no retorno da IA: blocos gerados pelo fallback deterministico.")
         blocos_validos = fallback["blocos"]
         ultima_camera = str(blocos_validos[-1].get("camera") or "push_in")
-        prompts_usados = {str(b.get("prompt_imagem") or "").lower() for b in blocos_validos}
 
     # Garante apenas 1 frase curta de gancho/CTA no finalzinho do video (nunca no meio)
     if not _eh_bloco_cta_final(str(blocos_validos[-1].get("texto") or "")):
@@ -2715,19 +2750,21 @@ def validar_e_corrigir_plano(
             anterior=str(blocos_validos[-1].get("camera") or "push_in"),
             mood="navy",
         )
-        prompt_cta = gerar_prompt_imagem_literal(
-            texto=CTA_FINAL_PADRAO,
-            titulo=titulo,
-            idx=len(blocos_validos),
-            total=len(blocos_validos) + 1,
-            mood="navy",
-            prompts_usados=prompts_usados,
-        )
+        props_cta = {
+            "objeto": "janela",
+            "vulto": False,
+            "gravidade_zero": False,
+            "objetos_flutuantes": [],
+            "silhuetas_janela": False,
+            "celular_mensagem": "",
+            "pose": "apontando",
+            "acao_cena": "investigando_pista",
+            "hud_dado": None,
+        }
         blocos_validos.append(
             {
                 "perfil_voz": "narrador_tenso",
                 "texto": CTA_FINAL_PADRAO,
-                "prompt_imagem": prompt_cta,
                 "cenario": cen_cta,
                 "modulo": cen_cta,
                 "acao_cena": "investigando_pista",
@@ -2735,6 +2772,8 @@ def validar_e_corrigir_plano(
                 "mood": "navy",
                 "expressao": "smug",
                 "camera": cam_cta,
+                "hud_dado": None,
+                "props": props_cta,
                 "sfx_depois": None,
             }
         )
@@ -2876,13 +2915,13 @@ def compor_roteiro_e_cenas(
 
     linhas_rot: list[str] = [
         f'ROTEIRO {video_id:02d}: "{plano["titulo"].upper()}"',
-        f"Formato: YouTube Shorts / Reels 9:16 (1080x1920 @ 30fps) | {'Serie em 2 Partes' if tem_parte_2 else 'Short Unico'} (Motor V8.0 Cinematografico IA)",
-        "Gerado automaticamente por pipeline/diretor_ia.py | Estacao 3: gerar_midia_cenas.py + render/renderizar.py",
+        f"Formato: YouTube Shorts / Reels 9:16 (1080x1920 @ 30fps) | {'Serie em 2 Partes' if tem_parte_2 else 'Short Unico'} (Motor V7.0 Animacao 2D Canvas)",
+        "Gerado automaticamente por pipeline/diretor_ia.py | Estacao 3: render/renderizar.py --motor canvas (player_universal.html)",
         "Perfis vocais: narrador_tenso, panico, interfone_porteiro, voz_telefone, sussurro_twist.",
-        "Retencao continua: 1 corte visual novo a cada 3s-4s; zero pausa comercial no meio; apenas 1 frase curta no final.",
+        "Retencao continua: cada fala aciona um cenario 2D animado unico; zero pausa comercial no meio; apenas 1 frase curta no final.",
         "",
         "Estrutura de cada bloco:",
-        "[Tempo em Segundos] | [Texto Exato da Narracao com Tags VOZ] | [Direcao visual cinematografica] | [Eventos e pausas]",
+        "[Tempo em Segundos] | [Texto Exato da Narracao com Tags VOZ] | [Direcao visual 2D animada] | [Eventos e pausas]",
         "",
         "============================================================",
         "",
@@ -2942,11 +2981,15 @@ def compor_roteiro_e_cenas(
 
         ev_str = ", ".join(eventos_bloco)
         perfil = str(b.get("perfil_voz") or "narrador_tenso")
+        cen = str(b.get("cenario") or b.get("modulo") or "oceano_ilha")
+        acao = str(b.get("acao_cena") or "investigando_pista")
+        props_b = b.get("props") if isinstance(b.get("props"), dict) else {}
+        pose_b = str(b.get("pose") or props_b.get("pose") or "falando")
+        expr_b = str(b.get("expressao") or "focus")
         cam_b = str(b.get("camera") or "push_in")
         mood_b = str(b.get("mood") or "navy")
         texto_b = str(b.get("texto") or "")
-        prompt_img = garantir_estilo_prompt_imagem(str(b.get("prompt_imagem", "")))
-        direcao = f"Tomada {cena_id} (cam={cam_b}, mood={mood_b}): {prompt_img[:90]}"
+        direcao = f"Cenario {cen} (acao={acao}, pose={pose_b}, mood={mood_b}, expr={expr_b}, cam={cam_b})"
         linhas_rot.append(
             f"[{t0:02d} - {t1:02d}] | [VOZ:{perfil}] {texto_b} [/VOZ] | {direcao} | {ev_str}"
         )
@@ -2965,13 +3008,27 @@ def compor_roteiro_e_cenas(
             {
                 "id": cena_id,
                 "evento_inicio": cena_id,
-                "fala": texto_b,
-                "prompt_imagem": prompt_img,
-                "camera": cam_b,
+                "cenario": cen,
+                "modulo": cen,
+                "acao_cena": acao,
+                "pose": pose_b,
                 "mood": mood_b,
+                "expressao": expr_b,
+                "camera": cam_b,
                 "vig": 0.72 if mood_b in ("red", "dark") else 0.58,
-                "duracao_estimada_s": round(dur_est, 2),
-                "tensao": mood_b == "red" or cam_b == "shake_impact" or i == idx_twist,
+                "hud_dado": b.get("hud_dado"),
+                "fala": texto_b,
+                "props": props_b or {
+                    "objeto": "janela",
+                    "vulto": False,
+                    "gravidade_zero": False,
+                    "objetos_flutuantes": [],
+                    "silhuetas_janela": False,
+                    "celular_mensagem": "",
+                    "pose": pose_b,
+                    "acao_cena": acao,
+                    "hud_dado": b.get("hud_dado"),
+                },
             }
         )
 
@@ -2979,9 +3036,10 @@ def compor_roteiro_e_cenas(
         [
             "",
             "============================================================",
-            "NOTAS TECNICAS V8.0 (MOTOR CINEMATOGRAFICO DE CORTES RAPIDOS IA 30FPS)",
-            f"- Palavras faladas: {total_palavras} | Total de cenas visuais: {len(cenas_json_lista)} (~{t_cursor / max(1, len(cenas_json_lista)):.1f}s por corte).",
-            f"- Palavras de destaque vermelho: {', '.join(' / '.join(h['linhas']) for h in plano['katana_hits'])}.",
+            "NOTAS TECNICAS V7.0 (MOTOR 2D ANIMADO 30FPS)",
+            f"- Palavras faladas: {total_palavras} | Total de cenas 2D animadas: {len(cenas_json_lista)}.",
+            f"- Cenarios animados 30fps em cenas.json: {', '.join(c['cenario'] for c in cenas_json_lista)}.",
+            f"- Katana Hits ({len(plano['katana_hits'])}): {', '.join(' / '.join(h['linhas']) for h in plano['katana_hits'])}.",
             "",
         ]
     )
@@ -3010,11 +3068,10 @@ def compor_roteiro_e_cenas(
         "video_id": video_id,
         "slug": slug,
         "titulo": plano["titulo"],
-        "parte_label": "",
+        "parte_label": "PARTE 1" if tem_parte_2 else "",
         "horario": plano["horario"],
         "cta_modo": "final",
         "tem_parte_2": tem_parte_2,
-        "estilo_visual_prompt": ESTILO_VISUAL_PROMPT_IMAGEM,
         "paleta": plano["paleta"],
         "protagonista": plano["protagonista"],
         "cta": {
@@ -3030,7 +3087,7 @@ def compor_roteiro_e_cenas(
 
 
 def validar_cenas_json(cenas: dict) -> list[str]:
-    """Validador estrito do schema cenas.json V8.0 (Motor Cinematografico IA 30fps; lista vazia = valido)."""
+    """Validador estrito do schema cenas.json V7.0 (Motor 2D Animado 30fps; lista vazia = valido)."""
     erros: list[str] = []
     if not isinstance(cenas, dict):
         return ["cenas.json precisa ser um objeto JSON."]
@@ -3045,6 +3102,10 @@ def validar_cenas_json(cenas: dict) -> list[str]:
     if not RE_HORARIO.fullmatch(str(cenas.get("horario", ""))):
         erros.append(f"horario invalido: {cenas.get('horario')!r}.")
 
+    prot = cenas.get("protagonista")
+    if not isinstance(prot, dict) or not RE_HEX.fullmatch(str(prot.get("jaqueta", ""))):
+        erros.append("protagonista.jaqueta precisa ser cor hexadecimal #RRGGBB.")
+
     pal = cenas.get("paleta")
     if not isinstance(pal, dict):
         erros.append("paleta ausente.")
@@ -3057,25 +3118,32 @@ def validar_cenas_json(cenas: dict) -> list[str]:
     if not isinstance(lista_cenas, list) or len(lista_cenas) < 3:
         erros.append("cenas precisa ter pelo menos 3 itens.")
     else:
+        cen_anterior = ""
         cam_anterior = ""
-        prompts_vistos: set[str] = set()
         for idx, c in enumerate(lista_cenas):
             if not isinstance(c, dict):
                 erros.append(f"cenas[{idx}] invalido.")
                 continue
-            p_img = str(c.get("prompt_imagem", "")).strip()
-            if len(p_img) < 40:
-                erros.append(f"cenas[{idx}].prompt_imagem ausente ou curto demais.")
-            else:
-                p_low = p_img.lower()
-                if "no watermark" not in p_low or "9:16" not in p_low:
-                    erros.append(f"cenas[{idx}].prompt_imagem sem estilo cinematografico travado (9:16 / no watermark).")
-                if p_low in prompts_vistos:
-                    erros.append(f"cenas[{idx}].prompt_imagem duplicado de cena anterior.")
-                prompts_vistos.add(p_low)
+            cen = c.get("cenario") or c.get("modulo")
+            if cen not in CENARIOS_ANIMADOS:
+                erros.append(f"cenas[{idx}].cenario invalido: {cen!r}.")
+            elif cen == cen_anterior:
+                erros.append(f"cenas[{idx}].cenario repete o cenario consecutivo anterior ({cen!r}).")
+            cen_anterior = str(cen or "")
+
+            acao = c.get("acao_cena")
+            if acao not in ACOES_CENA_VALIDAS:
+                erros.append(f"cenas[{idx}].acao_cena invalida: {acao!r}.")
+
+            pose_c = c.get("pose")
+            if pose_c not in POSES_VALIDAS:
+                erros.append(f"cenas[{idx}].pose invalida: {pose_c!r}.")
 
             if c.get("mood") not in MOODS_VALIDOS:
                 erros.append(f"cenas[{idx}].mood invalido: {c.get('mood')!r}.")
+
+            if c.get("expressao") not in EXPRESSOES_VALIDAS:
+                erros.append(f"cenas[{idx}].expressao invalida: {c.get('expressao')!r}.")
 
             cam = c.get("camera")
             if cam not in CAMERAS_VALIDAS:
@@ -3083,6 +3151,21 @@ def validar_cenas_json(cenas: dict) -> list[str]:
             elif cam == cam_anterior:
                 erros.append(f"cenas[{idx}].camera repete a camera consecutiva anterior ({cam!r}).")
             cam_anterior = str(cam or "")
+
+            hud = c.get("hud_dado")
+            if hud is not None:
+                if not isinstance(hud, dict):
+                    erros.append(f"cenas[{idx}].hud_dado precisa ser objeto ou null.")
+                else:
+                    if not str(hud.get("rotulo", "")).strip() or not str(hud.get("valor", "")).strip():
+                        erros.append(f"cenas[{idx}].hud_dado precisa ter rotulo e valor nao vazios.")
+                    prog_h = hud.get("progresso")
+                    if not isinstance(prog_h, (int, float)) or not (0.0 <= float(prog_h) <= 1.0):
+                        erros.append(f"cenas[{idx}].hud_dado.progresso fora de 0.0..1.0: {prog_h!r}.")
+
+            props_c = c.get("props")
+            if not isinstance(props_c, dict):
+                erros.append(f"cenas[{idx}].props precisa ser objeto.")
 
     hits = cenas.get("katana_hits")
     if not isinstance(hits, list) or not (3 <= len(hits) <= 5):
@@ -3134,7 +3217,7 @@ def _preparar_novo_registro_historico(
     caminho_historico: Path = ARQUIVO_HISTORICO,
     pilar: str | None = None,
 ) -> tuple[int, str, dict, dict]:
-    """Prepara e valida o proximo registro V8 em memoria antes de gravar qualquer arquivo."""
+    """Prepara e valida o proximo registro V7 (Motor 2D Canvas) em memoria antes de gravar qualquer arquivo."""
     dados = carregar_historico(caminho_historico)
     id_anterior = int(dados.get("video_atual") or 0)
     novo_id = proximo_numero_livre(dados)
@@ -3152,10 +3235,11 @@ def _preparar_novo_registro_historico(
         "palavras_chave": list(plano["palavras_chave"]),
         "roteiro": f"roteiro_{novo_id:02d}.txt",
         "cenas": "cenas.json",
+        "player": "player_universal.html",
         "saida": f"output/short_{novo_id:02d}.mp4",
         "status": "em_producao",
         "motor": MOTOR_RENDER_PADRAO,
-        "parte_label": "",
+        "parte_label": "PARTE 1" if tem_parte_2 else "",
         "cta_modo": "final",
     }
     if pilar and pilar in PILARES_POR_ID:
@@ -3503,14 +3587,14 @@ def main(argv: list[str] | None = None) -> int:
     motor_atual = str(cenas.get("motor") or MOTOR_RENDER_PADRAO)
     if motor_atual == MOTOR_RENDER_PADRAO:
         resumo_visual = ", ".join(
-            f"{c.get('camera') or 'push_in'}({c.get('mood') or 'navy'})"
+            f"{c.get('cenario') or c.get('modulo') or 'oceano_ilha'}({c.get('camera') or 'push_in'})"
             for c in lista_cenas
             if isinstance(c, dict)
         )
-        rotulo_visual = "Cameras"
+        rotulo_visual = "Cenarios"
     else:
         resumo_visual = ", ".join(
-            str(c.get("camera") or c.get("mood") or c.get("modulo") or "cena_ia")
+            str(c.get("cenario") or c.get("camera") or c.get("mood") or c.get("modulo") or "cena_2d")
             for c in lista_cenas
             if isinstance(c, dict)
         )
@@ -3522,7 +3606,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     pilar_info = f", pilar={res['pilar']}" if res.get("pilar") else ""
     print(
-        f"Diretor IA V8 concluido ({res.get('origem', 'ia')}): Video {int(res['video_id']):02d} '{res['titulo']}' "
+        f"Diretor IA V7 concluido ({res.get('origem', 'ia')}): Video {int(res['video_id']):02d} '{res['titulo']}' "
         f"[slug={res['slug']}{pilar_info}, palavras={res['palavras_historia']}, "
         f"{'Parte 1 + Parte 2' if res.get('tem_parte_2') else 'Short unico'}]"
     )

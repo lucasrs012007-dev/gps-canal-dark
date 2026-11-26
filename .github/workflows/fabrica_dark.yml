@@ -1,4 +1,4 @@
-name: Fabrica Dark V8 (Motor Cinematografico IA 30fps + Telegram)
+name: Fabrica Dark V7 (Motor 2D Animado 30fps + Telegram)
 
 on:
   workflow_dispatch:
@@ -163,14 +163,21 @@ jobs:
           python3 -m pip install --upgrade pip --no-cache-dir
           python3 -m pip install --upgrade --no-cache-dir numpy edge-tts gTTS Pillow google-genai google-api-python-client google-auth google-auth-oauthlib
 
-      - name: Garantir FFmpeg e fontes
+      - name: Garantir FFmpeg, Chrome headless e fontes
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1 || ! fc-list : family 2>/dev/null | grep -qi "DejaVu Sans"; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq ffmpeg fontconfig fonts-dejavu-core fonts-liberation
             fc-cache -f
           fi
+          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v google-chrome-stable >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1; then
+            curl -fsSL -o /tmp/google-chrome-stable.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq /tmp/google-chrome-stable.deb
+            rm -f /tmp/google-chrome-stable.deb
+          fi
           ffmpeg -version | head -n 1
+          (google-chrome --version || google-chrome-stable --version || chromium --version)
 
       - name: Estacao 1 - Diretor IA V8 (Groq Llama 3.3 70B primario -> GeminiPool fallback)
         env:
@@ -279,25 +286,14 @@ jobs:
           python3 audio/sound_design.py
           python3 pipeline/historico.py validar-audio
 
-      - name: Estacao 3 - Motor Cinematografico IA 30fps (Cloudflare FLUX / HF / Gemini / FAL + FFmpeg) + Corte Parte 1 / Parte 2
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
-          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
-          FAL_KEY: ${{ secrets.FAL_KEY }}
+      - name: Estacao 3 - Motor 2D Animado 30fps (Canvas 1080x1920 + FFmpeg) + Corte Parte 1 / Parte 2
         run: |
-          rm -rf output/cenas
           if [ "${MODO_TESTE}" = "true" ]; then
-            python3 gerar_midia_cenas.py --max-cenas 2
-            python3 render/renderizar.py --legendas --teste
+            python3 render/renderizar.py --motor canvas --legendas --teste
           else
-            python3 gerar_midia_cenas.py
-            python3 render/renderizar.py --legendas
+            python3 render/renderizar.py --motor canvas --legendas
           fi
-          ls -lh output/cenas/ output/*.mp4
+          ls -lh output/*.mp4
 
       - name: Publicar no YouTube Shorts
         if: ${{ success() }}
