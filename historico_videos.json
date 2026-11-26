@@ -1,7 +1,7 @@
 {
-  "versao": 16,
+  "versao": 17,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 16,
+  "video_atual": 17,
   "videos": [
     {
       "id": 1,
@@ -388,7 +388,7 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_16.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "canvas_2d_30fps",
       "parte_label": "",
       "cta_modo": "final",
@@ -397,6 +397,28 @@
         "output/short_16_parte1.mp4",
         "output/short_16_parte2.mp4"
       ]
+    },
+    {
+      "id": 17,
+      "slug": "e-se-voce-ficasse-preso-num-submarino",
+      "titulo": "E se você ficasse preso num submarino",
+      "tema": "Preso a 3.500 metros de profundidade sem contato e com oxigênio crítico",
+      "palavras_chave": [
+        "submarino",
+        "abismo",
+        "pressão",
+        "oxigênio",
+        "sobrevivência"
+      ],
+      "roteiro": "roteiro_17.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_17.mp4",
+      "status": "em_producao",
+      "motor": "canvas_2d_30fps",
+      "parte_label": "",
+      "cta_modo": "final",
+      "pilar": "cenarios_hipoteticos"
     }
   ]
 }
