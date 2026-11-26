@@ -1,7 +1,7 @@
 {
-  "versao": 14,
+  "versao": 15,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 14,
+  "video_atual": 15,
   "videos": [
     {
       "id": 1,
@@ -336,7 +336,7 @@
       "roteiro": "roteiro_14.txt",
       "cenas": "cenas.json",
       "saida": "output/short_14.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "cinematografico_ia_30fps",
       "parte_label": "",
       "cta_modo": "final",
@@ -344,6 +344,31 @@
       "saidas_partes": [
         "output/short_14_parte1.mp4",
         "output/short_14_parte2.mp4"
+      ]
+    },
+    {
+      "id": 15,
+      "slug": "a-radio-secreta-que-nunca-desliga",
+      "titulo": "A Rádio Secreta Que Nunca Desliga",
+      "tema": "A misteriosa frequencia de radio UVB-76 transmite um zumbido ininterrupto desde 1973 e esconde segredos nucleares russos.",
+      "palavras_chave": [
+        "uvb-76",
+        "radio",
+        "russia",
+        "zumbido",
+        "misterio"
+      ],
+      "roteiro": "roteiro_15.txt",
+      "cenas": "cenas.json",
+      "saida": "output/short_15.mp4",
+      "status": "em_producao",
+      "motor": "cinematografico_ia_30fps",
+      "parte_label": "",
+      "cta_modo": "final",
+      "pilar": "misterios_reais",
+      "saidas_partes": [
+        "output/short_15_parte1.mp4",
+        "output/short_15_parte2.mp4"
       ]
     }
   ]
