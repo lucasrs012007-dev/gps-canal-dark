@@ -78,8 +78,8 @@ PERFIS_VOZ_CANONICOS = (
     "sussurro_twist",
 )
 
-# Velocidade natural (1.02x) e limpeza de silencios longos preservando respiracao humana
-VELOCIDADE_VOZ_PADRAO = 1.02
+# Velocidade levemente mais agil (1.07x) aplicada antes da medicao de duracao e timestamps
+VELOCIDADE_VOZ_PADRAO = 1.07
 SILENCIO_INTERNO_MAX_S = 0.22
 SILENCIO_INTERNO_MANTER_S = 0.06
 GEMINI_TTS_MIN_INTERVAL_PADRAO = 21.0
@@ -1303,11 +1303,11 @@ def sintetizar_gtts(
 
 
 # ============================================================
-# LIMPEZA DE SILENCIOS LONGOS + VELOCIDADE NATURAL (ATEMPO 1.02X)
+# LIMPEZA DE SILENCIOS LONGOS + VELOCIDADE AGIL (ATEMPO 1.07X)
 # ============================================================
 
 def montar_filtro_limpeza_voz(velocidade: float = VELOCIDADE_VOZ_PADRAO) -> str:
-    """Monta filtro FFmpeg: remove silencios longos (>0.22s) mantendo respiracao natural + atempo 1.02x."""
+    """Monta filtro FFmpeg: remove silencios longos (>0.22s) mantendo respiracao natural + atempo 1.07x."""
     v = max(0.5, min(2.0, float(velocidade)))
     return (
         "silenceremove=start_periods=1:start_duration=0:start_threshold=-46dB:start_silence=0.02:"

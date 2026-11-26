@@ -115,6 +115,9 @@ CENARIOS_ANIMADOS: tuple[str, ...] = (
     "ceu_nuvens",
     "escritorio",
     "sala_cozinha",
+    "corredor_escuro",
+    "quarto_noturno",
+    "elevador_cabine",
     "arena_comparacao",
     "big_face",
 )
@@ -300,13 +303,36 @@ def carregar_catalogo_sfx(caminho: Path = ARQUIVO_CATALOGO_SFX) -> dict[str, flo
         return padrao
 
 
+RE_MOEDA_BRL_REDUNDANTE = re.compile(
+    r"\b(R\$\s*\d+(?:[.,]\d+)*(?:\s+(?:milh[oõ]es|milh[aã]o|bilh[oõ]es|bilh[aã]o|mil))?)"
+    r"\s+(?:de\s+)?rea(?:is|l)\b",
+    flags=re.IGNORECASE,
+)
+RE_MOEDA_USD_REDUNDANTE = re.compile(
+    r"\b(US\$\s*\d+(?:[.,]\d+)*(?:\s+(?:milh[oõ]es|milh[aã]o|bilh[oõ]es|bilh[aã]o|mil))?)"
+    r"\s+(?:de\s+)?d[oó]lar(?:es)?\b",
+    flags=re.IGNORECASE,
+)
+
+
+def normalizar_moeda_redundante(texto: str) -> str:
+    """Remove redundancia de moeda apos R$/US$ (ex.: 'R$ 48 reais' -> 'R$ 48'), preservando mil/milhoes/bilhoes."""
+    out = str(texto or "")
+    out = RE_MOEDA_BRL_REDUNDANTE.sub(r"\1", out)
+    out = RE_MOEDA_USD_REDUNDANTE.sub(r"\1", out)
+    out = re.sub(r"\b(R\$|US\$)\s*(\d)", r"\1 \2", out)
+    return out
+
+
 def sanitizar_texto(texto: str) -> str:
-    """Remove emojis, travessoes (em/en-dash) e marcadores residuais do texto."""
+    """Remove emojis, travessoes (em/en-dash), redundancias de moeda e marcadores residuais do texto."""
     limpo = str(texto or "")
     limpo = RE_EMOJI.sub("", limpo)
     limpo = limpo.replace("\u2014", ", ").replace("\u2013", ", ")
     limpo = limpo.replace("|", " ")
     limpo = re.sub(r"\[\s*/?\s*(?:VOZ|SFX|CTA_PAUSA|CORTE_PARTE_2)[^\]]*\]", " ", limpo, flags=re.IGNORECASE)
+    limpo = re.sub(r"[ \t]+", " ", limpo)
+    limpo = normalizar_moeda_redundante(limpo)
     limpo = re.sub(r"[ \t]+", " ", limpo)
     limpo = re.sub(r"\n{3,}", "\n\n", limpo)
     return limpo.strip()
@@ -620,6 +646,10 @@ def _eh_bloco_cta_final(texto: str) -> bool:
         "conta ai",
         "diz ai",
         "o que voce faria",
+        "o que faria",
+        "voce faria",
+        "faria o que",
+        "qual seria sua reacao",
         "voce aguentaria",
         "voce teria coragem",
         "voce encararia",
@@ -643,14 +673,171 @@ _NUMEROS_EXTENSO_PT: dict[str, int] = {
 }
 
 _CENARIO_ALIASES: dict[str, str] = {
-    "quarto_noturno": "sala_cozinha",
-    "corredor_escuro": "cidade_rua",
+    "hospital": "corredor_escuro",
+    "hospital_corredor": "corredor_escuro",
+    "corredor": "corredor_escuro",
+    "corredor_hospital": "corredor_escuro",
+    "uti": "corredor_escuro",
+    "quarto": "quarto_noturno",
+    "banheiro": "quarto_noturno",
+    "elevador": "elevador_cabine",
     "celular_notificacao": "sala_cozinha",
     "camera_cctv": "laboratorio",
-    "elevador_cabine": "escritorio",
     "carro_noite": "cidade_rua",
     "blecaute_olhos": "big_face",
 }
+
+_CENARIOS_INDOOR_ESCUROS: frozenset[str] = frozenset(
+    {
+        "corredor_escuro",
+        "quarto_noturno",
+        "elevador_cabine",
+        "sala_cozinha",
+        "escritorio",
+        "laboratorio",
+        "big_face",
+    }
+)
+
+_POSES_CELEBRATORIAS: frozenset[str] = frozenset({"comemorando", "pulando"})
+
+_TERMOS_INDOOR: tuple[str, ...] = (
+    "hospital", "uti", "leito", "corredor", "quarto", "sala", "predio",
+    "elevador", "porta", "casa", "banheiro", "enfermaria", "enfermeir",
+    "clinica", "plantao", "maca", "apartamento", "hotel", "cozinha",
+    "escritorio", "cama", "pronto socorro", "recepcao", "portaria",
+    "subsolo", "hall", "escada", "escadaria", "macaneta", "fechadura",
+)
+
+_TERMOS_RUA_EXTERNA: tuple[str, ...] = (
+    "rua", "avenida", "estrada", "rodovia", "asfalto", "transito",
+    "carro", "carros", "viatura", "pedagio", "ponte", "semaforo",
+    "calcada", "estacionamento",
+)
+
+_TERMOS_TERROR_SUSPENSE: tuple[str, ...] = (
+    "medo", "panico", "terror", "susto", "horror", "sangue", "morte",
+    "morrer", "morto", "morta", "perigo", "ameaca", "assust", "vulto",
+    "sombra", "olhos", "atras de voce", "pelas costas", "filmando",
+    "espiao", "invasor", "escondido", "grito", "sussurr", "corredor",
+    "uti", "leito", "hospital", "escuro", "escuridao", "blecaute",
+    "apagao", "sem piscar", "sorrindo", "sorriu", "trancad", "preso",
+    "presa", "silencio", "socorro", "fuga", "fugir", "coracao",
+    "arrepio", "gelou", "congelou", "paralis", "reflexo", "espelho",
+    "vigilancia", "cadaver", "respiracao", "passos", "batida",
+    "macaneta", "emergencia", "desaparec", "ameac", "sozinho", "sozinha",
+    "ninguem", "alguem", "persegu", "armadilha", "envenen", "asfix",
+)
+
+_TERMOS_GRAFICO_ESCALA: tuple[str, ...] = (
+    "comparacao", "comparado", "comparar", "vezes maior", "vezes menor",
+    "vezes mais", "dobro", "triplo", "multiplic", "crescimento",
+    "cresceu", "cresce", "escala", "proporcao", "ranking", "recorde",
+    "estatistica", "por cento", "taxa de", "indice", "faturamento",
+    "lucro", "investimento", "rendimento", "juros", "mil vezes",
+    "2x", "3x", "5x", "10x", "100x",
+)
+
+_TERMOS_EXATOS_PALAVRA: frozenset[str] = frozenset(
+    {
+        "uti", "sala", "casa", "rua", "mar", "ceu", "lua", "ala",
+        "maca", "cama", "dna", "hall", "2x", "3x", "5x", "10x", "100x",
+        "leito", "porta", "carro", "ponte", "trem", "ilha", "nave",
+        "medo", "fuga", "morte", "preso", "presa", "grito", "susto",
+        "costa", "onda", "gelo", "agua",
+    }
+)
+
+
+def _termo_no_texto(termo: str, norm: str) -> bool:
+    """Casamento seguro por palavra inteira para termos curtos e substring para radicais."""
+    if not termo or not norm:
+        return False
+    if termo in _TERMOS_EXATOS_PALAVRA or len(termo) <= 4:
+        return bool(re.search(rf"\b{re.escape(termo)}\b", norm))
+    return termo in norm
+
+
+def _eh_contexto_indoor(texto: str) -> bool:
+    """Retorna True se o texto indicar ambiente interno (hospital, UTI, corredor, quarto, sala, predio, casa, banheiro)."""
+    norm = normalizar_texto(texto)
+    return any(_termo_no_texto(t, norm) for t in _TERMOS_INDOOR)
+
+
+def _tem_pista_rua_externa(texto: str) -> bool:
+    """Retorna True apenas quando a fala cita explicitamente rua, transito ou carros externos."""
+    norm = normalizar_texto(texto)
+    return any(_termo_no_texto(t, norm) for t in _TERMOS_RUA_EXTERNA)
+
+
+def _eh_cena_terror_ou_suspense(texto: str, mood: str = "", perfil: str = "") -> bool:
+    """Identifica cenas de terror, suspense, medo, perigo ou ameaca."""
+    m = str(mood or "").strip().lower()
+    p = str(perfil or "").strip().lower()
+    if m in ("red", "dark", "cctv"):
+        return True
+    if p in ("panico", "sussurro_twist", "voz_telefone", "interfone_porteiro"):
+        return True
+    norm = normalizar_texto(texto)
+    return any(_termo_no_texto(t, norm) for t in _TERMOS_TERROR_SUSPENSE)
+
+
+def _texto_permite_grafico_comparacao(
+    texto: str,
+    mood: str = "",
+    perfil: str = "",
+    eh_cta: bool = False,
+    contexto_terror: bool = False,
+) -> bool:
+    """Permite arena_comparacao (BASE/2X/MAX) apenas para crescimento/multiplicadores/comparacoes/escala fora de terror/CTA."""
+    if eh_cta or _eh_bloco_cta_final(texto):
+        return False
+    if contexto_terror or _eh_cena_terror_ou_suspense(texto, mood=mood, perfil=perfil):
+        return False
+    if "%" in str(texto or ""):
+        return True
+    norm = normalizar_texto(texto)
+    return any(_termo_no_texto(t, norm) for t in _TERMOS_GRAFICO_ESCALA)
+
+
+def _sanitizar_pose_para_tom(
+    pose: str,
+    texto: str,
+    mood: str,
+    perfil: str,
+    acao_cena: str,
+    *,
+    eh_cta: bool = False,
+    contexto_terror: bool = False,
+) -> str:
+    """Proibe poses festivas (comemorando/pulando) em cenas de terror, suspense, perigo, mood dark/red ou CTA."""
+    pose_limpa = _POSE_ALIASES.get(str(pose or "").strip().lower(), str(pose or "").strip().lower())
+    if pose_limpa not in POSES_VALIDAS:
+        pose_limpa = "falando"
+    if pose_limpa not in _POSES_CELEBRATORIAS:
+        return pose_limpa
+    if eh_cta:
+        return "apontando"
+    if contexto_terror or _eh_cena_terror_ou_suspense(texto, mood=mood, perfil=perfil):
+        norm = normalizar_texto(texto)
+        if acao_cena == "corrida_fuga" or any(k in norm for k in ("correu", "corre", "correndo", "fuga", "fugir", "escap")):
+            return "correndo"
+        if (
+            str(mood or "").strip().lower() in ("red", "dark")
+            or str(perfil or "").strip().lower() in ("panico", "sussurro_twist")
+            or any(
+                _termo_no_texto(k, norm)
+                for k in (
+                    "medo", "panico", "terror", "susto", "perigo", "ameaca",
+                    "assust", "vulto", "sombra", "filmando", "pelas costas",
+                    "atras de voce", "olhos", "sangue", "grito", "paralis",
+                )
+            )
+        ):
+            return "assustado"
+        return "pensando"
+    return pose_limpa
+
 
 _POSE_ALIASES: dict[str, str] = {
     "idle": "em_pe",
@@ -734,11 +921,35 @@ _ABERTURAS_LENTAS_PROIBIDAS: tuple[str, ...] = (
     "existe uma porta",
     "imagine um mundo",
     "quase ninguem percebe",
+    "olha pra tela",
+    "olha para a tela",
+    "olha para tela",
+    "olhe pra tela",
+    "olhe para a tela",
+    "olhe para tela",
+    "presta atencao",
+    "preste atencao",
+    "escuta isso",
+    "escute isso",
+    "escuta so",
+    "escute so",
+    "escuta bem",
+    "escute bem",
+    "ouve isso",
+    "ouca isso",
+    "ouve so",
+    "ouca so",
+    "para de rolar",
+    "pare de rolar",
+    "nao pula esse video",
+    "nao passe esse video",
+    "fica ate o final",
+    "assista ate o final",
 )
 
 
 def _eh_abertura_lenta(texto: str) -> bool:
-    """Retorna True se a abertura do roteiro usar saudacao, setup generico ou gancho lento proibido."""
+    """Retorna True se a abertura do roteiro usar saudacao, meta-abertura generica ou gancho lento proibido."""
     inicio = normalizar_texto(texto)[:90]
     if not inicio:
         return True
@@ -751,14 +962,20 @@ def _alternar_estado_visual_consecutivo(
     pose_ant: str,
     expr_ant: str,
     idx: int,
+    *,
+    eh_terror: bool = False,
 ) -> tuple[str, str]:
     """Garante variacao visual de pose ou expressao entre blocos consecutivos (1.5s a 2.5s)."""
     if not pose_ant and not expr_ant:
         return pose_atual, expr_atual
     if pose_atual != pose_ant or expr_atual != expr_ant:
         return pose_atual, expr_atual
-    ciclo_poses = ("apontando", "assustado", "falando", "pensando", "correndo", "em_pe")
-    ciclo_exprs = ("shock", "focus", "fear", "worry", "smug")
+    ciclo_poses = (
+        ("assustado", "pensando", "correndo", "apontando", "em_pe", "falando")
+        if eh_terror
+        else ("apontando", "assustado", "falando", "pensando", "correndo", "em_pe")
+    )
+    ciclo_exprs = ("shock", "fear", "worry", "focus") if eh_terror else ("shock", "focus", "fear", "worry", "smug")
     nova_pose = next((p for p in ciclo_poses[idx % len(ciclo_poses):] + ciclo_poses[:idx % len(ciclo_poses)] if p != pose_ant), pose_atual)
     nova_expr = next((e for e in ciclo_exprs[idx % len(ciclo_exprs):] + ciclo_exprs[:idx % len(ciclo_exprs)] if e != expr_ant), expr_atual)
     return nova_pose, nova_expr
@@ -945,27 +1162,71 @@ def inferir_cenario_animado(
     hud_dado: dict | None = None,
     eh_cta: bool = False,
     eh_twist: bool = False,
+    mood: str = "",
+    perfil: str = "",
 ) -> str:
     """Escolhe o cenario 2D animado fiel as palavras-chave reais da fala atual."""
     norm = normalizar_texto(texto)
     norm_g = normalizar_texto(contexto_global)
+    ctx_indoor = _eh_contexto_indoor(contexto_global) if contexto_global else False
+    local_indoor = _eh_contexto_indoor(texto)
+    tem_rua_local = _tem_pista_rua_externa(texto)
+    bloquear_rua = (local_indoor or ctx_indoor) and not tem_rua_local
+    eh_terror_global = bool(contexto_global) and _eh_cena_terror_ou_suspense(contexto_global)
+    eh_terror_local = _eh_cena_terror_ou_suspense(texto, mood=mood, perfil=perfil)
+    permite_grafico = _texto_permite_grafico_comparacao(
+        texto,
+        mood=mood,
+        perfil=perfil,
+        eh_cta=eh_cta,
+        contexto_terror=eh_terror_local or eh_terror_global,
+    )
 
-    if eh_cta:
-        for cand in ("big_face", "arena_comparacao", "cidade_rua"):
+    if eh_cta or _eh_bloco_cta_final(texto):
+        cands_cta = (
+            ("big_face", "corredor_escuro", "quarto_noturno", "sala_cozinha")
+            if (ctx_indoor or local_indoor)
+            else ("big_face", "laboratorio", "escritorio", "sala_cozinha")
+        )
+        for cand in cands_cta:
             if cand != anterior:
                 return cand
+        return "big_face"
 
     pontos_local: dict[str, float] = {c: 0.0 for c in CENARIOS_ANIMADOS}
     pontos_ctx: dict[str, float] = {c: 0.0 for c in CENARIOS_ANIMADOS}
 
     regras: dict[str, tuple[tuple[str, ...], float]] = {
+        "corredor_escuro": (
+            (
+                "hospital", "uti", "enfermaria", "enfermeir", "clinica", "pronto socorro",
+                "corredor", "corredor branco", "corredor escuro", "predio", "hall",
+                "escada", "escadaria", "porta", "macaneta", "fechadura", "subsolo",
+                "recepcao", "portaria", "plantao", "maca", "ala",
+            ),
+            4.8,
+        ),
+        "quarto_noturno": (
+            (
+                "quarto", "leito", "cama", "travesseiro", "cobertor", "guarda roupa",
+                "armario", "dormindo", "acorda", "acordou", "banheiro", "chuveiro",
+                "cortina", "hotel",
+            ),
+            4.7,
+        ),
+        "elevador_cabine": (
+            (
+                "elevador", "cabine", "botoeira", "terreo",
+            ),
+            4.8,
+        ),
         "oceano_ilha": (
             (
                 "ilha", "ilhas", "sentinela", "mar", "oceano", "barco", "pescador",
                 "tsunami", "onda", "navio", "submarino", "costa", "praia", "agua",
                 "peixe", "peixes", "pacifico", "ponto nemo", "marinha", "casco",
-                "escotilha", "resgate", "gelo", "debaixo da agua", "fundo do mar",
-                "fundo", "abismo", "profundidade", "salv", "isolamento",
+                "escotilha", "gelo", "debaixo da agua", "fundo do mar",
+                "abismo", "profundidade", "ilha isolada", "resgate no mar",
             ),
             4.5,
         ),
@@ -998,17 +1259,18 @@ def inferir_cenario_animado(
                 "laboratorio", "cientista", "ciencia", "experimento", "radar", "sonar",
                 "microfone", "microfones", "hidrofone", "sensor", "sensores", "estudo",
                 "pesquisa", "dna", "cerebro", "cofre", "semente", "sementes", "svalbard",
-                "radio", "sinal", "camera", "protocolo", "governo", "governos", "arquivo",
-                "gravaram", "rugido", "captaram",
+                "radio", "sinal", "camera", "filmando", "vigilancia", "monitor cardiaco",
+                "protocolo", "governo", "governos", "arquivo", "gravaram", "rugido",
+                "captaram",
             ),
             4.0,
         ),
         "cidade_rua": (
             (
-                "cidade", "rua", "avenida", "predio", "transito", "metro", "vagao",
-                "tunel", "estacao", "carro", "estacionamento", "ponte", "sirene",
-                "policia", "hotel", "hospital", "pedagio", "corredor", "apartamento",
-                "trem", "trilhos", "garagem",
+                "cidade", "rua", "avenida", "transito", "asfalto", "metro", "vagao",
+                "tunel", "estacao", "carro", "carros", "estacionamento", "ponte",
+                "sirene", "viatura", "pedagio", "estrada", "rodovia", "calcada",
+                "semaforo", "trem", "trilhos", "garagem",
             ),
             4.0,
         ),
@@ -1022,39 +1284,52 @@ def inferir_cenario_animado(
         ),
         "sala_cozinha": (
             (
-                "casa", "cozinha", "sala", "quarto", "porta", "sofa", "geladeira",
-                "cama", "espelho", "janela de casa", "celular", "interfone",
+                "casa", "cozinha", "sala", "sofa", "geladeira", "apartamento",
+                "espelho", "janela de casa", "celular", "interfone",
                 "baba eletronica", "reflexo", "vidro",
             ),
-            3.8,
+            4.1,
         ),
         "arena_comparacao": (
             (
-                "comparacao", "vezes maior", "escala", "milhoes", "bilhoes", "por cento",
-                "recorde", "ranking", "velocidade", "temperatura", "distancia", "limite",
-                "perimetro", "premio", "pagando", "reais", "dolares", "custou",
+                "comparacao", "comparado", "comparar", "vezes maior", "vezes menor",
+                "vezes mais", "dobro", "triplo", "multiplic", "crescimento",
+                "cresceu", "escala", "proporcao", "ranking", "recorde",
+                "estatistica", "por cento", "faturamento", "lucro", "investimento",
+                "rendimento", "juros", "2x", "3x", "5x", "10x", "100x",
             ),
-            3.6,
+            3.8,
         ),
         "big_face": (
             (
                 "coracao", "panico", "susto", "terror", "olhos", "sem piscar", "sorrindo",
-                "atras de voce", "voce paralisa", "silencio", "ninguem voltou", "nunca mais",
-                "revelacao", "choque", "medo", "alerta maximo", "escondido",
+                "atras de voce", "pelas costas", "voce paralisa", "silencio",
+                "ninguem voltou", "nunca mais", "revelacao", "choque", "medo",
+                "alerta maximo", "escondido",
             ),
-            3.6,
+            3.8,
         ),
     }
 
     for cen, (termos, peso) in regras.items():
+        if cen == "arena_comparacao" and not permite_grafico:
+            continue
+        if cen == "cidade_rua" and bloquear_rua:
+            continue
         for termo in termos:
-            if termo in norm:
+            if _termo_no_texto(termo, norm):
                 pontos_local[cen] += peso
-            elif termo in norm_g and cen != "espaco_orbita":
-                # Nunca vazar espaco_orbita por contexto global quando a fala atual nao menciona espaco
+            elif norm_g and _termo_no_texto(termo, norm_g) and cen not in ("espaco_orbita", "arena_comparacao", "cidade_rua"):
                 pontos_ctx[cen] += peso * 0.14
 
-    # 1. Palavras-chave diretas da fala atual SEMPRE vencem (mesmo mantendo cenario em falas seguidas sobre o mesmo local)
+    if bloquear_rua:
+        pontos_local["cidade_rua"] = 0.0
+        pontos_ctx["cidade_rua"] = 0.0
+    if not permite_grafico:
+        pontos_local["arena_comparacao"] = 0.0
+        pontos_ctx["arena_comparacao"] = 0.0
+
+    # 1. Palavras-chave diretas da fala atual SEMPRE vencem
     melhor_local = max(CENARIOS_ANIMADOS, key=lambda c: (pontos_local[c], 1 if c != anterior else 0))
     if pontos_local[melhor_local] >= 3.0:
         return melhor_local
@@ -1062,8 +1337,13 @@ def inferir_cenario_animado(
     # 2. Para falas puramente narrativas/numericas sem palavra de cenario direta:
     pontos_totais = {c: pontos_local[c] + pontos_ctx[c] for c in CENARIOS_ANIMADOS}
     if hud_dado is not None:
-        pontos_totais["arena_comparacao"] += 2.6
-        pontos_totais["laboratorio"] += 1.0
+        if permite_grafico:
+            pontos_totais["arena_comparacao"] += 2.6
+        elif ctx_indoor or local_indoor:
+            pontos_totais["corredor_escuro"] += 1.4
+            pontos_totais["laboratorio"] += 1.0
+        else:
+            pontos_totais["laboratorio"] += 1.4
     if eh_twist:
         pontos_totais["big_face"] += 4.5
 
@@ -1075,19 +1355,33 @@ def inferir_cenario_animado(
     for cand in ordenados:
         if cand == "espaco_orbita" and pontos_local["espaco_orbita"] <= 0:
             continue
+        if cand == "arena_comparacao" and not permite_grafico:
+            continue
+        if cand == "cidade_rua" and bloquear_rua:
+            continue
+        if bloquear_rua and cand not in _CENARIOS_INDOOR_ESCUROS:
+            continue
         if cand != anterior and pontos_totais[cand] > 0.2:
             return cand
 
-    # Fallback neutro seguro (nunca salta para espaco_orbita sem motivo)
-    ciclo_fallback = (
-        "oceano_ilha", "arena_comparacao", "laboratorio", "big_face",
-        "ceu_nuvens", "cidade_rua", "floresta_noite", "escritorio", "sala_cozinha",
-    )
+    # Fallback neutro seguro (indoor permanece indoor; nunca usa arena_comparacao ou espaco_orbita como fallback)
+    if bloquear_rua:
+        ciclo_fallback = (
+            "corredor_escuro", "quarto_noturno", "big_face",
+            "sala_cozinha", "laboratorio", "escritorio",
+        )
+    else:
+        ciclo_fallback = (
+            "corredor_escuro", "laboratorio", "big_face", "oceano_ilha",
+            "ceu_nuvens", "cidade_rua", "floresta_noite", "escritorio", "sala_cozinha",
+        )
     for offset in range(len(ciclo_fallback)):
         cand = ciclo_fallback[(idx + offset) % len(ciclo_fallback)]
         if cand != anterior:
             return cand
-    return "big_face" if anterior != "big_face" else "laboratorio"
+    return "corredor_escuro" if (bloquear_rua and anterior != "corredor_escuro") else (
+        "big_face" if anterior != "big_face" else "laboratorio"
+    )
 
 
 def inferir_acao_cena(
@@ -1113,9 +1407,9 @@ def inferir_acao_cena(
         return "flutuando_gravidade"
     if any(k in norm for k in ("explos", "choque", "impacto", "colis", "despenca", "queda", "raio", "estrondo", "bateu", "susto")):
         return "explosao_choque"
-    if any(k in norm for k in ("corr", "fuga", "fugir", "escap", "persegu", "apressad")):
+    if re.search(r"\b(correu|correndo|corre|correr|corrida|fuga|fugir|fugiu|escap\w*|persegu\w*|apressad\w*)\b", norm):
         return "corrida_fuga"
-    if hud_dado is not None or cenario == "arena_comparacao":
+    if cenario == "arena_comparacao" or (hud_dado is not None and _texto_permite_grafico_comparacao(texto)):
         return "contador_escala"
     if cenario == "oceano_ilha":
         return "barco_navegando"
@@ -1138,23 +1432,44 @@ def inferir_pose_animada(
     *,
     gravidade_zero: bool = False,
     eh_cta: bool = False,
+    mood: str = "navy",
+    contexto_terror: bool = False,
 ) -> str:
-    """Seleciona uma das 10 poses animadas coerente com a fala e acao da cena."""
+    """Seleciona uma das 10 poses animadas coerente com a fala e acao da cena (sem comemoracao em terror/suspense)."""
     norm = normalizar_texto(texto)
+    eh_terror = contexto_terror or _eh_cena_terror_ou_suspense(texto, mood=mood, perfil=perfil)
     if eh_cta:
         return "apontando"
     if any(k in norm for k in ("despenca", "queda livre", "caindo", "caiu", "direcao ao chao")):
         return "caindo"
     if gravidade_zero or acao_cena == "flutuando_gravidade" or any(k in norm for k in ("flutu", "levit", "gravidade", "orbita")):
         return "flutuando"
-    if acao_cena == "corrida_fuga" or any(k in norm for k in ("correu", "corre", "correndo", "fuga", "fugir", "escap")):
+    if acao_cena == "corrida_fuga" or re.search(r"\b(correu|correndo|corre|correr|fuga|fugir|fugiu|escap\w*)\b", norm):
         return "correndo"
+    if (
+        eh_terror
+        or perfil in ("panico", "sussurro_twist")
+        or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque")
+    ):
+        if (
+            perfil in ("panico", "sussurro_twist")
+            or str(mood or "").strip().lower() in ("red", "dark")
+            or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque")
+            or any(
+                _termo_no_texto(k, norm)
+                for k in (
+                    "panico", "medo", "susto", "terror", "choque", "assust", "perigo",
+                    "ameaca", "filmando", "pelas costas", "atras de voce", "vulto",
+                    "sombra", "olhos", "sangue", "grito", "paralis", "trancad",
+                )
+            )
+        ):
+            return "assustado"
+        return "pensando"
     if any(k in norm for k in ("pulou", "pula", "salta", "saltou", "pular")):
         return "pulando"
     if any(k in norm for k in ("venceu", "sobreviveu", "conseguiu", "comemor", "milhoes", "premio")):
         return "comemorando"
-    if perfil == "panico" or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque") or any(k in norm for k in ("panico", "medo", "susto", "terror", "choque", "assust", "perigo")):
-        return "assustado"
     if acao_cena in ("contador_escala", "radar_alerta") or cenario == "arena_comparacao":
         return "apontando"
     if any(k in norm for k in ("misterio", "ninguem sabe", "sem explicacao", "pergunta", "sera que", "pensa", "imagine")):
@@ -1699,10 +2014,13 @@ def diretor_mock_deterministico(
     ultima_camera = ""
     ultima_pose = ""
     ultima_expr = ""
+    ctx_terror_global = _eh_cena_terror_ou_suspense(limpo)
+    ctx_indoor_global = _eh_contexto_indoor(limpo)
 
     for i, txt in enumerate(blocos_txt):
         norm = normalizar_texto(txt)
         eh_final_cta = (i == n - 1) and _eh_bloco_cta_final(txt)
+        eh_ultimo = i == n - 1
         eh_twist = i == idx_twist
 
         hud_dado = None if eh_final_cta else extrair_hud_dado(txt)
@@ -1718,23 +2036,6 @@ def diretor_mock_deterministico(
             expr = "shock"
             cam = "shake_impact"
         else:
-            cenario = inferir_cenario_animado(
-                txt,
-                i,
-                n,
-                anterior=ultimo_cenario,
-                contexto_global=limpo,
-                hud_dado=hud_dado,
-                eh_cta=eh_final_cta,
-                eh_twist=eh_twist,
-            )
-            acao_cena = inferir_acao_cena(
-                txt,
-                cenario,
-                hud_dado=hud_dado,
-                gravidade_zero=grav_zero,
-            )
-
             if eh_final_cta:
                 perfil = "narrador_tenso"
                 mood = "navy"
@@ -1747,12 +2048,54 @@ def diretor_mock_deterministico(
             elif any(k in norm for k in ("interfone", "porteiro")) and (":" in txt or '"' in txt):
                 perfil = "interfone_porteiro"
                 mood = "violet"
-            elif i >= max(1, int(idx_twist * 0.65)) or any(k in norm for k in ("panico", "correu", "corre", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca", "flecha", "tsunami")):
+            elif i >= max(1, int(idx_twist * 0.65)) or any(k in norm for k in ("panico", "correu", "correndo", "desesper", "grito", "travou", "bateu", "esmag", "coracao", "despenca", "flecha", "tsunami")):
                 perfil = "panico"
-                mood = "red" if (i >= max(1, idx_twist - 3) or acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque")) else "violet"
+                mood = "red" if (i >= max(1, idx_twist - 3) or any(k in norm for k in ("flecha", "tsunami", "explos", "choque", "susto", "pelas costas", "filmando"))) else "violet"
             else:
                 perfil = "narrador_tenso"
-                mood = "yellow" if acao_cena == "radar_alerta" else ("navy" if i % 2 == 0 else "violet")
+                mood = "navy" if i % 2 == 0 else "violet"
+
+            cenario = inferir_cenario_animado(
+                txt,
+                i,
+                n,
+                anterior=ultimo_cenario,
+                contexto_global=limpo,
+                hud_dado=hud_dado,
+                eh_cta=eh_final_cta or eh_ultimo,
+                eh_twist=eh_twist,
+                mood=mood,
+                perfil=perfil,
+            )
+            acao_cena = inferir_acao_cena(
+                txt,
+                cenario,
+                hud_dado=hud_dado,
+                gravidade_zero=grav_zero,
+            )
+            if not eh_final_cta and not eh_twist and perfil == "narrador_tenso" and acao_cena == "radar_alerta":
+                mood = "yellow"
+            elif perfil == "panico" and acao_cena in ("chuva_flechas", "onda_gigante", "explosao_choque"):
+                mood = "red"
+
+            eh_terror_bloco = ctx_terror_global or _eh_cena_terror_ou_suspense(txt, mood=mood, perfil=perfil)
+            if cenario == "arena_comparacao" and (
+                eh_final_cta
+                or eh_ultimo
+                or not _texto_permite_grafico_comparacao(
+                    txt,
+                    mood=mood,
+                    perfil=perfil,
+                    eh_cta=eh_final_cta or eh_ultimo,
+                    contexto_terror=eh_terror_bloco,
+                )
+            ):
+                cands_seg = (
+                    ("corredor_escuro", "quarto_noturno", "big_face", "laboratorio")
+                    if ctx_indoor_global
+                    else ("big_face", "laboratorio", "escritorio", "sala_cozinha")
+                )
+                cenario = next((c for c in cands_seg if c != ultimo_cenario), "big_face")
 
             pose = inferir_pose_animada(
                 txt,
@@ -1761,6 +2104,8 @@ def diretor_mock_deterministico(
                 perfil,
                 gravidade_zero=grav_zero,
                 eh_cta=eh_final_cta,
+                mood=mood,
+                contexto_terror=eh_terror_bloco,
             )
             expr = inferir_expressao_animada(
                 txt,
@@ -1769,7 +2114,18 @@ def diretor_mock_deterministico(
                 eh_twist=eh_twist,
                 eh_cta=eh_final_cta,
             )
-            pose, expr = _alternar_estado_visual_consecutivo(pose, expr, ultima_pose, ultima_expr, i)
+            pose, expr = _alternar_estado_visual_consecutivo(
+                pose, expr, ultima_pose, ultima_expr, i, eh_terror=eh_terror_bloco
+            )
+            pose = _sanitizar_pose_para_tom(
+                pose,
+                txt,
+                mood,
+                perfil,
+                acao_cena,
+                eh_cta=eh_final_cta,
+                contexto_terror=eh_terror_bloco,
+            )
             cam = escolher_camera_alternada(None, acao_cena, cenario, i, anterior=ultima_camera, mood=mood)
 
         ultimo_cenario = cenario
@@ -1864,23 +2220,23 @@ def _montar_prompt_gemini(
         "REGRAS OBRIGATÓRIAS:\n"
         "1. ZERO emoji e ZERO travessão (em-dash ou en-dash) em qualquer texto.\n"
         f"2. ORTOGRAFIA COMPLETA EM {IDIOMA_HUMANO.upper()} (UTF-8): preserve TODOS os acentos, cedilhas e números/anos inteiros "
-        "(ex.: 2004, 2006, 5 km, R$ 100 mil, Dia 30, Nível 5, você, não, mão, pés). Nunca quebre anos nem remova acentos.\n"
-        "3. GANCHO AGRESSIVO 0-3s NA CENA 1 (PROIBIDO INTRO LENTA, SAUDACAO OU SETUP GENERICO):\n"
-        "   - NUNCA abra com 'Oi pessoal', 'Você sabia', 'Existe um lugar', 'Hoje vamos falar' ou 'Era uma vez'.\n"
-        "   - O Bloco 1 (0s a 3s, 6 a 9 palavras) DEVE quebrar o padrão em 2ª pessoa PT-BR com choque/urgência/4ª parede "
-        "(ex.: 'VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA!').\n"
+        "(ex.: 2004, 2006, 5 km, R$ 100 mil, R$ 48, Dia 30, Nível 5, você, não, mão, pés). Nunca escreva 'R$ 48 reais' (use apenas 'R$ 48').\n"
+        "3. GANCHO AGRESSIVO 0-3s NA CENA 1 (PROIBIDO INTRO LENTA, SAUDACAO OU META-ABERTURA):\n"
+        "   - NUNCA abra com 'Oi pessoal', 'Você sabia', 'Existe um lugar', 'Hoje vamos falar', 'Era uma vez', 'Olha pra tela', 'Presta atenção' ou 'Escuta isso'.\n"
+        "   - O Bloco 1 (0s a 3s, 6 a 9 palavras) DEVE abrir direto dentro do conflito ou ameaça em 2ª pessoa PT-BR com choque/urgência "
+        "(ex.: 'VOCÊ ACORDOU NO LEITO 402 TRANCADO POR FORA!').\n"
         "   - O Bloco 1 DEVE usar obrigatoriamente: cenario='big_face', acao_cena='explosao_choque', pose='assustado', expressao='shock', camera='shake_impact', mood='red', perfil_voz='panico'.\n"
         "4. RITMO DE RETENÇÃO (MUDANÇA VISUAL A CADA 1.5s A 2.5s): divida em 12 a 20 blocos bem curtos (6 a 9 palavras por bloco). "
         "PROIBIDO inserir pausa comercial, propaganda ou CTA no meio do vídeo. Deixe o gancho/CTA curto de 1 frase APENAS como último bloco.\n"
         "5. DIREÇÃO DE ANIMAÇÃO 2D ÚNICA POR FALA (altere cenario, camera e pose/expressao entre cenas seguidas):\n"
         f"   - perfil_voz: um de {list(PERFIS_VOZ)} (use 'panico' no Bloco 1 e clímax, 'sussurro_twist' na revelação final, 'narrador_tenso' no restante; NUNCA use 'cta_comercial').\n"
-        f"   - cenario: um de {list(CENARIOS_ANIMADOS)}. NUNCA repita o mesmo cenario em duas falas seguidas.\n"
+        f"   - cenario: um de {list(CENARIOS_ANIMADOS)}. Para histórias em ambiente interno (hospital, UTI, leito, corredor, quarto, sala, prédio, elevador, casa, banheiro), use 'corredor_escuro', 'quarto_noturno', 'elevador_cabine', 'sala_cozinha', 'escritorio', 'laboratorio' ou 'big_face' (NUNCA 'cidade_rua'). Use 'arena_comparacao' APENAS para crescimento, multiplicadores ou escala estatística (PROIBIDO em terror/suspense e na cena final/CTA).\n"
         f"   - acao_cena: um de {list(ACOES_CENA_VALIDAS)}.\n"
-        f"   - pose: um de {list(POSES_VALIDAS)} (varie com frequência a cada 1.5s-2.5s).\n"
+        f"   - pose: um de {list(POSES_VALIDAS)} (varie com frequência a cada 1.5s-2.5s; PROIBIDO usar 'comemorando' ou 'pulando' em cenas de terror, suspense, medo ou mood dark/red).\n"
         f"   - expressao: um de {list(EXPRESSOES_VALIDAS)} (varie junto com a pose).\n"
         f"   - camera: um de {list(CAMERAS_VALIDAS)}. Alterne SEMPRE (nunca repita a mesma camera em duas falas seguidas).\n"
         f"   - mood: um de {list(MOODS_VALIDOS)}.\n"
-        "   - hud_dado: OBRIGATÓRIO sempre que a fala citar números, dias (Dia 30), níveis (Nível 5), dinheiro (R$ 100 MIL), anos (2004, 1997), distâncias (2.600 KM) ou porcentagens: "
+        "   - hud_dado: OBRIGATÓRIO sempre que a fala citar números, dias (Dia 30), níveis (Nível 5), dinheiro (R$ 100 MIL, R$ 48), anos (2004, 1997), distâncias (2.600 KM) ou porcentagens: "
         'preencha {"rotulo": "NÍVEL DE ALERTA", "valor": "NÍVEL 5", "progresso": 0.90} (progresso entre 0.0 e 1.0); caso contrário, null.\n'
         f"   - sfx_depois: null ou um de {sfx_validos} (coloque 'impacto_twist' imediatamente antes do bloco da revelação final; máximo 3 SFX no total).\n"
         f"   - props: objeto opcional com gravidade_zero (bool), objetos_flutuantes (subconjunto de {list(PROPS_FLUTUANTES_VALIDOS)}), silhuetas_janela (bool) e vulto (bool).\n"
@@ -2489,16 +2845,17 @@ def _montar_prompt_roteiro_inedito(
         f"1. {dica_titulo}"
         "2. Escreva entre 185 e 245 palavras em ritmo contínuo, urgente e viciante.\n"
         "3. Siga estritamente o pilar obrigatório acima (não fuja do foco editorial configurado para este episódio).\n"
-        "4. GANCHO AGRESSIVO 0-3s (QUEBRA DE PADRÃO EM 2ª PESSOA PT-BR: PROIBIDO INTRO LENTA):\n"
-        "   - PROIBIDO abrir com cumprimentos, apresentações ou setups genéricos ('Oi pessoal', 'Você sabia que', "
-        "'Hoje vamos falar', 'Nesse vídeo', 'Existe um lugar', 'Era uma vez', 'Imagine um mundo').\n"
-        "   - A Cena 1 (primeiras 6 a 9 palavras, 0 a 3 segundos) DEVE atacar a tela em 2ª pessoa PT-BR com choque, "
-        "urgência ou quebra da 4ª parede (ex.: 'VOCÊ! É, VOCÊ MESMO! PARA TUDO AGORA!', "
-        "'OLHA PRA TELA! VOCÊ NÃO AGUENTA 48 HORAS AQUI!', 'PARA DE ROLAR! VOCÊ ACABOU DE ENTRAR NO NÍVEL 5!').\n"
+        "4. GANCHO AGRESSIVO 0-3s (QUEBRA DE PADRÃO EM 2ª PESSOA PT-BR: PROIBIDO INTRO LENTA OU META-ABERTURA):\n"
+        "   - PROIBIDO abrir com cumprimentos, apresentações ou meta-aberturas genéricas ('Oi pessoal', 'Você sabia que', "
+        "'Hoje vamos falar', 'Nesse vídeo', 'Existe um lugar', 'Era uma vez', 'Imagine um mundo', 'Olha pra tela', "
+        "'Presta atenção', 'Escuta isso', 'Para de rolar').\n"
+        "   - A Cena 1 (primeiras 6 a 9 palavras, 0 a 3 segundos) DEVE abrir direto dentro do conflito ou ameaça em 2ª pessoa PT-BR "
+        "(ex.: 'VOCÊ ACORDOU NO LEITO 402 E A PORTA ESTÁ TRANCADA POR FORA!', "
+        "'TEM ALGUÉM FILMANDO VOCÊ PELAS COSTAS NESTE EXATO SEGUNDO!').\n"
         "5. VOZ HUMANA E DADOS CONCRETOS PARA HUD: escreva em frases curtas (6 a 10 palavras) com verbos concretos e "
-        "inclua números reais, dias (Dia 1, Dia 30), níveis (Nível 5), dinheiro (R$ 100 mil), anos ou distâncias (2.600 km) "
-        "para disparar os medidores visuais na tela. PROIBIDO clichês de IA ('mergulhe nessa história', 'prepare-se para descobrir', "
-        "'você não vai acreditar', 'a resposta vai te surpreender', 'além disso', 'sem dúvida').\n"
+        "inclua números reais, dias (Dia 1, Dia 30), níveis (Nível 5), dinheiro (R$ 100 mil, R$ 48, sem repetir 'reais' após R$), "
+        "anos ou distâncias (2.600 km) para disparar os medidores visuais na tela. PROIBIDO clichês de IA ('mergulhe nessa história', "
+        "'prepare-se para descobrir', 'você não vai acreditar', 'a resposta vai te surpreender', 'além disso', 'sem dúvida').\n"
         "6. RETENÇÃO SEM INTERRUPÇÃO: mantenha a tensão crescente até a virada final seca e memorável. PROIBIDO inserir qualquer "
         "pausa comercial, propaganda, anúncio ou CTA no meio do vídeo. Deixe APENAS um gancho/CTA curto e natural de 1 única frase "
         f"no finalzinho do vídeo (referência do canal: '{CTA_FINAL_PADRAO}').\n"
@@ -2756,6 +3113,8 @@ def validar_e_corrigir_plano(
 
     ctx_escritorio = texto_indica_escritorio(roteiro_bruto)
     ctx_zero_g = texto_indica_gravidade_zero(roteiro_bruto)
+    ctx_indoor = _eh_contexto_indoor(roteiro_bruto)
+    ctx_terror = _eh_cena_terror_ou_suspense(roteiro_bruto)
 
     titulo = restaurar_acentos_ptbr(sanitizar_texto(titulo_forcado or plano_bruto.get("titulo") or fallback["titulo"]))[:72]
     if not titulo:
@@ -2901,6 +3260,20 @@ def validar_e_corrigir_plano(
                 else:
                     mood_bloco = mood
                     perfil_bloco = perfil
+                    eh_terror_bloco = ctx_terror or _eh_cena_terror_ou_suspense(
+                        sub_txt_fmt, mood=mood_bloco, perfil=perfil_bloco
+                    )
+                    bloquear_rua_bloco = (
+                        _eh_contexto_indoor(sub_txt_fmt) or ctx_indoor
+                    ) and not _tem_pista_rua_externa(sub_txt_fmt)
+                    eh_ultima_cena_in = eh_ultimo_in and eh_ultima_sub
+                    permite_grafico_bloco = (not eh_ultima_cena_in) and _texto_permite_grafico_comparacao(
+                        sub_txt_fmt,
+                        mood=mood_bloco,
+                        perfil=perfil_bloco,
+                        eh_cta=eh_cta_in,
+                        contexto_terror=eh_terror_bloco,
+                    )
                     cen_inferido = inferir_cenario_animado(
                         sub_txt_fmt,
                         len(blocos_validos),
@@ -2908,15 +3281,28 @@ def validar_e_corrigir_plano(
                         anterior=ultimo_cenario,
                         contexto_global=roteiro_bruto,
                         hud_dado=hud_dado,
-                        eh_cta=eh_cta_in,
+                        eh_cta=eh_cta_in or eh_ultima_cena_in,
                         eh_twist=(idx == total_in - 2 and eh_ultima_sub),
+                        mood=mood_bloco,
+                        perfil=perfil_bloco,
                     )
-                    cen_raw = str(b.get("cenario") or b.get("modulo") or "").strip().lower() if sub_i == 0 else ""
-                    # Se o texto cita explicitamente oceano/ilha/peixes/agua, nao permite espaco_orbita errado
-                    if cen_raw in CENARIOS_ANIMADOS and not (cen_raw == "espaco_orbita" and cen_inferido == "oceano_ilha"):
-                        cen_norm = cen_raw
-                    else:
-                        cen_norm = cen_inferido
+                    cen_raw_orig = str(b.get("cenario") or b.get("modulo") or "").strip().lower() if sub_i == 0 else ""
+                    cen_raw = _CENARIO_ALIASES.get(cen_raw_orig, cen_raw_orig)
+                    cen_raw_bloqueado = (
+                        cen_raw not in CENARIOS_ANIMADOS
+                        or (cen_raw == "espaco_orbita" and cen_inferido == "oceano_ilha")
+                        or (bloquear_rua_bloco and cen_raw == "cidade_rua")
+                        or (_eh_contexto_indoor(sub_txt_fmt) and cen_raw not in _CENARIOS_INDOOR_ESCUROS)
+                        or (cen_raw == "arena_comparacao" and not permite_grafico_bloco)
+                    )
+                    cen_norm = cen_inferido if cen_raw_bloqueado else cen_raw
+                    if cen_norm == "arena_comparacao" and not permite_grafico_bloco:
+                        cands_sem_graf = (
+                            ("corredor_escuro", "quarto_noturno", "big_face", "laboratorio")
+                            if bloquear_rua_bloco
+                            else ("big_face", "laboratorio", "escritorio", "sala_cozinha")
+                        )
+                        cen_norm = next((c for c in cands_sem_graf if c != ultimo_cenario), "big_face")
 
                     acao_raw = str(b.get("acao_cena") or "").strip().lower() if sub_i == 0 else ""
                     acao_norm = (
@@ -2948,7 +3334,18 @@ def validar_e_corrigir_plano(
                             perfil_bloco,
                             gravidade_zero=grav_zero,
                             eh_cta=eh_cta_in,
+                            mood=mood_bloco,
+                            contexto_terror=eh_terror_bloco,
                         )
+                    pose_norm = _sanitizar_pose_para_tom(
+                        pose_norm,
+                        sub_txt_fmt,
+                        mood_bloco,
+                        perfil_bloco,
+                        acao_norm,
+                        eh_cta=eh_cta_in,
+                        contexto_terror=eh_terror_bloco,
+                    )
 
                     expr_raw = str(b.get("expressao") or "").strip().lower() if sub_i == 0 else ""
                     expr_norm = _EXPR_ALIASES.get(expr_raw, expr_raw)
@@ -2961,7 +3358,16 @@ def validar_e_corrigir_plano(
                             eh_cta=eh_cta_in,
                         )
                     pose_norm, expr_norm = _alternar_estado_visual_consecutivo(
-                        pose_norm, expr_norm, ultima_pose, ultima_expr, len(blocos_validos)
+                        pose_norm, expr_norm, ultima_pose, ultima_expr, len(blocos_validos), eh_terror=eh_terror_bloco
+                    )
+                    pose_norm = _sanitizar_pose_para_tom(
+                        pose_norm,
+                        sub_txt_fmt,
+                        mood_bloco,
+                        perfil_bloco,
+                        acao_norm,
+                        eh_cta=eh_cta_in,
+                        contexto_terror=eh_terror_bloco,
                     )
 
                 ultimo_cenario = cen_norm
@@ -3016,9 +3422,14 @@ def validar_e_corrigir_plano(
         blocos_validos = fallback["blocos"]
         ultima_camera = str(blocos_validos[-1].get("camera") or "push_in")
 
-    # Garante apenas 1 frase curta de gancho/CTA no finalzinho do video (nunca no meio)
+    # Garante apenas 1 frase curta de gancho/CTA no finalzinho do video (nunca no meio, nunca grafico BASE/2X/MAX)
     if not _eh_bloco_cta_final(str(blocos_validos[-1].get("texto") or "")):
-        cen_cta = "big_face" if blocos_validos[-1].get("cenario") != "big_face" else "arena_comparacao"
+        cands_cta = (
+            ("big_face", "corredor_escuro", "quarto_noturno", "sala_cozinha")
+            if ctx_indoor
+            else ("big_face", "laboratorio", "escritorio", "sala_cozinha")
+        )
+        cen_cta = next((c for c in cands_cta if c != blocos_validos[-1].get("cenario")), "big_face")
         cam_cta = escolher_camera_alternada(
             "pull_out",
             "investigando_pista",
@@ -3054,6 +3465,19 @@ def validar_e_corrigir_plano(
                 "sfx_depois": None,
             }
         )
+
+    # Garante que a cena final/CTA nunca use grafico de barras (arena_comparacao) nem rua em historia indoor
+    ultimo_bloco = blocos_validos[-1]
+    penultimo_cen = blocos_validos[-2].get("cenario") if len(blocos_validos) >= 2 else ""
+    if ultimo_bloco.get("cenario") == "arena_comparacao" or (ctx_indoor and ultimo_bloco.get("cenario") == "cidade_rua"):
+        cands_ult = (
+            ("big_face", "corredor_escuro", "quarto_noturno", "sala_cozinha")
+            if ctx_indoor
+            else ("big_face", "laboratorio", "escritorio", "sala_cozinha")
+        )
+        novo_cen_ult = next((c for c in cands_ult if c != penultimo_cen), "big_face")
+        ultimo_bloco["cenario"] = novo_cen_ult
+        ultimo_bloco["modulo"] = novo_cen_ult
 
     # Garante fechamento de impacto (impacto_twist antes do twist, sussurro_twist no twist, voz natural na CTA final)
     idx_twist = len(blocos_validos) - 2 if len(blocos_validos) >= 3 and _eh_bloco_cta_final(blocos_validos[-1]["texto"]) else len(blocos_validos) - 1

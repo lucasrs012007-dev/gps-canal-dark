@@ -1755,7 +1755,9 @@ function drawQuartoNoturno(t, shot, f, localP){
   drawProtagonista(470, 1362, 1.02, {
     t, ex, closed: f.closed, localP,
     fastBreath: ex === 'fear' || ex === 'shock',
-    pose: poseObjFromName(props.pose),
+    pose: shot.pose || poseObjFromName(props.pose),
+    prevPose: shot.prevPose || null,
+    shotAge: Math.max(0, t - shot.start),
     rimColor: isRed ? PAL.alert : PAL.cyan,
     rimA: 0.82,
     lookX: props.vulto ? 0.55 : -0.20
@@ -1858,13 +1860,16 @@ function drawCorredorEscuro(t, shot, f, localP){
   }
 
   /* Protagonista em primeiro plano (de costas ou lateral, sem cobrir o foco) */
-  if (props.pose === 'walk' || props.pose === 'panic' || obj !== 'vulto') {
+  const pCor = String(shot.pose || props.pose || '').toLowerCase();
+  if (pCor === 'walk' || pCor === 'panic' || pCor === 'correndo' || pCor === 'assustado' || obj !== 'vulto') {
     const px = obj === 'cadeira' ? 270 : 300;
     drawProtagonista(px, 1385, 0.98, {
       t, ex: shot.expressao || f.ex, closed: f.closed, localP,
       fastBreath: true,
       backView: obj === 'vulto' || obj === 'porta',
-      pose: poseObjFromName(props.pose),
+      pose: shot.pose || poseObjFromName(props.pose),
+      prevPose: shot.prevPose || null,
+      shotAge: Math.max(0, t - shot.start),
       rimColor: isRed ? PAL.alert : PAL.cyan,
       rimA: 0.84
     });
@@ -4223,7 +4228,10 @@ function drawHudDado(t, shot){
 
   const hud = shot.hud_dado;
   const rotulo = toPtUpper(String(hud.rotulo || 'DADO').trim());
-  const rawValor = String(hud.valor || '').trim();
+  const rawValor = String(hud.valor || '').trim().replace(
+    /\b(R\$\s*\d+(?:[.,]\d+)*(?:\s+(?:MILH[OÕ]ES|MILH[AÃ]O|BILH[OÕ]ES|BILH[AÃ]O|MIL))?)\s+(?:DE\s+)?REA(?:IS|L)\b/gi,
+    '$1'
+  );
   if (!rawValor) return;
 
   const sceneAge = Math.max(0, t - (shot.sceneStart ?? shot.start));
