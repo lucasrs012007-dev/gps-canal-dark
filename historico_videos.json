@@ -1,7 +1,7 @@
 {
-  "versao": 15,
+  "versao": 16,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 15,
+  "video_atual": 16,
   "videos": [
     {
       "id": 1,
@@ -361,7 +361,7 @@
       "roteiro": "roteiro_15.txt",
       "cenas": "cenas.json",
       "saida": "output/short_15.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "cinematografico_ia_30fps",
       "parte_label": "",
       "cta_modo": "final",
@@ -369,6 +369,33 @@
       "saidas_partes": [
         "output/short_15_parte1.mp4",
         "output/short_15_parte2.mp4"
+      ]
+    },
+    {
+      "id": 16,
+      "slug": "o-plantao-do-andar-7",
+      "titulo": "O Plantão do Andar 7",
+      "tema": "Matheus enfrenta um terror inexplicável no plantão noturno do hospital",
+      "palavras_chave": [
+        "hospital",
+        "plantao",
+        "uti",
+        "matheus",
+        "monitor",
+        "interna"
+      ],
+      "roteiro": "roteiro_16.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_16.mp4",
+      "status": "em_producao",
+      "motor": "canvas_2d_30fps",
+      "parte_label": "",
+      "cta_modo": "final",
+      "pilar": "suspense_urbano",
+      "saidas_partes": [
+        "output/short_16_parte1.mp4",
+        "output/short_16_parte2.mp4"
       ]
     }
   ]
