@@ -1,0 +1,186 @@
+{
+  "titulo": "E se você ganhasse 1 real hoje e dobrasse todo dia?",
+  "voz": "pt-BR-AntonioNeural",
+  "rate": "+12%",
+  "pitch": "+0Hz",
+  "pausa_max_interna": 0.15,
+  "pausa_entre_segmentos": 0.15,
+  "cauda_final": 0.25,
+  "zona_climax_seg": "dia40",
+  "pronuncias_tts": {},
+  "youtube": {
+    "titulo": "E se você ganhasse 1 real hoje e dobrasse todo dia? #Shorts",
+    "descricao": "Começa com uma moeda de 1 real na mesa. No Dia 35, o Banco Central entra em pânico! Veja o que acontece do Dia 1 ao Dia 45 quando o saldo da sua conta dobra toda meia-noite, até a armadilha brutal no final.\n\nNo Dia 25 você parava a máquina ou deixava dobrar? Comenta aí!\n\n#Shorts #curiosidades #ese #dinheiro #economia",
+    "tags": [
+      "shorts",
+      "e se voce",
+      "dinheiro",
+      "curiosidades",
+      "matematica",
+      "economia",
+      "inflacao",
+      "youtube shorts"
+    ],
+    "categoria_id": "24"
+  },
+  "segmentos": [
+    {
+      "id": "hook",
+      "fala": "Começa com uma moeda de 1 real na mesa. No Dia 35, o Banco Central entra em pânico!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "ding", "palavra": "moeda", "offset": -0.04, "ganho": 0.9 },
+        { "tipo": "whoosh_curto", "palavra": "Dia", "offset": -0.06, "ganho": 0.7 },
+        { "tipo": "sirene", "palavra": "Banco", "offset": -0.05, "ganho": 0.75 },
+        { "tipo": "boom", "palavra": "pânico", "offset": -0.05, "ganho": 1.0 }
+      ]
+    },
+    {
+      "id": "premissa",
+      "fala": "Todo dia à meia-noite, o saldo da sua conta dobra sem parar.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "tique", "palavra": "meia-noite", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "stamp", "palavra": "dobra", "offset": -0.05, "ganho": 0.9 }
+      ]
+    },
+    {
+      "id": "dia1",
+      "fala": "Dia 1: 1 real. Não paga nem uma bala no sinal.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "ding", "palavra": "real", "offset": -0.04, "ganho": 0.65 },
+        { "tipo": "pouso", "palavra": "bala", "offset": 0.0, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "dia5",
+      "fala": "Dia 5: 16 reais. Já dá um salgado e um suco na padaria.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "ding", "palavra": "salgado", "offset": -0.04, "ganho": 0.7 },
+        { "tipo": "whoosh_curto", "palavra": "suco", "offset": -0.04, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "dia10",
+      "fala": "Dia 10: 512 reais. Você limpa o carrinho do mercado sem olhar o preço!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "limpa", "offset": -0.08, "ganho": 0.7 },
+        { "tipo": "ding", "palavra": "preço", "offset": -0.04, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia14",
+      "fala": "Dia 14: 8 mil reais. Você já ganha em um dia o que muita gente leva meses.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "flashes", "palavra": "ganha", "offset": -0.05, "ganho": 0.7 },
+        { "tipo": "stamp", "palavra": "meses", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia18",
+      "fala": "Dia 18: 131 mil reais. Um carro zero quilômetro cai na sua garagem!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "carro", "offset": -0.1, "ganho": 0.75 },
+        { "tipo": "pouso", "palavra": "garagem", "offset": -0.04, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "dia21",
+      "fala": "Dia 21: 1 milhão de reais. Você acorda milionário antes mesmo do café.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "ding", "palavra": "milhão", "offset": -0.04, "ganho": 0.85 },
+        { "tipo": "flashes", "palavra": "milionário", "offset": -0.05, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia25",
+      "fala": "Dia 25: 16 milhões. Uma mansão inteira com piscina vira troco de bolso!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "boom_leve", "palavra": "mansão", "offset": -0.06, "ganho": 0.8 },
+        { "tipo": "ding", "palavra": "bolso", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia28",
+      "fala": "Dia 28: 134 milhões. Você compra um jatinho particular à vista.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "jato", "palavra": "jatinho", "offset": -0.2, "ganho": 0.8 },
+        { "tipo": "stamp", "palavra": "vista", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia31",
+      "fala": "Dia 31: 1 bilhão de reais. Os bancos travam achando que você hackeou o sistema!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "alarme", "palavra": "travam", "offset": -0.06, "ganho": 0.65 },
+        { "tipo": "susto", "palavra": "hackeou", "offset": -0.05, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "dia35",
+      "fala": "Dia 35: 17 bilhões. Você passa quase todos os bilionários do país em uma noite.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "passa", "offset": -0.08, "ganho": 0.8 },
+        { "tipo": "boom_leve", "palavra": "bilionários", "offset": -0.05, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "dia40",
+      "fala": "Dia 40: 549 bilhões. Seu saldo sozinho já bate o caixa de países inteiros!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.75, "ate_fim": true },
+        { "tipo": "boom", "palavra": "países", "offset": -0.05, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "twist_a",
+      "fala": "Só que existe uma armadilha brutal nessa matemática.",
+      "pausa_depois": 0.45,
+      "sfx": [
+        { "tipo": "riser", "palavra": "armadilha", "offset": 0.0, "ganho": 0.85, "ate_fim": true }
+      ]
+    },
+    {
+      "id": "twist_b",
+      "fala": "No Dia 45, existe tanto dinheiro na sua conta que a inflação explode... e 1 milhão não compra nem um pão!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "drop", "ancora": "inicio", "offset": -0.1, "ganho": 1.0 },
+        { "tipo": "explosao", "palavra": "explode", "offset": -0.08, "ganho": 1.0 },
+        { "tipo": "alarme_curto", "palavra": "pão", "offset": -0.05, "ganho": 0.65 }
+      ]
+    },
+    {
+      "id": "loop",
+      "fala": "No Dia 25 você parava a máquina ou deixava dobrar? Comenta aí!",
+      "pausa_depois": 0.0,
+      "sfx": [
+        { "tipo": "boom_leve", "ancora": "inicio", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "tique", "palavra": "parava", "offset": 0.0, "ganho": 0.55 }
+      ]
+    }
+  ]
+}

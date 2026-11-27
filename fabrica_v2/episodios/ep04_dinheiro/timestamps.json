@@ -1,0 +1,1882 @@
+{
+ "titulo": "E se você ganhasse 1 real hoje e dobrasse todo dia?",
+ "fps": 30,
+ "duracao": 80.7,
+ "engine": "gemini",
+ "mode": "batch",
+ "voz": "gemini-3.8-flash-tts/Mako",
+ "rate": "+12%",
+ "silencio_inicial_removido_s": 0.0053,
+ "segmentos": [
+  {
+   "id": "hook",
+   "fala": "Começa com uma moeda de 1 real na mesa. No Dia 35, o Banco Central entra em pânico!",
+   "t0": 0.0,
+   "t1": 5.36
+  },
+  {
+   "id": "premissa",
+   "fala": "Todo dia à meia-noite, o saldo da sua conta dobra sem parar.",
+   "t0": 5.36,
+   "t1": 9.13
+  },
+  {
+   "id": "dia1",
+   "fala": "Dia 1: 1 real. Não paga nem uma bala no sinal.",
+   "t0": 9.13,
+   "t1": 12.4
+  },
+  {
+   "id": "dia5",
+   "fala": "Dia 5: 16 reais. Já dá um salgado e um suco na padaria.",
+   "t0": 12.4,
+   "t1": 16.57
+  },
+  {
+   "id": "dia10",
+   "fala": "Dia 10: 512 reais. Você limpa o carrinho do mercado sem olhar o preço!",
+   "t0": 16.57,
+   "t1": 21.65
+  },
+  {
+   "id": "dia14",
+   "fala": "Dia 14: 8 mil reais. Você já ganha em um dia o que muita gente leva meses.",
+   "t0": 21.65,
+   "t1": 26.85
+  },
+  {
+   "id": "dia18",
+   "fala": "Dia 18: 131 mil reais. Um carro zero quilômetro cai na sua garagem!",
+   "t0": 26.85,
+   "t1": 32.12
+  },
+  {
+   "id": "dia21",
+   "fala": "Dia 21: 1 milhão de reais. Você acorda milionário antes mesmo do café.",
+   "t0": 32.12,
+   "t1": 37.07
+  },
+  {
+   "id": "dia25",
+   "fala": "Dia 25: 16 milhões. Uma mansão inteira com piscina vira troco de bolso!",
+   "t0": 37.07,
+   "t1": 42.31
+  },
+  {
+   "id": "dia28",
+   "fala": "Dia 28: 134 milhões. Você compra um jatinho particular à vista.",
+   "t0": 42.31,
+   "t1": 47.45
+  },
+  {
+   "id": "dia31",
+   "fala": "Dia 31: 1 bilhão de reais. Os bancos travam achando que você hackeou o sistema!",
+   "t0": 47.45,
+   "t1": 53.36
+  },
+  {
+   "id": "dia35",
+   "fala": "Dia 35: 17 bilhões. Você passa quase todos os bilionários do país em uma noite.",
+   "t0": 53.36,
+   "t1": 59.83
+  },
+  {
+   "id": "dia40",
+   "fala": "Dia 40: 549 bilhões. Seu saldo sozinho já bate o caixa de países inteiros!",
+   "t0": 59.83,
+   "t1": 66.39
+  },
+  {
+   "id": "twist_a",
+   "fala": "Só que existe uma armadilha brutal nessa matemática.",
+   "t0": 66.39,
+   "t1": 69.84
+  },
+  {
+   "id": "twist_b",
+   "fala": "No Dia 45, existe tanto dinheiro na sua conta que a inflação explode... e 1 milhão não compra nem um pão!",
+   "t0": 69.84,
+   "t1": 75.67
+  },
+  {
+   "id": "loop",
+   "fala": "No Dia 25 você parava a máquina ou deixava dobrar? Comenta aí!",
+   "t0": 75.67,
+   "t1": 80.7
+  }
+ ],
+ "palavras": [
+  {
+   "texto": "Começa",
+   "pont": "",
+   "t0": 0.0,
+   "t1": 0.28,
+   "seg": "hook"
+  },
+  {
+   "texto": "com",
+   "pont": "",
+   "t0": 0.28,
+   "t1": 0.46,
+   "seg": "hook"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 0.46,
+   "t1": 0.58,
+   "seg": "hook"
+  },
+  {
+   "texto": "moeda",
+   "pont": "",
+   "t0": 0.58,
+   "t1": 0.84,
+   "seg": "hook"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 0.84,
+   "t1": 1.0,
+   "seg": "hook"
+  },
+  {
+   "texto": "1",
+   "pont": "",
+   "t0": 1.0,
+   "t1": 1.24,
+   "seg": "hook"
+  },
+  {
+   "texto": "real",
+   "pont": "",
+   "t0": 1.24,
+   "t1": 1.42,
+   "seg": "hook"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 1.42,
+   "t1": 1.58,
+   "seg": "hook"
+  },
+  {
+   "texto": "mesa",
+   "pont": ".",
+   "t0": 1.58,
+   "t1": 1.86,
+   "seg": "hook"
+  },
+  {
+   "texto": "No",
+   "pont": "",
+   "t0": 2.24,
+   "t1": 2.32,
+   "seg": "hook"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 2.32,
+   "t1": 2.52,
+   "seg": "hook"
+  },
+  {
+   "texto": "35",
+   "pont": ",",
+   "t0": 2.52,
+   "t1": 3.04,
+   "seg": "hook"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 3.04,
+   "t1": 3.46,
+   "seg": "hook"
+  },
+  {
+   "texto": "Banco",
+   "pont": "",
+   "t0": 3.46,
+   "t1": 3.74,
+   "seg": "hook"
+  },
+  {
+   "texto": "Central",
+   "pont": "",
+   "t0": 3.74,
+   "t1": 4.06,
+   "seg": "hook"
+  },
+  {
+   "texto": "entra",
+   "pont": "",
+   "t0": 4.06,
+   "t1": 4.46,
+   "seg": "hook"
+  },
+  {
+   "texto": "em",
+   "pont": "",
+   "t0": 4.46,
+   "t1": 4.58,
+   "seg": "hook"
+  },
+  {
+   "texto": "pânico",
+   "pont": "!",
+   "t0": 4.58,
+   "t1": 5.12,
+   "seg": "hook"
+  },
+  {
+   "texto": "Todo",
+   "pont": "",
+   "t0": 5.6,
+   "t1": 5.76,
+   "seg": "premissa"
+  },
+  {
+   "texto": "dia",
+   "pont": "",
+   "t0": 5.76,
+   "t1": 6.0,
+   "seg": "premissa"
+  },
+  {
+   "texto": "à",
+   "pont": "",
+   "t0": 6.0,
+   "t1": 6.18,
+   "seg": "premissa"
+  },
+  {
+   "texto": "meia-noite",
+   "pont": ",",
+   "t0": 6.36,
+   "t1": 6.68,
+   "seg": "premissa"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 6.74,
+   "t1": 6.82,
+   "seg": "premissa"
+  },
+  {
+   "texto": "saldo",
+   "pont": "",
+   "t0": 6.82,
+   "t1": 7.18,
+   "seg": "premissa"
+  },
+  {
+   "texto": "da",
+   "pont": "",
+   "t0": 7.18,
+   "t1": 7.28,
+   "seg": "premissa"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 7.28,
+   "t1": 7.42,
+   "seg": "premissa"
+  },
+  {
+   "texto": "conta",
+   "pont": "",
+   "t0": 7.42,
+   "t1": 7.7,
+   "seg": "premissa"
+  },
+  {
+   "texto": "dobra",
+   "pont": "",
+   "t0": 7.7,
+   "t1": 8.22,
+   "seg": "premissa"
+  },
+  {
+   "texto": "sem",
+   "pont": "",
+   "t0": 8.22,
+   "t1": 8.56,
+   "seg": "premissa"
+  },
+  {
+   "texto": "parar",
+   "pont": ".",
+   "t0": 8.56,
+   "t1": 8.84,
+   "seg": "premissa"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 9.42,
+   "t1": 9.56,
+   "seg": "dia1"
+  },
+  {
+   "texto": "1",
+   "pont": ":",
+   "t0": 9.56,
+   "t1": 10.2,
+   "seg": "dia1"
+  },
+  {
+   "texto": "1",
+   "pont": "",
+   "t0": 10.2,
+   "t1": 10.38,
+   "seg": "dia1"
+  },
+  {
+   "texto": "real",
+   "pont": ".",
+   "t0": 10.38,
+   "t1": 10.6,
+   "seg": "dia1"
+  },
+  {
+   "texto": "Não",
+   "pont": "",
+   "t0": 10.88,
+   "t1": 11.02,
+   "seg": "dia1"
+  },
+  {
+   "texto": "paga",
+   "pont": "",
+   "t0": 11.02,
+   "t1": 11.26,
+   "seg": "dia1"
+  },
+  {
+   "texto": "nem",
+   "pont": "",
+   "t0": 11.26,
+   "t1": 11.34,
+   "seg": "dia1"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 11.26,
+   "t1": 11.5,
+   "seg": "dia1"
+  },
+  {
+   "texto": "bala",
+   "pont": "",
+   "t0": 11.5,
+   "t1": 11.86,
+   "seg": "dia1"
+  },
+  {
+   "texto": "no",
+   "pont": "",
+   "t0": 11.86,
+   "t1": 11.98,
+   "seg": "dia1"
+  },
+  {
+   "texto": "sinal",
+   "pont": ".",
+   "t0": 11.98,
+   "t1": 12.2,
+   "seg": "dia1"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 12.6,
+   "t1": 12.78,
+   "seg": "dia5"
+  },
+  {
+   "texto": "5",
+   "pont": ":",
+   "t0": 12.78,
+   "t1": 13.38,
+   "seg": "dia5"
+  },
+  {
+   "texto": "16",
+   "pont": "",
+   "t0": 13.38,
+   "t1": 13.78,
+   "seg": "dia5"
+  },
+  {
+   "texto": "reais",
+   "pont": ".",
+   "t0": 13.78,
+   "t1": 14.08,
+   "seg": "dia5"
+  },
+  {
+   "texto": "Já",
+   "pont": "",
+   "t0": 14.56,
+   "t1": 14.72,
+   "seg": "dia5"
+  },
+  {
+   "texto": "dá",
+   "pont": "",
+   "t0": 14.72,
+   "t1": 14.84,
+   "seg": "dia5"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 14.84,
+   "t1": 14.96,
+   "seg": "dia5"
+  },
+  {
+   "texto": "salgado",
+   "pont": "",
+   "t0": 14.96,
+   "t1": 15.4,
+   "seg": "dia5"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 15.4,
+   "t1": 15.54,
+   "seg": "dia5"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 15.54,
+   "t1": 15.6,
+   "seg": "dia5"
+  },
+  {
+   "texto": "suco",
+   "pont": "",
+   "t0": 15.6,
+   "t1": 15.84,
+   "seg": "dia5"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 15.84,
+   "t1": 15.94,
+   "seg": "dia5"
+  },
+  {
+   "texto": "padaria",
+   "pont": ".",
+   "t0": 15.94,
+   "t1": 16.32,
+   "seg": "dia5"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 16.82,
+   "t1": 17.0,
+   "seg": "dia10"
+  },
+  {
+   "texto": "10",
+   "pont": ":",
+   "t0": 17.0,
+   "t1": 17.66,
+   "seg": "dia10"
+  },
+  {
+   "texto": "512",
+   "pont": "",
+   "t0": 17.66,
+   "t1": 18.34,
+   "seg": "dia10"
+  },
+  {
+   "texto": "reais",
+   "pont": ".",
+   "t0": 18.34,
+   "t1": 18.9,
+   "seg": "dia10"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 19.42,
+   "t1": 19.6,
+   "seg": "dia10"
+  },
+  {
+   "texto": "limpa",
+   "pont": "",
+   "t0": 19.6,
+   "t1": 19.82,
+   "seg": "dia10"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 19.82,
+   "t1": 19.88,
+   "seg": "dia10"
+  },
+  {
+   "texto": "carrinho",
+   "pont": "",
+   "t0": 19.88,
+   "t1": 20.12,
+   "seg": "dia10"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 20.12,
+   "t1": 20.22,
+   "seg": "dia10"
+  },
+  {
+   "texto": "mercado",
+   "pont": "",
+   "t0": 20.22,
+   "t1": 20.5,
+   "seg": "dia10"
+  },
+  {
+   "texto": "sem",
+   "pont": "",
+   "t0": 20.5,
+   "t1": 20.9,
+   "seg": "dia10"
+  },
+  {
+   "texto": "olhar",
+   "pont": "",
+   "t0": 20.9,
+   "t1": 21.12,
+   "seg": "dia10"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 21.12,
+   "t1": 21.24,
+   "seg": "dia10"
+  },
+  {
+   "texto": "preço",
+   "pont": "!",
+   "t0": 21.24,
+   "t1": 21.38,
+   "seg": "dia10"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 21.92,
+   "t1": 22.1,
+   "seg": "dia14"
+  },
+  {
+   "texto": "14",
+   "pont": ":",
+   "t0": 22.1,
+   "t1": 22.9,
+   "seg": "dia14"
+  },
+  {
+   "texto": "8",
+   "pont": "",
+   "t0": 22.9,
+   "t1": 23.12,
+   "seg": "dia14"
+  },
+  {
+   "texto": "mil",
+   "pont": "",
+   "t0": 23.12,
+   "t1": 23.42,
+   "seg": "dia14"
+  },
+  {
+   "texto": "reais",
+   "pont": ".",
+   "t0": 23.42,
+   "t1": 23.72,
+   "seg": "dia14"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 24.08,
+   "t1": 24.28,
+   "seg": "dia14"
+  },
+  {
+   "texto": "já",
+   "pont": "",
+   "t0": 24.28,
+   "t1": 24.44,
+   "seg": "dia14"
+  },
+  {
+   "texto": "ganha",
+   "pont": "",
+   "t0": 24.44,
+   "t1": 24.7,
+   "seg": "dia14"
+  },
+  {
+   "texto": "em",
+   "pont": "",
+   "t0": 24.7,
+   "t1": 24.8,
+   "seg": "dia14"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 24.8,
+   "t1": 24.92,
+   "seg": "dia14"
+  },
+  {
+   "texto": "dia",
+   "pont": "",
+   "t0": 24.92,
+   "t1": 25.16,
+   "seg": "dia14"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 25.16,
+   "t1": 25.26,
+   "seg": "dia14"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 25.26,
+   "t1": 25.36,
+   "seg": "dia14"
+  },
+  {
+   "texto": "muita",
+   "pont": "",
+   "t0": 25.36,
+   "t1": 25.6,
+   "seg": "dia14"
+  },
+  {
+   "texto": "gente",
+   "pont": "",
+   "t0": 25.6,
+   "t1": 25.84,
+   "seg": "dia14"
+  },
+  {
+   "texto": "leva",
+   "pont": "",
+   "t0": 25.84,
+   "t1": 26.06,
+   "seg": "dia14"
+  },
+  {
+   "texto": "meses",
+   "pont": ".",
+   "t0": 26.06,
+   "t1": 26.6,
+   "seg": "dia14"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 27.1,
+   "t1": 27.3,
+   "seg": "dia18"
+  },
+  {
+   "texto": "18",
+   "pont": ":",
+   "t0": 27.3,
+   "t1": 28.18,
+   "seg": "dia18"
+  },
+  {
+   "texto": "131",
+   "pont": "",
+   "t0": 28.18,
+   "t1": 28.9,
+   "seg": "dia18"
+  },
+  {
+   "texto": "mil",
+   "pont": "",
+   "t0": 28.9,
+   "t1": 29.02,
+   "seg": "dia18"
+  },
+  {
+   "texto": "reais",
+   "pont": ".",
+   "t0": 29.02,
+   "t1": 29.32,
+   "seg": "dia18"
+  },
+  {
+   "texto": "Um",
+   "pont": "",
+   "t0": 29.32,
+   "t1": 29.8,
+   "seg": "dia18"
+  },
+  {
+   "texto": "carro",
+   "pont": "",
+   "t0": 29.8,
+   "t1": 30.06,
+   "seg": "dia18"
+  },
+  {
+   "texto": "zero",
+   "pont": "",
+   "t0": 30.06,
+   "t1": 30.38,
+   "seg": "dia18"
+  },
+  {
+   "texto": "quilômetro",
+   "pont": "",
+   "t0": 30.38,
+   "t1": 30.82,
+   "seg": "dia18"
+  },
+  {
+   "texto": "cai",
+   "pont": "",
+   "t0": 30.82,
+   "t1": 31.02,
+   "seg": "dia18"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 31.02,
+   "t1": 31.12,
+   "seg": "dia18"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 31.12,
+   "t1": 31.26,
+   "seg": "dia18"
+  },
+  {
+   "texto": "garagem",
+   "pont": "!",
+   "t0": 31.26,
+   "t1": 32.06,
+   "seg": "dia18"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 32.18,
+   "t1": 32.3,
+   "seg": "dia21"
+  },
+  {
+   "texto": "21",
+   "pont": ":",
+   "t0": 32.3,
+   "t1": 32.94,
+   "seg": "dia21"
+  },
+  {
+   "texto": "1",
+   "pont": "",
+   "t0": 32.94,
+   "t1": 33.24,
+   "seg": "dia21"
+  },
+  {
+   "texto": "milhão",
+   "pont": "",
+   "t0": 33.24,
+   "t1": 33.72,
+   "seg": "dia21"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 33.72,
+   "t1": 33.84,
+   "seg": "dia21"
+  },
+  {
+   "texto": "reais",
+   "pont": ".",
+   "t0": 33.84,
+   "t1": 34.12,
+   "seg": "dia21"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 34.48,
+   "t1": 34.66,
+   "seg": "dia21"
+  },
+  {
+   "texto": "acorda",
+   "pont": "",
+   "t0": 34.66,
+   "t1": 34.98,
+   "seg": "dia21"
+  },
+  {
+   "texto": "milionário",
+   "pont": "",
+   "t0": 34.98,
+   "t1": 35.58,
+   "seg": "dia21"
+  },
+  {
+   "texto": "antes",
+   "pont": "",
+   "t0": 35.58,
+   "t1": 36.1,
+   "seg": "dia21"
+  },
+  {
+   "texto": "mesmo",
+   "pont": "",
+   "t0": 36.1,
+   "t1": 36.44,
+   "seg": "dia21"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 36.44,
+   "t1": 36.56,
+   "seg": "dia21"
+  },
+  {
+   "texto": "café",
+   "pont": ".",
+   "t0": 36.56,
+   "t1": 36.78,
+   "seg": "dia21"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 37.36,
+   "t1": 37.5,
+   "seg": "dia25"
+  },
+  {
+   "texto": "25",
+   "pont": ":",
+   "t0": 37.5,
+   "t1": 38.24,
+   "seg": "dia25"
+  },
+  {
+   "texto": "16",
+   "pont": "",
+   "t0": 38.24,
+   "t1": 38.84,
+   "seg": "dia25"
+  },
+  {
+   "texto": "milhões",
+   "pont": ".",
+   "t0": 38.84,
+   "t1": 39.3,
+   "seg": "dia25"
+  },
+  {
+   "texto": "Uma",
+   "pont": "",
+   "t0": 39.86,
+   "t1": 39.98,
+   "seg": "dia25"
+  },
+  {
+   "texto": "mansão",
+   "pont": "",
+   "t0": 39.98,
+   "t1": 40.24,
+   "seg": "dia25"
+  },
+  {
+   "texto": "inteira",
+   "pont": "",
+   "t0": 40.24,
+   "t1": 40.64,
+   "seg": "dia25"
+  },
+  {
+   "texto": "com",
+   "pont": "",
+   "t0": 40.64,
+   "t1": 40.78,
+   "seg": "dia25"
+  },
+  {
+   "texto": "piscina",
+   "pont": "",
+   "t0": 40.78,
+   "t1": 41.08,
+   "seg": "dia25"
+  },
+  {
+   "texto": "vira",
+   "pont": "",
+   "t0": 41.08,
+   "t1": 41.36,
+   "seg": "dia25"
+  },
+  {
+   "texto": "troco",
+   "pont": "",
+   "t0": 41.36,
+   "t1": 41.68,
+   "seg": "dia25"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 41.68,
+   "t1": 41.8,
+   "seg": "dia25"
+  },
+  {
+   "texto": "bolso",
+   "pont": "!",
+   "t0": 41.8,
+   "t1": 42.12,
+   "seg": "dia25"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 42.5,
+   "t1": 42.68,
+   "seg": "dia28"
+  },
+  {
+   "texto": "28",
+   "pont": ":",
+   "t0": 42.68,
+   "t1": 43.5,
+   "seg": "dia28"
+  },
+  {
+   "texto": "134",
+   "pont": "",
+   "t0": 43.5,
+   "t1": 44.46,
+   "seg": "dia28"
+  },
+  {
+   "texto": "milhões",
+   "pont": ".",
+   "t0": 44.46,
+   "t1": 44.74,
+   "seg": "dia28"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 45.22,
+   "t1": 45.4,
+   "seg": "dia28"
+  },
+  {
+   "texto": "compra",
+   "pont": "",
+   "t0": 45.4,
+   "t1": 45.56,
+   "seg": "dia28"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 45.56,
+   "t1": 45.7,
+   "seg": "dia28"
+  },
+  {
+   "texto": "jatinho",
+   "pont": "",
+   "t0": 45.7,
+   "t1": 46.02,
+   "seg": "dia28"
+  },
+  {
+   "texto": "particular",
+   "pont": "",
+   "t0": 46.02,
+   "t1": 46.48,
+   "seg": "dia28"
+  },
+  {
+   "texto": "à",
+   "pont": "",
+   "t0": 46.48,
+   "t1": 46.8,
+   "seg": "dia28"
+  },
+  {
+   "texto": "vista",
+   "pont": ".",
+   "t0": 46.8,
+   "t1": 47.12,
+   "seg": "dia28"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 47.78,
+   "t1": 47.94,
+   "seg": "dia31"
+  },
+  {
+   "texto": "31",
+   "pont": ":",
+   "t0": 47.94,
+   "t1": 49.14,
+   "seg": "dia31"
+  },
+  {
+   "texto": "1",
+   "pont": "",
+   "t0": 49.14,
+   "t1": 49.3,
+   "seg": "dia31"
+  },
+  {
+   "texto": "bilhão",
+   "pont": "",
+   "t0": 49.3,
+   "t1": 50.2,
+   "seg": "dia31"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 50.2,
+   "t1": 50.38,
+   "seg": "dia31"
+  },
+  {
+   "texto": "reais",
+   "pont": ".",
+   "t0": 50.38,
+   "t1": 50.72,
+   "seg": "dia31"
+  },
+  {
+   "texto": "Os",
+   "pont": "",
+   "t0": 51.08,
+   "t1": 51.24,
+   "seg": "dia31"
+  },
+  {
+   "texto": "bancos",
+   "pont": "",
+   "t0": 51.24,
+   "t1": 51.46,
+   "seg": "dia31"
+  },
+  {
+   "texto": "travam",
+   "pont": "",
+   "t0": 51.46,
+   "t1": 51.76,
+   "seg": "dia31"
+  },
+  {
+   "texto": "achando",
+   "pont": "",
+   "t0": 51.76,
+   "t1": 51.96,
+   "seg": "dia31"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 51.96,
+   "t1": 52.08,
+   "seg": "dia31"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 52.08,
+   "t1": 52.24,
+   "seg": "dia31"
+  },
+  {
+   "texto": "hackeou",
+   "pont": "",
+   "t0": 52.24,
+   "t1": 52.72,
+   "seg": "dia31"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 52.72,
+   "t1": 52.8,
+   "seg": "dia31"
+  },
+  {
+   "texto": "sistema",
+   "pont": "!",
+   "t0": 52.8,
+   "t1": 53.08,
+   "seg": "dia31"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 53.64,
+   "t1": 53.78,
+   "seg": "dia35"
+  },
+  {
+   "texto": "35",
+   "pont": ":",
+   "t0": 53.78,
+   "t1": 54.88,
+   "seg": "dia35"
+  },
+  {
+   "texto": "17",
+   "pont": "",
+   "t0": 54.88,
+   "t1": 55.54,
+   "seg": "dia35"
+  },
+  {
+   "texto": "bilhões",
+   "pont": ".",
+   "t0": 55.54,
+   "t1": 56.36,
+   "seg": "dia35"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 56.86,
+   "t1": 57.06,
+   "seg": "dia35"
+  },
+  {
+   "texto": "passa",
+   "pont": "",
+   "t0": 57.06,
+   "t1": 57.24,
+   "seg": "dia35"
+  },
+  {
+   "texto": "quase",
+   "pont": "",
+   "t0": 57.24,
+   "t1": 57.54,
+   "seg": "dia35"
+  },
+  {
+   "texto": "todos",
+   "pont": "",
+   "t0": 57.54,
+   "t1": 57.98,
+   "seg": "dia35"
+  },
+  {
+   "texto": "os",
+   "pont": "",
+   "t0": 57.98,
+   "t1": 58.2,
+   "seg": "dia35"
+  },
+  {
+   "texto": "bilionários",
+   "pont": "",
+   "t0": 58.2,
+   "t1": 58.58,
+   "seg": "dia35"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 58.58,
+   "t1": 58.7,
+   "seg": "dia35"
+  },
+  {
+   "texto": "país",
+   "pont": "",
+   "t0": 58.7,
+   "t1": 58.88,
+   "seg": "dia35"
+  },
+  {
+   "texto": "em",
+   "pont": "",
+   "t0": 58.88,
+   "t1": 59.06,
+   "seg": "dia35"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 59.06,
+   "t1": 59.2,
+   "seg": "dia35"
+  },
+  {
+   "texto": "noite",
+   "pont": ".",
+   "t0": 59.2,
+   "t1": 59.52,
+   "seg": "dia35"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 60.14,
+   "t1": 60.24,
+   "seg": "dia40"
+  },
+  {
+   "texto": "40",
+   "pont": ":",
+   "t0": 60.24,
+   "t1": 61.14,
+   "seg": "dia40"
+  },
+  {
+   "texto": "549",
+   "pont": "",
+   "t0": 61.14,
+   "t1": 62.18,
+   "seg": "dia40"
+  },
+  {
+   "texto": "bilhões",
+   "pont": ".",
+   "t0": 62.18,
+   "t1": 63.16,
+   "seg": "dia40"
+  },
+  {
+   "texto": "Seu",
+   "pont": "",
+   "t0": 63.52,
+   "t1": 63.74,
+   "seg": "dia40"
+  },
+  {
+   "texto": "saldo",
+   "pont": "",
+   "t0": 63.74,
+   "t1": 64.02,
+   "seg": "dia40"
+  },
+  {
+   "texto": "sozinho",
+   "pont": "",
+   "t0": 64.02,
+   "t1": 64.44,
+   "seg": "dia40"
+  },
+  {
+   "texto": "já",
+   "pont": "",
+   "t0": 64.44,
+   "t1": 64.62,
+   "seg": "dia40"
+  },
+  {
+   "texto": "bate",
+   "pont": "",
+   "t0": 64.62,
+   "t1": 64.82,
+   "seg": "dia40"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 64.82,
+   "t1": 64.94,
+   "seg": "dia40"
+  },
+  {
+   "texto": "caixa",
+   "pont": "",
+   "t0": 64.94,
+   "t1": 65.16,
+   "seg": "dia40"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 65.16,
+   "t1": 65.26,
+   "seg": "dia40"
+  },
+  {
+   "texto": "países",
+   "pont": "",
+   "t0": 65.26,
+   "t1": 65.48,
+   "seg": "dia40"
+  },
+  {
+   "texto": "inteiros",
+   "pont": "!",
+   "t0": 65.48,
+   "t1": 66.16,
+   "seg": "dia40"
+  },
+  {
+   "texto": "Só",
+   "pont": "",
+   "t0": 66.62,
+   "t1": 67.0,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 67.0,
+   "t1": 67.16,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "existe",
+   "pont": "",
+   "t0": 67.16,
+   "t1": 67.46,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 67.46,
+   "t1": 67.64,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "armadilha",
+   "pont": "",
+   "t0": 67.64,
+   "t1": 68.14,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "brutal",
+   "pont": "",
+   "t0": 68.14,
+   "t1": 68.7,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "nessa",
+   "pont": "",
+   "t0": 68.7,
+   "t1": 69.04,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "matemática",
+   "pont": ".",
+   "t0": 69.04,
+   "t1": 69.62,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "No",
+   "pont": "",
+   "t0": 70.06,
+   "t1": 70.18,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 70.18,
+   "t1": 70.32,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "45",
+   "pont": ",",
+   "t0": 70.32,
+   "t1": 71.16,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "existe",
+   "pont": "",
+   "t0": 71.16,
+   "t1": 71.36,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "tanto",
+   "pont": "",
+   "t0": 71.36,
+   "t1": 71.72,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "dinheiro",
+   "pont": "",
+   "t0": 71.72,
+   "t1": 72.0,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 72.0,
+   "t1": 72.18,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 72.18,
+   "t1": 72.3,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "conta",
+   "pont": "",
+   "t0": 72.3,
+   "t1": 72.56,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 72.56,
+   "t1": 72.74,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 72.74,
+   "t1": 72.86,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "inflação",
+   "pont": "",
+   "t0": 72.86,
+   "t1": 73.08,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "explode",
+   "pont": "...",
+   "t0": 73.08,
+   "t1": 73.52,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 73.84,
+   "t1": 73.98,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "1",
+   "pont": "",
+   "t0": 73.98,
+   "t1": 74.12,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "milhão",
+   "pont": "",
+   "t0": 74.12,
+   "t1": 74.4,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "não",
+   "pont": "",
+   "t0": 74.4,
+   "t1": 74.6,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "compra",
+   "pont": "",
+   "t0": 74.6,
+   "t1": 74.84,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "nem",
+   "pont": "",
+   "t0": 74.84,
+   "t1": 75.12,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 75.12,
+   "t1": 75.2,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "pão",
+   "pont": "!",
+   "t0": 75.12,
+   "t1": 75.42,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "No",
+   "pont": "",
+   "t0": 75.92,
+   "t1": 76.08,
+   "seg": "loop"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 76.08,
+   "t1": 76.24,
+   "seg": "loop"
+  },
+  {
+   "texto": "25",
+   "pont": "",
+   "t0": 76.24,
+   "t1": 77.24,
+   "seg": "loop"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 77.24,
+   "t1": 77.42,
+   "seg": "loop"
+  },
+  {
+   "texto": "parava",
+   "pont": "",
+   "t0": 77.42,
+   "t1": 77.94,
+   "seg": "loop"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 77.94,
+   "t1": 78.12,
+   "seg": "loop"
+  },
+  {
+   "texto": "máquina",
+   "pont": "",
+   "t0": 78.12,
+   "t1": 78.42,
+   "seg": "loop"
+  },
+  {
+   "texto": "ou",
+   "pont": "",
+   "t0": 78.42,
+   "t1": 78.8,
+   "seg": "loop"
+  },
+  {
+   "texto": "deixava",
+   "pont": "",
+   "t0": 78.8,
+   "t1": 79.12,
+   "seg": "loop"
+  },
+  {
+   "texto": "dobrar",
+   "pont": "?",
+   "t0": 79.12,
+   "t1": 79.44,
+   "seg": "loop"
+  },
+  {
+   "texto": "Comenta",
+   "pont": "",
+   "t0": 79.94,
+   "t1": 80.26,
+   "seg": "loop"
+  },
+  {
+   "texto": "aí",
+   "pont": "!",
+   "t0": 80.26,
+   "t1": 80.42,
+   "seg": "loop"
+  }
+ ],
+ "sfx": [
+  {
+   "tipo": "ding",
+   "t": 0.54,
+   "seg": "hook"
+  },
+  {
+   "tipo": "whoosh_curto",
+   "t": 2.26,
+   "seg": "hook"
+  },
+  {
+   "tipo": "sirene",
+   "t": 3.41,
+   "seg": "hook"
+  },
+  {
+   "tipo": "boom",
+   "t": 4.53,
+   "seg": "hook"
+  },
+  {
+   "tipo": "badge",
+   "t": 5.31,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "tique",
+   "t": 6.31,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "stamp",
+   "t": 7.65,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "badge",
+   "t": 9.08,
+   "seg": "dia1"
+  },
+  {
+   "tipo": "ding",
+   "t": 10.34,
+   "seg": "dia1"
+  },
+  {
+   "tipo": "pouso",
+   "t": 11.5,
+   "seg": "dia1"
+  },
+  {
+   "tipo": "badge",
+   "t": 12.35,
+   "seg": "dia5"
+  },
+  {
+   "tipo": "ding",
+   "t": 14.92,
+   "seg": "dia5"
+  },
+  {
+   "tipo": "whoosh_curto",
+   "t": 15.56,
+   "seg": "dia5"
+  },
+  {
+   "tipo": "badge",
+   "t": 16.52,
+   "seg": "dia10"
+  },
+  {
+   "tipo": "whoosh",
+   "t": 19.52,
+   "seg": "dia10"
+  },
+  {
+   "tipo": "ding",
+   "t": 21.2,
+   "seg": "dia10"
+  },
+  {
+   "tipo": "badge",
+   "t": 21.6,
+   "seg": "dia14"
+  },
+  {
+   "tipo": "flashes",
+   "t": 24.39,
+   "seg": "dia14"
+  },
+  {
+   "tipo": "stamp",
+   "t": 26.02,
+   "seg": "dia14"
+  },
+  {
+   "tipo": "badge",
+   "t": 26.8,
+   "seg": "dia18"
+  },
+  {
+   "tipo": "whoosh",
+   "t": 29.7,
+   "seg": "dia18"
+  },
+  {
+   "tipo": "pouso",
+   "t": 31.22,
+   "seg": "dia18"
+  },
+  {
+   "tipo": "badge",
+   "t": 32.07,
+   "seg": "dia21"
+  },
+  {
+   "tipo": "ding",
+   "t": 33.2,
+   "seg": "dia21"
+  },
+  {
+   "tipo": "flashes",
+   "t": 34.93,
+   "seg": "dia21"
+  },
+  {
+   "tipo": "badge",
+   "t": 37.02,
+   "seg": "dia25"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 39.92,
+   "seg": "dia25"
+  },
+  {
+   "tipo": "ding",
+   "t": 41.76,
+   "seg": "dia25"
+  },
+  {
+   "tipo": "badge",
+   "t": 42.26,
+   "seg": "dia28"
+  },
+  {
+   "tipo": "jato",
+   "t": 45.5,
+   "seg": "dia28"
+  },
+  {
+   "tipo": "stamp",
+   "t": 46.76,
+   "seg": "dia28"
+  },
+  {
+   "tipo": "badge",
+   "t": 47.4,
+   "seg": "dia31"
+  },
+  {
+   "tipo": "alarme",
+   "t": 51.4,
+   "seg": "dia31"
+  },
+  {
+   "tipo": "susto",
+   "t": 52.19,
+   "seg": "dia31"
+  },
+  {
+   "tipo": "badge",
+   "t": 53.31,
+   "seg": "dia35"
+  },
+  {
+   "tipo": "whoosh",
+   "t": 56.98,
+   "seg": "dia35"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 58.15,
+   "seg": "dia35"
+  },
+  {
+   "tipo": "badge",
+   "t": 59.78,
+   "seg": "dia40"
+  },
+  {
+   "tipo": "drone",
+   "t": 59.83,
+   "seg": "dia40"
+  },
+  {
+   "tipo": "boom",
+   "t": 65.21,
+   "seg": "dia40"
+  },
+  {
+   "tipo": "riser",
+   "t": 67.64,
+   "seg": "twist_a"
+  },
+  {
+   "tipo": "drop",
+   "t": 69.74,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "explosao",
+   "t": 73.0,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "alarme_curto",
+   "t": 75.07,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 75.62,
+   "seg": "loop"
+  },
+  {
+   "tipo": "tique",
+   "t": 77.42,
+   "seg": "loop"
+  }
+ ]
+}
