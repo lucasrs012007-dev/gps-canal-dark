@@ -1,7 +1,7 @@
 {
-  "versao": 18,
+  "versao": 19,
   "regra": "Sempre Video Novo: cada producao exige tema inedito em relacao aos videos anteriores e salva automaticamente na proxima numeracao livre (output/short_NN.mp4).",
-  "video_atual": 18,
+  "video_atual": 19,
   "videos": [
     {
       "id": 1,
@@ -435,7 +435,7 @@
       "cenas": "cenas.json",
       "player": "player_universal.html",
       "saida": "output/short_18.mp4",
-      "status": "em_producao",
+      "status": "arquivado",
       "motor": "canvas_2d_30fps",
       "parte_label": "",
       "cta_modo": "final",
@@ -443,6 +443,32 @@
       "saidas_partes": [
         "output/short_18_parte1.mp4",
         "output/short_18_parte2.mp4"
+      ]
+    },
+    {
+      "id": 19,
+      "slug": "o-cofre-de-svalbard-esconde-um-segredo",
+      "titulo": "O Cofre de Svalbard Esconde Um Segredo",
+      "tema": "O segredo oculto no Cofre Global de Sementes de Svalbard na Noruega",
+      "palavras_chave": [
+        "svalbard",
+        "semente",
+        "cofre",
+        "segredo",
+        "noruega"
+      ],
+      "roteiro": "roteiro_19.txt",
+      "cenas": "cenas.json",
+      "player": "player_universal.html",
+      "saida": "output/short_19.mp4",
+      "status": "em_producao",
+      "motor": "canvas_2d_30fps",
+      "parte_label": "",
+      "cta_modo": "final",
+      "pilar": "misterios_reais",
+      "saidas_partes": [
+        "output/short_19_parte1.mp4",
+        "output/short_19_parte2.mp4"
       ]
     }
   ]
