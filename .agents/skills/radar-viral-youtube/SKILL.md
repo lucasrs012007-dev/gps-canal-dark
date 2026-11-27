@@ -1,68 +1,69 @@
 ---
 name: radar-viral-youtube
-description: Executa varredura ao vivo no YouTube Shorts (EN, ES e PT) via yt-dlp com fabrica_v2/radar/radar_viral.py para descobrir outliers virais recentes, extrair ganchos reais de abertura, inspecionar frames de concorrentes e propor episodios ineditos para a fabrica_v2. Acione automaticamente sempre que o usuario pedir algo como "varre o youtube", "roda o radar", "radar viral", "procura videos virais", "busca temas novos", "busca temas virais", "minerar youtube", "analisa esse video", "analisa esse video concorrente" ou "ganchos que retem".
+description: Executa varredura ao vivo multiplataforma gratuita (YouTube Shorts, TikTok e Instagram Reels em EN, ES e PT) com fabrica_v2/radar/radar_viral.py, memoria de frescor vistos.json (--apenas-novos), analise universal --analisar-url (4 frames visuais + fallback Whisper local para TikTok/Reels) e propostas ineditas para a fabrica_v2. Acione automaticamente sempre que o usuario pedir algo como "varre o youtube", "varre youtube, tiktok e insta", "busca no tiktok", "roda o radar", "radar viral", "procura videos virais", "busca temas novos", "busca temas virais", "so coisas novas", "minerar youtube", "analisa esse video", "analisa esse tiktok", "analisa esse reel" ou "ganchos que retem".
 ---
 
-# Radar Viral YouTube (Varredura Ao Vivo para Fabrica V2)
+# Radar Viral Multiplataforma (Modo 2 Gratuito para Fabrica V2)
 
-Skill operacional de inteligencia editorial ao vivo para o canal da `fabrica_v2`. Descobre YouTube Shorts virais fora da curva em ingles, espanhol e portugues sem depender de cota da YouTube Data API e sem reutilizar resultados antigos.
+Skill operacional de inteligencia editorial ao vivo para a `fabrica_v2`. Varre YouTube Shorts, TikTok e Instagram Reels em ingles, espanhol e portugues sem depender de cota da YouTube Data API, sem login/cookies e sem reutilizar varreduras antigas.
 
 ## Regras obrigatorias de execucao
 
 Sempre que esta skill for acionada, siga exatamente esta sequencia:
 
-### 1. Varredura 100% ao vivo (zero cache obsoleto)
+### 1. Varredura 100% ao vivo e multiplataforma (zero cache obsoleto)
 - **NUNCA** reaproveite resultados antigos de `fabrica_v2/radar/output/` como se fossem atuais.
 - Antes de rodar, confirme se `yt-dlp` esta disponivel (`yt-dlp --version`); se nao estiver instalado, execute `pip install -U yt-dlp`.
 - Execute sempre uma nova varredura ao vivo via `fabrica_v2/radar/radar_viral.py`:
-  - Pedido aberto (ex.: `"varre o youtube"`, `"roda o radar"`, `"busca temas virais"`):
+  - Varredura multiplataforma aberta (padrao: `youtube,tiktok,instagram`):
     ```bash
-    python3 fabrica_v2/radar/radar_viral.py --dias 180 --max-per-query 8 --limite 15
+    python3 fabrica_v2/radar/radar_viral.py --plataformas youtube,tiktok,instagram --dias 180 --max-per-query 8 --limite 15
     ```
-  - Pedido com assunto especifico (ex.: `"roda o radar sobre gravidade"`, `"busca temas virais sobre sono"`):
+  - Varredura com assunto especifico (ex.: `"busca no tiktok sobre gravidade"`, `"varre youtube, tiktok e insta sobre sono"`):
     ```bash
-    python3 fabrica_v2/radar/radar_viral.py --tema "<assunto>" --dias 180 --max-per-query 8 --limite 15
+    python3 fabrica_v2/radar/radar_viral.py --plataformas youtube,tiktok,instagram --tema "<assunto>" --dias 180 --max-per-query 8 --limite 15
     ```
-  - Se o usuario pedir uma janela diferente (ex.: "ultimos 30 dias") ou quantidade diferente (ex.: "traz 20 videos"), repasse `--dias <N>` e `--limite <N>` diretamente.
+  - Se o usuario pedir uma plataforma especifica (ex.: `"busca no tiktok"`), ajuste `--plataformas tiktok` ou `--plataformas youtube,tiktok`.
+  - Se o usuario pedir `"so coisas novas"` ou evitar videos ja vistos em rodadas anteriores, passe `--apenas-novos` (filtra automaticamente usando a memoria `fabrica_v2/radar/output/vistos.json`).
 
 ### 2. Anti-repeticao e alinhamento editorial da Fabrica V2
 - Leia `fabrica_v2/episodios/*/roteiro.json` e `fabrica_v2/REGRAS_EPISODIO.md` antes de montar suas recomendacoes.
-- Confira a flag `ja_produzido` retornada em `fabrica_v2/radar/output/radar_dados.json` e cruze manualmente com todos os `titulo` e `hook` ja existentes em `fabrica_v2/episodios/*/roteiro.json`.
-- Garanta aderencia estrita a `Regra de Ganchos (Anti-Repeticao)` de `fabrica_v2/REGRAS_EPISODIO.md`: proibido repetir `"Voce! E, voce mesmo!"` ou qualquer abertura fixa ja usada; rotacione sempre entre os 5 modelos oficiais de gancho (Choque de numero absurdo, No meio do caos, Desafio de ego, Falsa vantagem + quebra, Contagem regressiva / aviso).
+- Confira as flags `ja_produzido` (contra `ep01`+) e `ja_visto` (contra `vistos.json`) em `fabrica_v2/radar/output/radar_dados.json`.
+- Garanta aderencia estrita a `fabrica_v2/REGRAS_EPISODIO.md`: padrao `61s` a `65s` (`11` a `12` cenas de ritmo ultra-rapido), rotacao obrigatoria entre os 5 modelos oficiais de gancho (proibido repetir `"Voce! E, voce mesmo!"`), CTA falada no `loop` e cauda seca de `0,25s`.
 
-### 3. Entrega completa dos outliers encontrados
-- Leia `fabrica_v2/radar/output/radar_dados.json` e apresente **TODOS** os melhores outliers frescos encontrados na rodada (padrao de `10` a `15` resultados, ou a quantidade pedida pelo usuario, nunca cortando arbitrariamente em 5).
-- Para cada outlier apresentado, informe dados medidos diretamente do JSON gerado:
-  - Posicao no ranking, idioma e status (`INEDITO` ou `JA PRODUZIDO`)
-  - Titulo, canal e link clicavel do Short
-  - `views`, `views_por_dia`, `outlier_ratio` (`views / max(inscritos, 1000)`), `engajamento_taxa` e `duracao_s`
-  - Gancho real falado nos primeiros segundos (`gancho_transcricao`), quando capturado
+### 3. Entrega completa dos outliers e leads multiplataforma
+- Leia `fabrica_v2/radar/output/radar_dados.json` e apresente **TODOS** os melhores outliers frescos do YouTube Shorts (padrao `10` a `15`, ou a quantidade pedida pelo usuario) **mais** os leads descobertos no TikTok e Instagram Reels (informando com transparencia quando alguma rede limitar metadados sem login).
+- Para cada item, informe dados medidos diretamente do JSON gerado:
+  - Plataforma (`YOUTUBE`, `TIKTOK`, `INSTAGRAM`), status de frescor (`NOVO` vs `VISTO`) e status no canal (`INEDITO` vs `JA PRODUZIDO`)
+  - Titulo, canal/perfil e link clicavel
+  - `views`, `views_por_dia`, `outlier_ratio`, `engajamento_taxa` e `duracao_s` (quando disponiveis)
+  - Gancho real falado (`gancho_transcricao`), quando capturado
 - Informe tambem os caminhos atualizados de `fabrica_v2/radar/output/relatorio_viral.html` e `fabrica_v2/radar/output/radar_resumo.md`.
 
-### 4. Modo analise profunda de concorrente (`--analisar-url`)
-- Sempre que o usuario enviar uma URL do YouTube ou pedir para analisar visual/retencao de um video especifico (ex.: `"analisa esse video"`, `"analisa esse video concorrente"`, `"por que esse video reteve"`):
+### 4. Modo analise universal de URL (`--analisar-url`: YouTube, TikTok e Reels)
+- Sempre que o usuario enviar um link do **YouTube**, **TikTok** ou **Instagram Reel** (ex.: `"analisa esse video"`, `"analisa esse tiktok"`, `"analisa esse reel"`, `"por que esse video reteve"`):
   1. Execute:
      ```bash
-     python3 fabrica_v2/radar/radar_viral.py --analisar-url "<URL_DO_YOUTUBE>"
+     python3 fabrica_v2/radar/radar_viral.py --analisar-url "<URL>"
      ```
-  2. Abra com a ferramenta de visao (`view_file`) os 4 frames extraidos em `/tmp/radar_frames/` (`frame_0.5s.jpg`, `frame_1.5s.jpg`, `frame_3.0s.jpg`, `frame_5.0s.jpg`) e tambem `/tmp/radar_frames/thumbnail_hd.jpg` quando disponivel.
+     O script detecta automaticamente a plataforma, coleta metadados via `yt-dlp`, extrai 4 frames visuais (`frame_0.5s.jpg`, `frame_1.5s.jpg`, `frame_3.0s.jpg`, `frame_5.0s.jpg`) em `/tmp/radar_frames/` e captura o gancho verbal `0-15s` (usando legenda nativa no YouTube e **fallback automatico para Whisper local** via `ffmpeg` 16kHz mono no TikTok ou videos sem legenda).
+  2. Abra com a ferramenta de visao (`view_file`) todos os 4 frames extraidos em `/tmp/radar_frames/` (`frame_0.5s.jpg`, `frame_1.5s.jpg`, `frame_3.0s.jpg`, `frame_5.0s.jpg`) e tambem `/tmp/radar_frames/thumbnail_hd.jpg` quando disponivel.
   3. Decomponha objetivamente:
-     - **Gancho visual (0s a 5s):** enquadramento, contraste, elemento de choque imediato, mudanca visual entre 0.5s, 1.5s, 3.0s e 5.0s, texto em tela.
-     - **Gancho verbal (0s a 15s):** frase de abertura real da transcricao, promessa de curiosidade, ritmo de palavras.
-     - **Mecanica de retencao:** qual tensao ou escala numerica obriga o espectador a ficar ate o final e comentar.
-     - **Como superar no estilo Opus da `fabrica_v2`:** adaptacao 100% original (nunca plagio) usando Beto, HUD dedicado e escala dramatica.
+     - **Tecnica e gancho visual (0s a 5s):** estilo de animacao/edicao, contraste, elemento que trava o scroll, mudanca visual entre 0.5s, 1.5s, 3.0s e 5.0s, texto em tela.
+     - **Gancho verbal (0s a 15s):** frase real obtida pela legenda ou Whisper local, ritmo e promessa de curiosidade.
+     - **Como traduzir e superar na `fabrica_v2`:** adaptacao 100% original (nunca plagio) para o motor Canvas 2D Opus (`scenes.js`), Beto, HUD dedicado e ritmo de `61s-65s`.
 
 ### 5. Fechamento obrigatorio com propostas prontas para a Fabrica V2
-- Encerre **toda** execucao com **3 a 5 propostas de episodios 100% ineditos e adaptados culturalmente ao Brasil** (moeda em reais, cotidiano brasileiro, referencias locais naturais), prontas para entrar em producao na `fabrica_v2` com uma unica confirmacao do usuario.
+- Encerre **toda** execucao com **3 a 5 propostas de episodios 100% ineditos e adaptados culturalmente ao Brasil** no padrao `61s` a `65s` (`11` a `12` cenas ultra-rapidas), prontas para entrar em producao na `fabrica_v2` com uma unica confirmacao do usuario.
 - Cada proposta deve conter:
   1. **Slug sugerido** (proximo `epXX_<tema>`) e titulo PT-BR com `#Shorts`.
-  2. **Referencia de inspiracao** (qual mecanica psicologica veio de qual outlier medido, sem copiar roteiro).
+  2. **Referencia de inspiracao** (plataforma + metrica medida do outlier/lead, sem copiar roteiro).
   3. **Modelo de gancho** (1 a 5 da `REGRAS_EPISODIO.md`) e **frase de abertura inedita** (maximo 2,5s).
-  4. **Elemento visual / HUD central** na estetica Opus (medidor vertical, cronometro, barra de risco, contador exponencial).
-  5. **Escalada + Plot Twist + CTA falada no loop final** (para gerar comentarios e replay imediato).
+  4. **Elemento visual / HUD central** na estetica Opus (medidor vertical, barra VU, cronometro ou contador exponencial).
+  5. **Escalada compacta (11-12 cenas) + Plot Twist + CTA falada no loop final**.
 
 ## Restricoes de seguranca e higiene
 - **Zero chamadas a API do Gemini** durante a varredura do radar.
-- **Zero segredos** em logs, comandos ou arquivos de saida.
+- **Zero segredos, cookies ou chaves** em logs, comandos ou arquivos versionados.
 - **Zero emoji, zero travessao e zero meia-risca** em todos os arquivos gerados ou editados.
-- Nunca versionar `fabrica_v2/radar/output/` ou `/tmp/radar_frames/` no Git.
+- Nunca versionar `fabrica_v2/radar/output/` (`vistos.json`, relatorios) ou `/tmp/radar_frames/` no Git.
