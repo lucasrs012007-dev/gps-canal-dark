@@ -1,0 +1,1430 @@
+{
+ "titulo": "E se cada \"JÁ TÔ INDO!\" ficasse 2x mais alto?",
+ "fps": 30,
+ "duracao": 65.4,
+ "engine": "gemini",
+ "mode": "batch",
+ "voz": "gemini-3.8-flash-tts/Mako",
+ "rate": "+12%",
+ "silencio_inicial_removido_s": 0.0082,
+ "segmentos": [
+  {
+   "id": "hook",
+   "fala": "Sua mãe chamou pro almoço, você gritou já tô indo e a janela explodiu!",
+   "t0": 0.0,
+   "t1": 5.15
+  },
+  {
+   "id": "premissa",
+   "fala": "A regra é clara: cada vez que você responde já tô indo, o volume dobra!",
+   "t0": 5.15,
+   "t1": 10.13
+  },
+  {
+   "id": "grito1",
+   "fala": "Grito 1: 60 decibéis. Conversa normal, mas sua mãe na cozinha nem escuta.",
+   "t0": 10.13,
+   "t1": 15.35
+  },
+  {
+   "id": "grito2",
+   "fala": "Grito 2: 120 decibéis. Nível de turbina! O cachorro voa do sofá na hora.",
+   "t0": 15.35,
+   "t1": 21.49
+  },
+  {
+   "id": "grito3",
+   "fala": "Grito 3: 150 decibéis. Os vidros estouram em cacos e os alarmes na rua disparam!",
+   "t0": 21.49,
+   "t1": 27.66
+  },
+  {
+   "id": "grito4",
+   "fala": "Grito 4: 180 decibéis. O telhado levanta e os vizinhos correm achando ser terremoto.",
+   "t0": 27.66,
+   "t1": 34.02
+  },
+  {
+   "id": "grito5",
+   "fala": "Grito 5: 194 decibéis. No limite do ar, vira onda de choque e derruba a parede!",
+   "t0": 34.02,
+   "t1": 40.91
+  },
+  {
+   "id": "grito7",
+   "fala": "Grito 7: 260 decibéis. A Defesa Civil evacua o bairro e helicópteros cercam sua rua!",
+   "t0": 40.91,
+   "t1": 47.47
+  },
+  {
+   "id": "pacto",
+   "fala": "Em pânico, você passa fita na boca e jura viver em silêncio absoluto.",
+   "t0": 47.47,
+   "t1": 51.8
+  },
+  {
+   "id": "twist_a",
+   "fala": "Só que existe um reflexo impossível de controlar.",
+   "t0": 51.8,
+   "t1": 56.21
+  },
+  {
+   "id": "twist_b",
+   "fala": "De manhã, sua mãe grita que o café esfriou... e no automático você berra: JÁ TÔ INDO!",
+   "t0": 56.21,
+   "t1": 61.52
+  },
+  {
+   "id": "loop",
+   "fala": "Quantos gritos sua mãe aguentaria antes de pegar a chinela? Comenta aí!",
+   "t0": 61.52,
+   "t1": 65.4
+  }
+ ],
+ "palavras": [
+  {
+   "texto": "Sua",
+   "pont": "",
+   "t0": 0.0,
+   "t1": 0.28,
+   "seg": "hook"
+  },
+  {
+   "texto": "mãe",
+   "pont": "",
+   "t0": 0.28,
+   "t1": 0.52,
+   "seg": "hook"
+  },
+  {
+   "texto": "chamou",
+   "pont": "",
+   "t0": 0.52,
+   "t1": 0.84,
+   "seg": "hook"
+  },
+  {
+   "texto": "pro",
+   "pont": "",
+   "t0": 0.84,
+   "t1": 1.0,
+   "seg": "hook"
+  },
+  {
+   "texto": "almoço",
+   "pont": ",",
+   "t0": 1.04,
+   "t1": 1.46,
+   "seg": "hook"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 1.6,
+   "t1": 1.74,
+   "seg": "hook"
+  },
+  {
+   "texto": "gritou",
+   "pont": "",
+   "t0": 1.74,
+   "t1": 2.1,
+   "seg": "hook"
+  },
+  {
+   "texto": "já",
+   "pont": "",
+   "t0": 2.1,
+   "t1": 2.58,
+   "seg": "hook"
+  },
+  {
+   "texto": "tô",
+   "pont": "",
+   "t0": 2.58,
+   "t1": 2.84,
+   "seg": "hook"
+  },
+  {
+   "texto": "indo",
+   "pont": "",
+   "t0": 2.84,
+   "t1": 3.28,
+   "seg": "hook"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 3.28,
+   "t1": 3.56,
+   "seg": "hook"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 3.56,
+   "t1": 3.68,
+   "seg": "hook"
+  },
+  {
+   "texto": "janela",
+   "pont": "",
+   "t0": 3.68,
+   "t1": 4.08,
+   "seg": "hook"
+  },
+  {
+   "texto": "explodiu",
+   "pont": "!",
+   "t0": 4.08,
+   "t1": 4.9,
+   "seg": "hook"
+  },
+  {
+   "texto": "A",
+   "pont": "",
+   "t0": 5.4,
+   "t1": 5.62,
+   "seg": "premissa"
+  },
+  {
+   "texto": "regra",
+   "pont": "",
+   "t0": 5.62,
+   "t1": 5.82,
+   "seg": "premissa"
+  },
+  {
+   "texto": "é",
+   "pont": "",
+   "t0": 5.82,
+   "t1": 5.94,
+   "seg": "premissa"
+  },
+  {
+   "texto": "clara",
+   "pont": ":",
+   "t0": 5.94,
+   "t1": 6.18,
+   "seg": "premissa"
+  },
+  {
+   "texto": "cada",
+   "pont": "",
+   "t0": 6.52,
+   "t1": 6.7,
+   "seg": "premissa"
+  },
+  {
+   "texto": "vez",
+   "pont": "",
+   "t0": 6.7,
+   "t1": 7.02,
+   "seg": "premissa"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 7.02,
+   "t1": 7.18,
+   "seg": "premissa"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 7.18,
+   "t1": 7.34,
+   "seg": "premissa"
+  },
+  {
+   "texto": "responde",
+   "pont": "",
+   "t0": 7.34,
+   "t1": 7.84,
+   "seg": "premissa"
+  },
+  {
+   "texto": "já",
+   "pont": "",
+   "t0": 7.84,
+   "t1": 8.24,
+   "seg": "premissa"
+  },
+  {
+   "texto": "tô",
+   "pont": "",
+   "t0": 8.24,
+   "t1": 8.38,
+   "seg": "premissa"
+  },
+  {
+   "texto": "indo",
+   "pont": ",",
+   "t0": 8.38,
+   "t1": 8.78,
+   "seg": "premissa"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 9.0,
+   "t1": 9.04,
+   "seg": "premissa"
+  },
+  {
+   "texto": "volume",
+   "pont": "",
+   "t0": 9.04,
+   "t1": 9.3,
+   "seg": "premissa"
+  },
+  {
+   "texto": "dobra",
+   "pont": "!",
+   "t0": 9.3,
+   "t1": 9.8,
+   "seg": "premissa"
+  },
+  {
+   "texto": "Grito",
+   "pont": "",
+   "t0": 10.46,
+   "t1": 10.78,
+   "seg": "grito1"
+  },
+  {
+   "texto": "1",
+   "pont": ":",
+   "t0": 10.78,
+   "t1": 11.2,
+   "seg": "grito1"
+  },
+  {
+   "texto": "60",
+   "pont": "",
+   "t0": 11.2,
+   "t1": 11.54,
+   "seg": "grito1"
+  },
+  {
+   "texto": "decibéis",
+   "pont": ".",
+   "t0": 11.54,
+   "t1": 12.08,
+   "seg": "grito1"
+  },
+  {
+   "texto": "Conversa",
+   "pont": "",
+   "t0": 12.32,
+   "t1": 12.7,
+   "seg": "grito1"
+  },
+  {
+   "texto": "normal",
+   "pont": ",",
+   "t0": 12.7,
+   "t1": 12.92,
+   "seg": "grito1"
+  },
+  {
+   "texto": "mas",
+   "pont": "",
+   "t0": 13.3,
+   "t1": 13.46,
+   "seg": "grito1"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 13.46,
+   "t1": 13.62,
+   "seg": "grito1"
+  },
+  {
+   "texto": "mãe",
+   "pont": "",
+   "t0": 13.62,
+   "t1": 13.8,
+   "seg": "grito1"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 13.8,
+   "t1": 13.92,
+   "seg": "grito1"
+  },
+  {
+   "texto": "cozinha",
+   "pont": "",
+   "t0": 13.92,
+   "t1": 14.28,
+   "seg": "grito1"
+  },
+  {
+   "texto": "nem",
+   "pont": "",
+   "t0": 14.28,
+   "t1": 14.74,
+   "seg": "grito1"
+  },
+  {
+   "texto": "escuta",
+   "pont": ".",
+   "t0": 14.74,
+   "t1": 15.12,
+   "seg": "grito1"
+  },
+  {
+   "texto": "Grito",
+   "pont": "",
+   "t0": 15.58,
+   "t1": 15.96,
+   "seg": "grito2"
+  },
+  {
+   "texto": "2",
+   "pont": ":",
+   "t0": 15.96,
+   "t1": 16.76,
+   "seg": "grito2"
+  },
+  {
+   "texto": "120",
+   "pont": "",
+   "t0": 16.76,
+   "t1": 17.28,
+   "seg": "grito2"
+  },
+  {
+   "texto": "decibéis",
+   "pont": ".",
+   "t0": 17.28,
+   "t1": 17.9,
+   "seg": "grito2"
+  },
+  {
+   "texto": "Nível",
+   "pont": "",
+   "t0": 18.24,
+   "t1": 18.42,
+   "seg": "grito2"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 18.42,
+   "t1": 18.6,
+   "seg": "grito2"
+  },
+  {
+   "texto": "turbina",
+   "pont": "!",
+   "t0": 18.6,
+   "t1": 19.16,
+   "seg": "grito2"
+  },
+  {
+   "texto": "O",
+   "pont": "",
+   "t0": 19.54,
+   "t1": 19.62,
+   "seg": "grito2"
+  },
+  {
+   "texto": "cachorro",
+   "pont": "",
+   "t0": 19.62,
+   "t1": 19.86,
+   "seg": "grito2"
+  },
+  {
+   "texto": "voa",
+   "pont": "",
+   "t0": 19.86,
+   "t1": 20.32,
+   "seg": "grito2"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 20.32,
+   "t1": 20.36,
+   "seg": "grito2"
+  },
+  {
+   "texto": "sofá",
+   "pont": "",
+   "t0": 20.36,
+   "t1": 20.74,
+   "seg": "grito2"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 20.74,
+   "t1": 20.96,
+   "seg": "grito2"
+  },
+  {
+   "texto": "hora",
+   "pont": ".",
+   "t0": 20.96,
+   "t1": 21.22,
+   "seg": "grito2"
+  },
+  {
+   "texto": "Grito",
+   "pont": "",
+   "t0": 21.76,
+   "t1": 22.08,
+   "seg": "grito3"
+  },
+  {
+   "texto": "3",
+   "pont": ":",
+   "t0": 22.08,
+   "t1": 22.86,
+   "seg": "grito3"
+  },
+  {
+   "texto": "150",
+   "pont": "",
+   "t0": 22.86,
+   "t1": 23.5,
+   "seg": "grito3"
+  },
+  {
+   "texto": "decibéis",
+   "pont": ".",
+   "t0": 23.5,
+   "t1": 24.28,
+   "seg": "grito3"
+  },
+  {
+   "texto": "Os",
+   "pont": "",
+   "t0": 24.66,
+   "t1": 24.8,
+   "seg": "grito3"
+  },
+  {
+   "texto": "vidros",
+   "pont": "",
+   "t0": 24.8,
+   "t1": 25.04,
+   "seg": "grito3"
+  },
+  {
+   "texto": "estouram",
+   "pont": "",
+   "t0": 25.04,
+   "t1": 25.5,
+   "seg": "grito3"
+  },
+  {
+   "texto": "em",
+   "pont": "",
+   "t0": 25.5,
+   "t1": 25.64,
+   "seg": "grito3"
+  },
+  {
+   "texto": "cacos",
+   "pont": "",
+   "t0": 25.64,
+   "t1": 26.14,
+   "seg": "grito3"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 26.14,
+   "t1": 26.28,
+   "seg": "grito3"
+  },
+  {
+   "texto": "os",
+   "pont": "",
+   "t0": 26.28,
+   "t1": 26.38,
+   "seg": "grito3"
+  },
+  {
+   "texto": "alarmes",
+   "pont": "",
+   "t0": 26.38,
+   "t1": 26.76,
+   "seg": "grito3"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 26.76,
+   "t1": 26.88,
+   "seg": "grito3"
+  },
+  {
+   "texto": "rua",
+   "pont": "",
+   "t0": 26.88,
+   "t1": 27.04,
+   "seg": "grito3"
+  },
+  {
+   "texto": "disparam",
+   "pont": "!",
+   "t0": 27.04,
+   "t1": 27.66,
+   "seg": "grito3"
+  },
+  {
+   "texto": "Grito",
+   "pont": "",
+   "t0": 27.66,
+   "t1": 28.46,
+   "seg": "grito4"
+  },
+  {
+   "texto": "4",
+   "pont": ":",
+   "t0": 28.46,
+   "t1": 29.08,
+   "seg": "grito4"
+  },
+  {
+   "texto": "180",
+   "pont": "",
+   "t0": 29.08,
+   "t1": 29.56,
+   "seg": "grito4"
+  },
+  {
+   "texto": "decibéis",
+   "pont": ".",
+   "t0": 29.56,
+   "t1": 30.32,
+   "seg": "grito4"
+  },
+  {
+   "texto": "O",
+   "pont": "",
+   "t0": 30.62,
+   "t1": 30.84,
+   "seg": "grito4"
+  },
+  {
+   "texto": "telhado",
+   "pont": "",
+   "t0": 30.84,
+   "t1": 31.12,
+   "seg": "grito4"
+  },
+  {
+   "texto": "levanta",
+   "pont": "",
+   "t0": 31.12,
+   "t1": 31.82,
+   "seg": "grito4"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 31.82,
+   "t1": 31.92,
+   "seg": "grito4"
+  },
+  {
+   "texto": "os",
+   "pont": "",
+   "t0": 31.92,
+   "t1": 32.04,
+   "seg": "grito4"
+  },
+  {
+   "texto": "vizinhos",
+   "pont": "",
+   "t0": 32.04,
+   "t1": 32.34,
+   "seg": "grito4"
+  },
+  {
+   "texto": "correm",
+   "pont": "",
+   "t0": 32.34,
+   "t1": 32.84,
+   "seg": "grito4"
+  },
+  {
+   "texto": "achando",
+   "pont": "",
+   "t0": 32.84,
+   "t1": 33.16,
+   "seg": "grito4"
+  },
+  {
+   "texto": "ser",
+   "pont": "",
+   "t0": 33.16,
+   "t1": 33.32,
+   "seg": "grito4"
+  },
+  {
+   "texto": "terremoto",
+   "pont": ".",
+   "t0": 33.32,
+   "t1": 33.74,
+   "seg": "grito4"
+  },
+  {
+   "texto": "Grito",
+   "pont": "",
+   "t0": 34.3,
+   "t1": 34.64,
+   "seg": "grito5"
+  },
+  {
+   "texto": "5",
+   "pont": ":",
+   "t0": 34.64,
+   "t1": 35.5,
+   "seg": "grito5"
+  },
+  {
+   "texto": "194",
+   "pont": "",
+   "t0": 35.5,
+   "t1": 36.02,
+   "seg": "grito5"
+  },
+  {
+   "texto": "decibéis",
+   "pont": ".",
+   "t0": 36.02,
+   "t1": 37.02,
+   "seg": "grito5"
+  },
+  {
+   "texto": "No",
+   "pont": "",
+   "t0": 37.36,
+   "t1": 37.5,
+   "seg": "grito5"
+  },
+  {
+   "texto": "limite",
+   "pont": "",
+   "t0": 37.5,
+   "t1": 37.88,
+   "seg": "grito5"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 37.88,
+   "t1": 38.14,
+   "seg": "grito5"
+  },
+  {
+   "texto": "ar",
+   "pont": ",",
+   "t0": 38.14,
+   "t1": 38.32,
+   "seg": "grito5"
+  },
+  {
+   "texto": "vira",
+   "pont": "",
+   "t0": 38.56,
+   "t1": 38.82,
+   "seg": "grito5"
+  },
+  {
+   "texto": "onda",
+   "pont": "",
+   "t0": 38.82,
+   "t1": 39.14,
+   "seg": "grito5"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 39.14,
+   "t1": 39.3,
+   "seg": "grito5"
+  },
+  {
+   "texto": "choque",
+   "pont": "",
+   "t0": 39.3,
+   "t1": 39.68,
+   "seg": "grito5"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 39.68,
+   "t1": 39.92,
+   "seg": "grito5"
+  },
+  {
+   "texto": "derruba",
+   "pont": "",
+   "t0": 39.92,
+   "t1": 40.24,
+   "seg": "grito5"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 40.24,
+   "t1": 40.36,
+   "seg": "grito5"
+  },
+  {
+   "texto": "parede",
+   "pont": "!",
+   "t0": 40.36,
+   "t1": 40.68,
+   "seg": "grito5"
+  },
+  {
+   "texto": "Grito",
+   "pont": "",
+   "t0": 41.14,
+   "t1": 41.5,
+   "seg": "grito7"
+  },
+  {
+   "texto": "7",
+   "pont": ":",
+   "t0": 41.5,
+   "t1": 42.26,
+   "seg": "grito7"
+  },
+  {
+   "texto": "260",
+   "pont": "",
+   "t0": 42.26,
+   "t1": 42.66,
+   "seg": "grito7"
+  },
+  {
+   "texto": "decibéis",
+   "pont": ".",
+   "t0": 42.66,
+   "t1": 43.7,
+   "seg": "grito7"
+  },
+  {
+   "texto": "A",
+   "pont": "",
+   "t0": 44.14,
+   "t1": 44.22,
+   "seg": "grito7"
+  },
+  {
+   "texto": "Defesa",
+   "pont": "",
+   "t0": 44.22,
+   "t1": 44.52,
+   "seg": "grito7"
+  },
+  {
+   "texto": "Civil",
+   "pont": "",
+   "t0": 44.52,
+   "t1": 44.82,
+   "seg": "grito7"
+  },
+  {
+   "texto": "evacua",
+   "pont": "",
+   "t0": 44.82,
+   "t1": 45.24,
+   "seg": "grito7"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 45.24,
+   "t1": 45.32,
+   "seg": "grito7"
+  },
+  {
+   "texto": "bairro",
+   "pont": "",
+   "t0": 45.32,
+   "t1": 45.64,
+   "seg": "grito7"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 45.64,
+   "t1": 45.9,
+   "seg": "grito7"
+  },
+  {
+   "texto": "helicópteros",
+   "pont": "",
+   "t0": 45.9,
+   "t1": 46.5,
+   "seg": "grito7"
+  },
+  {
+   "texto": "cercam",
+   "pont": "",
+   "t0": 46.5,
+   "t1": 46.68,
+   "seg": "grito7"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 46.84,
+   "t1": 46.96,
+   "seg": "grito7"
+  },
+  {
+   "texto": "rua",
+   "pont": "!",
+   "t0": 46.96,
+   "t1": 47.18,
+   "seg": "grito7"
+  },
+  {
+   "texto": "Em",
+   "pont": "",
+   "t0": 47.76,
+   "t1": 47.94,
+   "seg": "pacto"
+  },
+  {
+   "texto": "pânico",
+   "pont": ",",
+   "t0": 47.94,
+   "t1": 48.4,
+   "seg": "pacto"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 48.62,
+   "t1": 48.68,
+   "seg": "pacto"
+  },
+  {
+   "texto": "passa",
+   "pont": "",
+   "t0": 48.68,
+   "t1": 48.9,
+   "seg": "pacto"
+  },
+  {
+   "texto": "fita",
+   "pont": "",
+   "t0": 48.9,
+   "t1": 49.34,
+   "seg": "pacto"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 49.34,
+   "t1": 49.48,
+   "seg": "pacto"
+  },
+  {
+   "texto": "boca",
+   "pont": "",
+   "t0": 49.48,
+   "t1": 49.76,
+   "seg": "pacto"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 49.76,
+   "t1": 50.04,
+   "seg": "pacto"
+  },
+  {
+   "texto": "jura",
+   "pont": "",
+   "t0": 50.04,
+   "t1": 50.32,
+   "seg": "pacto"
+  },
+  {
+   "texto": "viver",
+   "pont": "",
+   "t0": 50.32,
+   "t1": 50.52,
+   "seg": "pacto"
+  },
+  {
+   "texto": "em",
+   "pont": "",
+   "t0": 50.52,
+   "t1": 50.74,
+   "seg": "pacto"
+  },
+  {
+   "texto": "silêncio",
+   "pont": "",
+   "t0": 50.74,
+   "t1": 51.12,
+   "seg": "pacto"
+  },
+  {
+   "texto": "absoluto",
+   "pont": ".",
+   "t0": 51.12,
+   "t1": 51.8,
+   "seg": "pacto"
+  },
+  {
+   "texto": "Só",
+   "pont": "",
+   "t0": 51.8,
+   "t1": 52.72,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 52.72,
+   "t1": 52.9,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "existe",
+   "pont": "",
+   "t0": 52.9,
+   "t1": 53.22,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 53.22,
+   "t1": 53.78,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "reflexo",
+   "pont": "",
+   "t0": 53.78,
+   "t1": 54.52,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "impossível",
+   "pont": "",
+   "t0": 54.52,
+   "t1": 55.4,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 55.4,
+   "t1": 55.48,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "controlar",
+   "pont": ".",
+   "t0": 55.48,
+   "t1": 55.84,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "De",
+   "pont": "",
+   "t0": 56.58,
+   "t1": 56.76,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "manhã",
+   "pont": ",",
+   "t0": 56.76,
+   "t1": 57.08,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 57.26,
+   "t1": 57.36,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "mãe",
+   "pont": "",
+   "t0": 57.36,
+   "t1": 57.48,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "grita",
+   "pont": "",
+   "t0": 57.48,
+   "t1": 57.8,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 57.8,
+   "t1": 57.94,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 57.94,
+   "t1": 58.02,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "café",
+   "pont": "",
+   "t0": 58.02,
+   "t1": 58.16,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "esfriou",
+   "pont": "...",
+   "t0": 58.32,
+   "t1": 58.52,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 58.52,
+   "t1": 58.96,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "no",
+   "pont": "",
+   "t0": 58.96,
+   "t1": 59.06,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "automático",
+   "pont": "",
+   "t0": 59.38,
+   "t1": 59.62,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 59.62,
+   "t1": 59.86,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "berra",
+   "pont": ":",
+   "t0": 59.86,
+   "t1": 60.18,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "JÁ",
+   "pont": "",
+   "t0": 60.5,
+   "t1": 60.6,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "TÔ",
+   "pont": "",
+   "t0": 60.6,
+   "t1": 60.76,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "INDO",
+   "pont": "!",
+   "t0": 60.76,
+   "t1": 61.06,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "Quantos",
+   "pont": "",
+   "t0": 61.98,
+   "t1": 62.4,
+   "seg": "loop"
+  },
+  {
+   "texto": "gritos",
+   "pont": "",
+   "t0": 62.4,
+   "t1": 62.68,
+   "seg": "loop"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 62.68,
+   "t1": 62.84,
+   "seg": "loop"
+  },
+  {
+   "texto": "mãe",
+   "pont": "",
+   "t0": 62.84,
+   "t1": 63.02,
+   "seg": "loop"
+  },
+  {
+   "texto": "aguentaria",
+   "pont": "",
+   "t0": 63.02,
+   "t1": 63.44,
+   "seg": "loop"
+  },
+  {
+   "texto": "antes",
+   "pont": "",
+   "t0": 63.44,
+   "t1": 63.68,
+   "seg": "loop"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 63.68,
+   "t1": 63.8,
+   "seg": "loop"
+  },
+  {
+   "texto": "pegar",
+   "pont": "",
+   "t0": 63.8,
+   "t1": 63.98,
+   "seg": "loop"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 63.98,
+   "t1": 64.1,
+   "seg": "loop"
+  },
+  {
+   "texto": "chinela",
+   "pont": "?",
+   "t0": 64.1,
+   "t1": 64.4,
+   "seg": "loop"
+  },
+  {
+   "texto": "Comenta",
+   "pont": "",
+   "t0": 64.66,
+   "t1": 64.94,
+   "seg": "loop"
+  },
+  {
+   "texto": "aí",
+   "pont": "!",
+   "t0": 64.94,
+   "t1": 65.12,
+   "seg": "loop"
+  }
+ ],
+ "sfx": [
+  {
+   "tipo": "susto",
+   "t": 0.99,
+   "seg": "hook"
+  },
+  {
+   "tipo": "whoosh_curto",
+   "t": 1.69,
+   "seg": "hook"
+  },
+  {
+   "tipo": "cristal",
+   "t": 3.64,
+   "seg": "hook"
+  },
+  {
+   "tipo": "explosao",
+   "t": 4.03,
+   "seg": "hook"
+  },
+  {
+   "tipo": "badge",
+   "t": 5.1,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "tique",
+   "t": 7.3,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "stamp",
+   "t": 9.25,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "badge",
+   "t": 10.08,
+   "seg": "grito1"
+  },
+  {
+   "tipo": "ding",
+   "t": 12.66,
+   "seg": "grito1"
+  },
+  {
+   "tipo": "pouso",
+   "t": 14.72,
+   "seg": "grito1"
+  },
+  {
+   "tipo": "badge",
+   "t": 15.3,
+   "seg": "grito2"
+  },
+  {
+   "tipo": "jato",
+   "t": 18.5,
+   "seg": "grito2"
+  },
+  {
+   "tipo": "whoosh",
+   "t": 19.8,
+   "seg": "grito2"
+  },
+  {
+   "tipo": "badge",
+   "t": 21.44,
+   "seg": "grito3"
+  },
+  {
+   "tipo": "cristal",
+   "t": 24.99,
+   "seg": "grito3"
+  },
+  {
+   "tipo": "alarme",
+   "t": 26.32,
+   "seg": "grito3"
+  },
+  {
+   "tipo": "badge",
+   "t": 27.61,
+   "seg": "grito4"
+  },
+  {
+   "tipo": "trovao",
+   "t": 30.76,
+   "seg": "grito4"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 33.27,
+   "seg": "grito4"
+  },
+  {
+   "tipo": "badge",
+   "t": 33.97,
+   "seg": "grito5"
+  },
+  {
+   "tipo": "sonic_boom",
+   "t": 39.22,
+   "seg": "grito5"
+  },
+  {
+   "tipo": "boom",
+   "t": 40.3,
+   "seg": "grito5"
+  },
+  {
+   "tipo": "badge",
+   "t": 40.86,
+   "seg": "grito7"
+  },
+  {
+   "tipo": "drone",
+   "t": 40.91,
+   "seg": "grito7"
+  },
+  {
+   "tipo": "sirene",
+   "t": 44.16,
+   "seg": "grito7"
+  },
+  {
+   "tipo": "vento",
+   "t": 45.84,
+   "seg": "grito7"
+  },
+  {
+   "tipo": "susto",
+   "t": 47.89,
+   "seg": "pacto"
+  },
+  {
+   "tipo": "whoosh_curto",
+   "t": 48.86,
+   "seg": "pacto"
+  },
+  {
+   "tipo": "pouso",
+   "t": 50.7,
+   "seg": "pacto"
+  },
+  {
+   "tipo": "riser",
+   "t": 53.78,
+   "seg": "twist_a"
+  },
+  {
+   "tipo": "drop",
+   "t": 56.11,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "susto",
+   "t": 57.98,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "sonic_boom",
+   "t": 59.81,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "explosao",
+   "t": 60.71,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 61.47,
+   "seg": "loop"
+  },
+  {
+   "tipo": "tique",
+   "t": 64.07,
+   "seg": "loop"
+  }
+ ]
+}

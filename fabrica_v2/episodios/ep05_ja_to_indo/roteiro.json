@@ -1,0 +1,148 @@
+{
+  "titulo": "E se cada \"JÁ TÔ INDO!\" ficasse 2x mais alto?",
+  "voz": "pt-BR-AntonioNeural",
+  "rate": "+12%",
+  "pitch": "+0Hz",
+  "pausa_max_interna": 0.15,
+  "pausa_entre_segmentos": 0.15,
+  "cauda_final": 0.25,
+  "zona_climax_seg": "grito7",
+  "pronuncias_tts": {},
+  "youtube": {
+    "titulo": "E se cada \"JÁ TÔ INDO!\" ficasse 2x mais alto? #Shorts",
+    "descricao": "Sua mãe chamou pro almoço, você gritou já tô indo e a janela explodiu! Veja o que acontece de 60 decibéis até 260 decibéis quando cada resposta sua dobra de volume, passando pelo limite físico do som no ar até a armadilha final na manhã seguinte.\n\nQuantos gritos sua mãe aguentaria antes de pegar a chinela? Comenta aí!\n\n#Shorts #curiosidades #ese #humor #ciencia",
+    "tags": [
+      "shorts",
+      "e se voce",
+      "ja to indo",
+      "curiosidades",
+      "decibeis",
+      "ciencia",
+      "humor",
+      "youtube shorts"
+    ],
+    "categoria_id": "24"
+  },
+  "segmentos": [
+    {
+      "id": "hook",
+      "fala": "Sua mãe chamou pro almoço, você gritou já tô indo e a janela explodiu!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "susto", "palavra": "almoço", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "whoosh_curto", "palavra": "gritou", "offset": -0.05, "ganho": 0.7 },
+        { "tipo": "cristal", "palavra": "janela", "offset": -0.04, "ganho": 0.95 },
+        { "tipo": "explosao", "palavra": "explodiu", "offset": -0.05, "ganho": 1.0 }
+      ]
+    },
+    {
+      "id": "premissa",
+      "fala": "A regra é clara: cada vez que você responde já tô indo, o volume dobra!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "tique", "palavra": "responde", "offset": -0.04, "ganho": 0.6 },
+        { "tipo": "stamp", "palavra": "dobra", "offset": -0.05, "ganho": 0.9 }
+      ]
+    },
+    {
+      "id": "grito1",
+      "fala": "Grito 1: 60 decibéis. Conversa normal, mas sua mãe na cozinha nem escuta.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "ding", "palavra": "normal", "offset": -0.04, "ganho": 0.6 },
+        { "tipo": "pouso", "palavra": "escuta", "offset": -0.02, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "grito2",
+      "fala": "Grito 2: 120 decibéis. Nível de turbina! O cachorro voa do sofá na hora.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "jato", "palavra": "turbina", "offset": -0.1, "ganho": 0.85 },
+        { "tipo": "whoosh", "palavra": "voa", "offset": -0.06, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "grito3",
+      "fala": "Grito 3: 150 decibéis. Os vidros estouram em cacos e os alarmes na rua disparam!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "cristal", "palavra": "estouram", "offset": -0.05, "ganho": 0.95 },
+        { "tipo": "alarme", "palavra": "alarmes", "offset": -0.06, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "grito4",
+      "fala": "Grito 4: 180 decibéis. O telhado levanta e os vizinhos correm achando ser terremoto.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "trovao", "palavra": "telhado", "offset": -0.08, "ganho": 0.85 },
+        { "tipo": "boom_leve", "palavra": "terremoto", "offset": -0.05, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "grito5",
+      "fala": "Grito 5: 194 decibéis. No limite do ar, vira onda de choque e derruba a parede!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "sonic_boom", "palavra": "choque", "offset": -0.08, "ganho": 1.0 },
+        { "tipo": "boom", "palavra": "parede", "offset": -0.06, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "grito7",
+      "fala": "Grito 7: 260 decibéis. A Defesa Civil evacua o bairro e helicópteros cercam sua rua!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.7, "ate_fim": true },
+        { "tipo": "sirene", "palavra": "Defesa", "offset": -0.06, "ganho": 0.8 },
+        { "tipo": "vento", "palavra": "helicópteros", "offset": -0.06, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "pacto",
+      "fala": "Em pânico, você passa fita na boca e jura viver em silêncio absoluto.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "susto", "palavra": "pânico", "offset": -0.05, "ganho": 0.7 },
+        { "tipo": "whoosh_curto", "palavra": "fita", "offset": -0.04, "ganho": 0.7 },
+        { "tipo": "pouso", "palavra": "silêncio", "offset": -0.04, "ganho": 0.6 }
+      ]
+    },
+    {
+      "id": "twist_a",
+      "fala": "Só que existe um reflexo impossível de controlar.",
+      "pausa_depois": 0.35,
+      "sfx": [
+        { "tipo": "riser", "palavra": "reflexo", "offset": 0.0, "ganho": 0.85, "ate_fim": true }
+      ]
+    },
+    {
+      "id": "twist_b",
+      "fala": "De manhã, sua mãe grita que o café esfriou... e no automático você berra: JÁ TÔ INDO!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "drop", "ancora": "inicio", "offset": -0.1, "ganho": 1.0 },
+        { "tipo": "susto", "palavra": "café", "offset": -0.04, "ganho": 0.7 },
+        { "tipo": "sonic_boom", "palavra": "berra", "offset": -0.05, "ganho": 1.0 },
+        { "tipo": "explosao", "palavra": "INDO", "offset": -0.05, "ganho": 1.0 }
+      ]
+    },
+    {
+      "id": "loop",
+      "fala": "Quantos gritos sua mãe aguentaria antes de pegar a chinela? Comenta aí!",
+      "pausa_depois": 0.0,
+      "sfx": [
+        { "tipo": "boom_leve", "ancora": "inicio", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "tique", "palavra": "chinela", "offset": -0.03, "ganho": 0.6 }
+      ]
+    }
+  ]
+}
