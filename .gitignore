@@ -133,3 +133,4 @@ fabrica_v2/episodios/*/build/
 *.env
 __pycache__/
 *.pyc
+fabrica_v2/radar/output/
