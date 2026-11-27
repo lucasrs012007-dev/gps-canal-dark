@@ -1,0 +1,186 @@
+{
+  "titulo": "E se a sua força dobrasse todo dia?",
+  "voz": "pt-BR-AntonioNeural",
+  "rate": "+12%",
+  "pitch": "+0Hz",
+  "pausa_max_interna": 0.15,
+  "pausa_entre_segmentos": 0.15,
+  "cauda_final": 0.25,
+  "zona_climax_seg": "dia70",
+  "pronuncias_tts": {},
+  "youtube": {
+    "titulo": "E se a sua força dobrasse todo dia? #Shorts",
+    "descricao": "Você acabou de amassar um carro igual latinha de refrigerante! Descubra o que acontece do Dia 1 ao Dia 70 quando a sua força física dobra todos os dias, até o detalhe absurdo no final.\n\nAté qual dia você conseguiria controlar essa força? Comenta aí!\n\n#Shorts #curiosidades #ese #forca #ciencia",
+    "tags": [
+      "shorts",
+      "e se voce",
+      "forca",
+      "super forca",
+      "curiosidades",
+      "ciencia",
+      "animacao",
+      "youtube shorts"
+    ],
+    "categoria_id": "24"
+  },
+  "segmentos": [
+    {
+      "id": "hook",
+      "fala": "Você! É, você mesmo! Você acabou de amassar um carro igual latinha de refrigerante!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "boom", "ancora": "inicio", "offset": 0.0, "ganho": 1.0 },
+        { "tipo": "stamp", "palavra": "mesmo", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "boom_leve", "palavra": "amassar", "offset": -0.06, "ganho": 0.9 },
+        { "tipo": "sonic_boom", "palavra": "latinha", "offset": -0.05, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "premissa",
+      "fala": "A partir de hoje, a sua força física dobra todos os dias.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "stamp", "palavra": "dobra", "offset": -0.05, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "dia1",
+      "fala": "Dia 1: 100 quilos. Você levanta uma geladeira cheia usando só uma mão.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh_curto", "palavra": "levanta", "offset": -0.06, "ganho": 0.65 },
+        { "tipo": "pouso", "palavra": "geladeira", "offset": 0.0, "ganho": 0.6 }
+      ]
+    },
+    {
+      "id": "dia3",
+      "fala": "Dia 3: 400 quilos. Uma moto pesada agora parece leve igual uma bicicleta.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh_curto", "palavra": "moto", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "ding", "palavra": "bicicleta", "offset": -0.04, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia5",
+      "fala": "Dia 5: 1.600 quilos. Você ergue um carro inteiro acima da cabeça no meio da rua!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "ergue", "offset": -0.08, "ganho": 0.75 },
+        { "tipo": "flashes", "palavra": "cabeça", "offset": -0.04, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia7",
+      "fala": "Dia 7: 6 toneladas. Um elefante adulto vira seu novo haltere de academia.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "boom_leve", "palavra": "elefante", "offset": -0.06, "ganho": 0.85 },
+        { "tipo": "stamp", "palavra": "haltere", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia9",
+      "fala": "Dia 9: 25 toneladas. Você arremessa um caminhão carregado igual brinquedo!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "arremessa", "offset": -0.08, "ganho": 0.85 },
+        { "tipo": "boom", "palavra": "caminhão", "offset": -0.05, "ganho": 0.9 }
+      ]
+    },
+    {
+      "id": "dia12",
+      "fala": "Dia 12: 200 toneladas. Um avião comercial inteiro equilibra no seu ombro.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "jato", "palavra": "avião", "offset": -0.2, "ganho": 0.8 },
+        { "tipo": "ding", "palavra": "ombro", "offset": -0.04, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia16",
+      "fala": "Dia 16: 3 mil toneladas. Você segura um foguete espacial na hora da decolagem!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "fogo", "palavra": "foguete", "offset": -0.1, "ganho": 0.85, "ate_fim": true },
+        { "tipo": "alarme_curto", "palavra": "decolagem", "offset": -0.05, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "dia20",
+      "fala": "Dia 20: 50 mil toneladas. Você puxa o Titanic inteiro do fundo do oceano.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.65, "ate_fim": true },
+        { "tipo": "boom_leve", "palavra": "Titanic", "offset": -0.05, "ganho": 0.9 }
+      ]
+    },
+    {
+      "id": "dia27",
+      "fala": "Dia 27: 6 milhões de toneladas. Você arranca uma pirâmide do Egito direto do chão!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "trovao", "palavra": "arranca", "offset": -0.08, "ganho": 0.85 },
+        { "tipo": "boom", "palavra": "pirâmide", "offset": -0.05, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "dia40",
+      "fala": "Dia 40: 50 bilhões de toneladas. Uma montanha inteira sobe sem você dobrar o joelho.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.7, "ate_fim": true },
+        { "tipo": "boom", "palavra": "montanha", "offset": -0.05, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "dia70",
+      "fala": "Dia 70: você encosta a mão na Lua e empurra ela pra fora de órbita!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.75, "ate_fim": true },
+        { "tipo": "whoosh", "palavra": "empurra", "offset": -0.08, "ganho": 0.85 },
+        { "tipo": "cristal", "palavra": "órbita", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "twist_a",
+      "fala": "Mas tem um detalhe absurdo que ninguém te contou.",
+      "pausa_depois": 0.45,
+      "sfx": [
+        { "tipo": "riser", "palavra": "detalhe", "offset": 0.0, "ganho": 0.85, "ate_fim": true }
+      ]
+    },
+    {
+      "id": "twist_b",
+      "fala": "Com tanta força, se você bater palmas sem querer... a onda de choque parte o planeta no meio!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "drop", "ancora": "inicio", "offset": -0.1, "ganho": 1.0 },
+        { "tipo": "sonic_boom", "palavra": "palmas", "offset": -0.06, "ganho": 1.0 },
+        { "tipo": "explosao", "palavra": "parte", "offset": -0.08, "ganho": 1.0 }
+      ]
+    },
+    {
+      "id": "loop",
+      "fala": "Até qual dia você conseguiria controlar essa força? Comenta aí!",
+      "pausa_depois": 0.0,
+      "sfx": [
+        { "tipo": "boom_leve", "ancora": "inicio", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "tique", "palavra": "dia", "offset": 0.0, "ganho": 0.55 }
+      ]
+    }
+  ]
+}

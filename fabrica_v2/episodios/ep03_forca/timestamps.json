@@ -1,0 +1,1840 @@
+{
+ "titulo": "E se a sua força dobrasse todo dia?",
+ "fps": 30,
+ "duracao": 83.3333,
+ "engine": "gemini",
+ "mode": "batch",
+ "voz": "gemini-3.8-flash-tts/Mako",
+ "rate": "+12%",
+ "silencio_inicial_removido_s": 0.0032,
+ "segmentos": [
+  {
+   "id": "hook",
+   "fala": "Você! É, você mesmo! Você acabou de amassar um carro igual latinha de refrigerante!",
+   "t0": 0.0,
+   "t1": 5.08
+  },
+  {
+   "id": "premissa",
+   "fala": "A partir de hoje, a sua força física dobra todos os dias.",
+   "t0": 5.08,
+   "t1": 8.85
+  },
+  {
+   "id": "dia1",
+   "fala": "Dia 1: 100 quilos. Você levanta uma geladeira cheia usando só uma mão.",
+   "t0": 8.85,
+   "t1": 13.64
+  },
+  {
+   "id": "dia3",
+   "fala": "Dia 3: 400 quilos. Uma moto pesada agora parece leve igual uma bicicleta.",
+   "t0": 13.64,
+   "t1": 19.11
+  },
+  {
+   "id": "dia5",
+   "fala": "Dia 5: 1.600 quilos. Você ergue um carro inteiro acima da cabeça no meio da rua!",
+   "t0": 19.11,
+   "t1": 25.44
+  },
+  {
+   "id": "dia7",
+   "fala": "Dia 7: 6 toneladas. Um elefante adulto vira seu novo haltere de academia.",
+   "t0": 25.44,
+   "t1": 31.15
+  },
+  {
+   "id": "dia9",
+   "fala": "Dia 9: 25 toneladas. Você arremessa um caminhão carregado igual brinquedo!",
+   "t0": 31.15,
+   "t1": 36.77
+  },
+  {
+   "id": "dia12",
+   "fala": "Dia 12: 200 toneladas. Um avião comercial inteiro equilibra no seu ombro.",
+   "t0": 36.77,
+   "t1": 42.4
+  },
+  {
+   "id": "dia16",
+   "fala": "Dia 16: 3 mil toneladas. Você segura um foguete espacial na hora da decolagem!",
+   "t0": 42.4,
+   "t1": 48.16
+  },
+  {
+   "id": "dia20",
+   "fala": "Dia 20: 50 mil toneladas. Você puxa o Titanic inteiro do fundo do oceano.",
+   "t0": 48.16,
+   "t1": 54.28
+  },
+  {
+   "id": "dia27",
+   "fala": "Dia 27: 6 milhões de toneladas. Você arranca uma pirâmide do Egito direto do chão!",
+   "t0": 54.28,
+   "t1": 60.28
+  },
+  {
+   "id": "dia40",
+   "fala": "Dia 40: 50 bilhões de toneladas. Uma montanha inteira sobe sem você dobrar o joelho.",
+   "t0": 60.28,
+   "t1": 66.65
+  },
+  {
+   "id": "dia70",
+   "fala": "Dia 70: você encosta a mão na Lua e empurra ela pra fora de órbita!",
+   "t0": 66.65,
+   "t1": 71.18
+  },
+  {
+   "id": "twist_a",
+   "fala": "Mas tem um detalhe absurdo que ninguém te contou.",
+   "t0": 71.18,
+   "t1": 74.24
+  },
+  {
+   "id": "twist_b",
+   "fala": "Com tanta força, se você bater palmas sem querer... a onda de choque parte o planeta no meio!",
+   "t0": 74.24,
+   "t1": 79.71
+  },
+  {
+   "id": "loop",
+   "fala": "Até qual dia você conseguiria controlar essa força? Comenta aí!",
+   "t0": 79.71,
+   "t1": 83.3333
+  }
+ ],
+ "palavras": [
+  {
+   "texto": "Você",
+   "pont": "!",
+   "t0": 0.0,
+   "t1": 0.36,
+   "seg": "hook"
+  },
+  {
+   "texto": "É",
+   "pont": ",",
+   "t0": 0.62,
+   "t1": 0.84,
+   "seg": "hook"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 0.9,
+   "t1": 1.14,
+   "seg": "hook"
+  },
+  {
+   "texto": "mesmo",
+   "pont": "!",
+   "t0": 1.14,
+   "t1": 1.42,
+   "seg": "hook"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 1.8,
+   "t1": 2.0,
+   "seg": "hook"
+  },
+  {
+   "texto": "acabou",
+   "pont": "",
+   "t0": 2.0,
+   "t1": 2.46,
+   "seg": "hook"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 2.46,
+   "t1": 2.68,
+   "seg": "hook"
+  },
+  {
+   "texto": "amassar",
+   "pont": "",
+   "t0": 2.68,
+   "t1": 3.02,
+   "seg": "hook"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 3.02,
+   "t1": 3.12,
+   "seg": "hook"
+  },
+  {
+   "texto": "carro",
+   "pont": "",
+   "t0": 3.12,
+   "t1": 3.38,
+   "seg": "hook"
+  },
+  {
+   "texto": "igual",
+   "pont": "",
+   "t0": 3.38,
+   "t1": 3.68,
+   "seg": "hook"
+  },
+  {
+   "texto": "latinha",
+   "pont": "",
+   "t0": 3.68,
+   "t1": 4.18,
+   "seg": "hook"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 4.18,
+   "t1": 4.32,
+   "seg": "hook"
+  },
+  {
+   "texto": "refrigerante",
+   "pont": "!",
+   "t0": 4.32,
+   "t1": 4.92,
+   "seg": "hook"
+  },
+  {
+   "texto": "A",
+   "pont": "",
+   "t0": 5.24,
+   "t1": 5.46,
+   "seg": "premissa"
+  },
+  {
+   "texto": "partir",
+   "pont": "",
+   "t0": 5.46,
+   "t1": 5.64,
+   "seg": "premissa"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 5.64,
+   "t1": 5.84,
+   "seg": "premissa"
+  },
+  {
+   "texto": "hoje",
+   "pont": ",",
+   "t0": 5.84,
+   "t1": 6.04,
+   "seg": "premissa"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 6.26,
+   "t1": 6.3,
+   "seg": "premissa"
+  },
+  {
+   "texto": "sua",
+   "pont": "",
+   "t0": 6.28,
+   "t1": 6.4,
+   "seg": "premissa"
+  },
+  {
+   "texto": "força",
+   "pont": "",
+   "t0": 6.4,
+   "t1": 6.66,
+   "seg": "premissa"
+  },
+  {
+   "texto": "física",
+   "pont": "",
+   "t0": 6.66,
+   "t1": 7.08,
+   "seg": "premissa"
+  },
+  {
+   "texto": "dobra",
+   "pont": "",
+   "t0": 7.08,
+   "t1": 7.4,
+   "seg": "premissa"
+  },
+  {
+   "texto": "todos",
+   "pont": "",
+   "t0": 7.4,
+   "t1": 7.88,
+   "seg": "premissa"
+  },
+  {
+   "texto": "os",
+   "pont": "",
+   "t0": 7.88,
+   "t1": 8.22,
+   "seg": "premissa"
+  },
+  {
+   "texto": "dias",
+   "pont": ".",
+   "t0": 8.22,
+   "t1": 8.52,
+   "seg": "premissa"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 9.18,
+   "t1": 9.4,
+   "seg": "dia1"
+  },
+  {
+   "texto": "1",
+   "pont": ":",
+   "t0": 9.4,
+   "t1": 9.94,
+   "seg": "dia1"
+  },
+  {
+   "texto": "100",
+   "pont": "",
+   "t0": 9.94,
+   "t1": 10.12,
+   "seg": "dia1"
+  },
+  {
+   "texto": "quilos",
+   "pont": ".",
+   "t0": 10.12,
+   "t1": 10.8,
+   "seg": "dia1"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 10.8,
+   "t1": 10.92,
+   "seg": "dia1"
+  },
+  {
+   "texto": "levanta",
+   "pont": "",
+   "t0": 10.92,
+   "t1": 11.2,
+   "seg": "dia1"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 11.2,
+   "t1": 11.32,
+   "seg": "dia1"
+  },
+  {
+   "texto": "geladeira",
+   "pont": "",
+   "t0": 11.32,
+   "t1": 11.82,
+   "seg": "dia1"
+  },
+  {
+   "texto": "cheia",
+   "pont": "",
+   "t0": 11.82,
+   "t1": 12.32,
+   "seg": "dia1"
+  },
+  {
+   "texto": "usando",
+   "pont": "",
+   "t0": 12.32,
+   "t1": 12.62,
+   "seg": "dia1"
+  },
+  {
+   "texto": "só",
+   "pont": "",
+   "t0": 12.62,
+   "t1": 13.02,
+   "seg": "dia1"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 13.02,
+   "t1": 13.16,
+   "seg": "dia1"
+  },
+  {
+   "texto": "mão",
+   "pont": ".",
+   "t0": 13.16,
+   "t1": 13.38,
+   "seg": "dia1"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 13.9,
+   "t1": 13.98,
+   "seg": "dia3"
+  },
+  {
+   "texto": "3",
+   "pont": ":",
+   "t0": 13.98,
+   "t1": 14.62,
+   "seg": "dia3"
+  },
+  {
+   "texto": "400",
+   "pont": "",
+   "t0": 14.62,
+   "t1": 14.96,
+   "seg": "dia3"
+  },
+  {
+   "texto": "quilos",
+   "pont": ".",
+   "t0": 14.96,
+   "t1": 16.04,
+   "seg": "dia3"
+  },
+  {
+   "texto": "Uma",
+   "pont": "",
+   "t0": 16.04,
+   "t1": 16.22,
+   "seg": "dia3"
+  },
+  {
+   "texto": "moto",
+   "pont": "",
+   "t0": 16.22,
+   "t1": 16.5,
+   "seg": "dia3"
+  },
+  {
+   "texto": "pesada",
+   "pont": "",
+   "t0": 16.5,
+   "t1": 16.98,
+   "seg": "dia3"
+  },
+  {
+   "texto": "agora",
+   "pont": "",
+   "t0": 16.98,
+   "t1": 17.2,
+   "seg": "dia3"
+  },
+  {
+   "texto": "parece",
+   "pont": "",
+   "t0": 17.2,
+   "t1": 17.56,
+   "seg": "dia3"
+  },
+  {
+   "texto": "leve",
+   "pont": "",
+   "t0": 17.56,
+   "t1": 17.96,
+   "seg": "dia3"
+  },
+  {
+   "texto": "igual",
+   "pont": "",
+   "t0": 18.1,
+   "t1": 18.2,
+   "seg": "dia3"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 18.2,
+   "t1": 18.36,
+   "seg": "dia3"
+  },
+  {
+   "texto": "bicicleta",
+   "pont": ".",
+   "t0": 18.36,
+   "t1": 18.86,
+   "seg": "dia3"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 19.36,
+   "t1": 19.54,
+   "seg": "dia5"
+  },
+  {
+   "texto": "5",
+   "pont": ":",
+   "t0": 19.54,
+   "t1": 20.48,
+   "seg": "dia5"
+  },
+  {
+   "texto": "1.600",
+   "pont": "",
+   "t0": 20.48,
+   "t1": 20.98,
+   "seg": "dia5"
+  },
+  {
+   "texto": "quilos",
+   "pont": ".",
+   "t0": 20.98,
+   "t1": 22.08,
+   "seg": "dia5"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 22.08,
+   "t1": 22.34,
+   "seg": "dia5"
+  },
+  {
+   "texto": "ergue",
+   "pont": "",
+   "t0": 22.34,
+   "t1": 22.64,
+   "seg": "dia5"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 22.64,
+   "t1": 22.78,
+   "seg": "dia5"
+  },
+  {
+   "texto": "carro",
+   "pont": "",
+   "t0": 22.78,
+   "t1": 23.04,
+   "seg": "dia5"
+  },
+  {
+   "texto": "inteiro",
+   "pont": "",
+   "t0": 23.04,
+   "t1": 23.42,
+   "seg": "dia5"
+  },
+  {
+   "texto": "acima",
+   "pont": "",
+   "t0": 23.42,
+   "t1": 23.88,
+   "seg": "dia5"
+  },
+  {
+   "texto": "da",
+   "pont": "",
+   "t0": 23.88,
+   "t1": 24.0,
+   "seg": "dia5"
+  },
+  {
+   "texto": "cabeça",
+   "pont": "",
+   "t0": 24.0,
+   "t1": 24.38,
+   "seg": "dia5"
+  },
+  {
+   "texto": "no",
+   "pont": "",
+   "t0": 24.38,
+   "t1": 24.64,
+   "seg": "dia5"
+  },
+  {
+   "texto": "meio",
+   "pont": "",
+   "t0": 24.64,
+   "t1": 24.86,
+   "seg": "dia5"
+  },
+  {
+   "texto": "da",
+   "pont": "",
+   "t0": 24.86,
+   "t1": 25.0,
+   "seg": "dia5"
+  },
+  {
+   "texto": "rua",
+   "pont": "!",
+   "t0": 25.0,
+   "t1": 25.2,
+   "seg": "dia5"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 25.68,
+   "t1": 25.98,
+   "seg": "dia7"
+  },
+  {
+   "texto": "7",
+   "pont": ":",
+   "t0": 25.98,
+   "t1": 26.84,
+   "seg": "dia7"
+  },
+  {
+   "texto": "6",
+   "pont": "",
+   "t0": 26.84,
+   "t1": 27.1,
+   "seg": "dia7"
+  },
+  {
+   "texto": "toneladas",
+   "pont": ".",
+   "t0": 27.1,
+   "t1": 27.76,
+   "seg": "dia7"
+  },
+  {
+   "texto": "Um",
+   "pont": "",
+   "t0": 27.76,
+   "t1": 28.2,
+   "seg": "dia7"
+  },
+  {
+   "texto": "elefante",
+   "pont": "",
+   "t0": 28.2,
+   "t1": 28.64,
+   "seg": "dia7"
+  },
+  {
+   "texto": "adulto",
+   "pont": "",
+   "t0": 28.64,
+   "t1": 29.12,
+   "seg": "dia7"
+  },
+  {
+   "texto": "vira",
+   "pont": "",
+   "t0": 29.12,
+   "t1": 29.32,
+   "seg": "dia7"
+  },
+  {
+   "texto": "seu",
+   "pont": "",
+   "t0": 29.32,
+   "t1": 29.44,
+   "seg": "dia7"
+  },
+  {
+   "texto": "novo",
+   "pont": "",
+   "t0": 29.44,
+   "t1": 29.84,
+   "seg": "dia7"
+  },
+  {
+   "texto": "haltere",
+   "pont": "",
+   "t0": 29.84,
+   "t1": 30.36,
+   "seg": "dia7"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 30.36,
+   "t1": 30.48,
+   "seg": "dia7"
+  },
+  {
+   "texto": "academia",
+   "pont": ".",
+   "t0": 30.48,
+   "t1": 30.84,
+   "seg": "dia7"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 31.46,
+   "t1": 31.66,
+   "seg": "dia9"
+  },
+  {
+   "texto": "9",
+   "pont": ":",
+   "t0": 31.66,
+   "t1": 32.28,
+   "seg": "dia9"
+  },
+  {
+   "texto": "25",
+   "pont": "",
+   "t0": 32.28,
+   "t1": 33.04,
+   "seg": "dia9"
+  },
+  {
+   "texto": "toneladas",
+   "pont": ".",
+   "t0": 33.04,
+   "t1": 33.7,
+   "seg": "dia9"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 33.98,
+   "t1": 34.16,
+   "seg": "dia9"
+  },
+  {
+   "texto": "arremessa",
+   "pont": "",
+   "t0": 34.16,
+   "t1": 34.7,
+   "seg": "dia9"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 34.7,
+   "t1": 34.82,
+   "seg": "dia9"
+  },
+  {
+   "texto": "caminhão",
+   "pont": "",
+   "t0": 34.82,
+   "t1": 35.08,
+   "seg": "dia9"
+  },
+  {
+   "texto": "carregado",
+   "pont": "",
+   "t0": 35.08,
+   "t1": 35.74,
+   "seg": "dia9"
+  },
+  {
+   "texto": "igual",
+   "pont": "",
+   "t0": 35.74,
+   "t1": 35.92,
+   "seg": "dia9"
+  },
+  {
+   "texto": "brinquedo",
+   "pont": "!",
+   "t0": 35.92,
+   "t1": 36.48,
+   "seg": "dia9"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 37.06,
+   "t1": 37.32,
+   "seg": "dia12"
+  },
+  {
+   "texto": "12",
+   "pont": ":",
+   "t0": 37.32,
+   "t1": 38.14,
+   "seg": "dia12"
+  },
+  {
+   "texto": "200",
+   "pont": "",
+   "t0": 38.14,
+   "t1": 38.6,
+   "seg": "dia12"
+  },
+  {
+   "texto": "toneladas",
+   "pont": ".",
+   "t0": 38.6,
+   "t1": 39.38,
+   "seg": "dia12"
+  },
+  {
+   "texto": "Um",
+   "pont": "",
+   "t0": 39.74,
+   "t1": 39.86,
+   "seg": "dia12"
+  },
+  {
+   "texto": "avião",
+   "pont": "",
+   "t0": 39.86,
+   "t1": 40.06,
+   "seg": "dia12"
+  },
+  {
+   "texto": "comercial",
+   "pont": "",
+   "t0": 40.06,
+   "t1": 40.5,
+   "seg": "dia12"
+  },
+  {
+   "texto": "inteiro",
+   "pont": "",
+   "t0": 40.5,
+   "t1": 40.94,
+   "seg": "dia12"
+  },
+  {
+   "texto": "equilibra",
+   "pont": "",
+   "t0": 41.14,
+   "t1": 41.54,
+   "seg": "dia12"
+  },
+  {
+   "texto": "no",
+   "pont": "",
+   "t0": 41.54,
+   "t1": 41.72,
+   "seg": "dia12"
+  },
+  {
+   "texto": "seu",
+   "pont": "",
+   "t0": 41.72,
+   "t1": 41.86,
+   "seg": "dia12"
+  },
+  {
+   "texto": "ombro",
+   "pont": ".",
+   "t0": 41.86,
+   "t1": 42.16,
+   "seg": "dia12"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 42.64,
+   "t1": 42.92,
+   "seg": "dia16"
+  },
+  {
+   "texto": "16",
+   "pont": ":",
+   "t0": 42.92,
+   "t1": 43.84,
+   "seg": "dia16"
+  },
+  {
+   "texto": "3",
+   "pont": "",
+   "t0": 43.84,
+   "t1": 44.02,
+   "seg": "dia16"
+  },
+  {
+   "texto": "mil",
+   "pont": "",
+   "t0": 44.02,
+   "t1": 44.34,
+   "seg": "dia16"
+  },
+  {
+   "texto": "toneladas",
+   "pont": ".",
+   "t0": 44.34,
+   "t1": 45.02,
+   "seg": "dia16"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 45.36,
+   "t1": 45.54,
+   "seg": "dia16"
+  },
+  {
+   "texto": "segura",
+   "pont": "",
+   "t0": 45.54,
+   "t1": 45.94,
+   "seg": "dia16"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 45.94,
+   "t1": 46.06,
+   "seg": "dia16"
+  },
+  {
+   "texto": "foguete",
+   "pont": "",
+   "t0": 46.06,
+   "t1": 46.52,
+   "seg": "dia16"
+  },
+  {
+   "texto": "espacial",
+   "pont": "",
+   "t0": 46.52,
+   "t1": 46.98,
+   "seg": "dia16"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 46.98,
+   "t1": 47.26,
+   "seg": "dia16"
+  },
+  {
+   "texto": "hora",
+   "pont": "",
+   "t0": 47.26,
+   "t1": 47.48,
+   "seg": "dia16"
+  },
+  {
+   "texto": "da",
+   "pont": "",
+   "t0": 47.48,
+   "t1": 47.64,
+   "seg": "dia16"
+  },
+  {
+   "texto": "decolagem",
+   "pont": "!",
+   "t0": 47.64,
+   "t1": 48.16,
+   "seg": "dia16"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 48.16,
+   "t1": 48.9,
+   "seg": "dia20"
+  },
+  {
+   "texto": "20",
+   "pont": ":",
+   "t0": 48.9,
+   "t1": 49.6,
+   "seg": "dia20"
+  },
+  {
+   "texto": "50",
+   "pont": "",
+   "t0": 49.6,
+   "t1": 50.16,
+   "seg": "dia20"
+  },
+  {
+   "texto": "mil",
+   "pont": "",
+   "t0": 50.16,
+   "t1": 50.64,
+   "seg": "dia20"
+  },
+  {
+   "texto": "toneladas",
+   "pont": ".",
+   "t0": 50.64,
+   "t1": 51.26,
+   "seg": "dia20"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 51.56,
+   "t1": 51.76,
+   "seg": "dia20"
+  },
+  {
+   "texto": "puxa",
+   "pont": "",
+   "t0": 51.76,
+   "t1": 52.16,
+   "seg": "dia20"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 52.16,
+   "t1": 52.28,
+   "seg": "dia20"
+  },
+  {
+   "texto": "Titanic",
+   "pont": "",
+   "t0": 52.28,
+   "t1": 52.46,
+   "seg": "dia20"
+  },
+  {
+   "texto": "inteiro",
+   "pont": "",
+   "t0": 52.46,
+   "t1": 53.1,
+   "seg": "dia20"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 53.1,
+   "t1": 53.26,
+   "seg": "dia20"
+  },
+  {
+   "texto": "fundo",
+   "pont": "",
+   "t0": 53.26,
+   "t1": 53.54,
+   "seg": "dia20"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 53.54,
+   "t1": 53.7,
+   "seg": "dia20"
+  },
+  {
+   "texto": "oceano",
+   "pont": ".",
+   "t0": 53.7,
+   "t1": 54.06,
+   "seg": "dia20"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 54.5,
+   "t1": 54.78,
+   "seg": "dia27"
+  },
+  {
+   "texto": "27",
+   "pont": ":",
+   "t0": 54.78,
+   "t1": 55.74,
+   "seg": "dia27"
+  },
+  {
+   "texto": "6",
+   "pont": "",
+   "t0": 55.74,
+   "t1": 56.04,
+   "seg": "dia27"
+  },
+  {
+   "texto": "milhões",
+   "pont": "",
+   "t0": 56.04,
+   "t1": 56.52,
+   "seg": "dia27"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 56.52,
+   "t1": 56.78,
+   "seg": "dia27"
+  },
+  {
+   "texto": "toneladas",
+   "pont": ".",
+   "t0": 56.78,
+   "t1": 57.32,
+   "seg": "dia27"
+  },
+  {
+   "texto": "Você",
+   "pont": "",
+   "t0": 57.64,
+   "t1": 57.84,
+   "seg": "dia27"
+  },
+  {
+   "texto": "arranca",
+   "pont": "",
+   "t0": 57.84,
+   "t1": 58.14,
+   "seg": "dia27"
+  },
+  {
+   "texto": "uma",
+   "pont": "",
+   "t0": 58.14,
+   "t1": 58.28,
+   "seg": "dia27"
+  },
+  {
+   "texto": "pirâmide",
+   "pont": "",
+   "t0": 58.28,
+   "t1": 58.76,
+   "seg": "dia27"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 58.76,
+   "t1": 58.9,
+   "seg": "dia27"
+  },
+  {
+   "texto": "Egito",
+   "pont": "",
+   "t0": 58.9,
+   "t1": 59.16,
+   "seg": "dia27"
+  },
+  {
+   "texto": "direto",
+   "pont": "",
+   "t0": 59.16,
+   "t1": 59.68,
+   "seg": "dia27"
+  },
+  {
+   "texto": "do",
+   "pont": "",
+   "t0": 59.68,
+   "t1": 59.82,
+   "seg": "dia27"
+  },
+  {
+   "texto": "chão",
+   "pont": "!",
+   "t0": 59.82,
+   "t1": 60.02,
+   "seg": "dia27"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 60.54,
+   "t1": 60.78,
+   "seg": "dia40"
+  },
+  {
+   "texto": "40",
+   "pont": ":",
+   "t0": 60.78,
+   "t1": 61.62,
+   "seg": "dia40"
+  },
+  {
+   "texto": "50",
+   "pont": "",
+   "t0": 61.62,
+   "t1": 62.02,
+   "seg": "dia40"
+  },
+  {
+   "texto": "bilhões",
+   "pont": "",
+   "t0": 62.02,
+   "t1": 62.74,
+   "seg": "dia40"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 62.74,
+   "t1": 62.92,
+   "seg": "dia40"
+  },
+  {
+   "texto": "toneladas",
+   "pont": ".",
+   "t0": 62.92,
+   "t1": 63.46,
+   "seg": "dia40"
+  },
+  {
+   "texto": "Uma",
+   "pont": "",
+   "t0": 63.8,
+   "t1": 63.98,
+   "seg": "dia40"
+  },
+  {
+   "texto": "montanha",
+   "pont": "",
+   "t0": 63.98,
+   "t1": 64.36,
+   "seg": "dia40"
+  },
+  {
+   "texto": "inteira",
+   "pont": "",
+   "t0": 64.36,
+   "t1": 64.9,
+   "seg": "dia40"
+  },
+  {
+   "texto": "sobe",
+   "pont": "",
+   "t0": 64.9,
+   "t1": 65.32,
+   "seg": "dia40"
+  },
+  {
+   "texto": "sem",
+   "pont": "",
+   "t0": 65.32,
+   "t1": 65.44,
+   "seg": "dia40"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 65.44,
+   "t1": 65.64,
+   "seg": "dia40"
+  },
+  {
+   "texto": "dobrar",
+   "pont": "",
+   "t0": 65.64,
+   "t1": 66.06,
+   "seg": "dia40"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 66.06,
+   "t1": 66.14,
+   "seg": "dia40"
+  },
+  {
+   "texto": "joelho",
+   "pont": ".",
+   "t0": 66.14,
+   "t1": 66.42,
+   "seg": "dia40"
+  },
+  {
+   "texto": "Dia",
+   "pont": "",
+   "t0": 66.88,
+   "t1": 67.02,
+   "seg": "dia70"
+  },
+  {
+   "texto": "70",
+   "pont": ":",
+   "t0": 67.02,
+   "t1": 68.02,
+   "seg": "dia70"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 68.02,
+   "t1": 68.1,
+   "seg": "dia70"
+  },
+  {
+   "texto": "encosta",
+   "pont": "",
+   "t0": 68.1,
+   "t1": 68.56,
+   "seg": "dia70"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 68.56,
+   "t1": 68.78,
+   "seg": "dia70"
+  },
+  {
+   "texto": "mão",
+   "pont": "",
+   "t0": 68.78,
+   "t1": 68.88,
+   "seg": "dia70"
+  },
+  {
+   "texto": "na",
+   "pont": "",
+   "t0": 68.88,
+   "t1": 69.06,
+   "seg": "dia70"
+  },
+  {
+   "texto": "Lua",
+   "pont": "",
+   "t0": 69.06,
+   "t1": 69.38,
+   "seg": "dia70"
+  },
+  {
+   "texto": "e",
+   "pont": "",
+   "t0": 69.38,
+   "t1": 69.54,
+   "seg": "dia70"
+  },
+  {
+   "texto": "empurra",
+   "pont": "",
+   "t0": 69.54,
+   "t1": 69.96,
+   "seg": "dia70"
+  },
+  {
+   "texto": "ela",
+   "pont": "",
+   "t0": 69.96,
+   "t1": 70.14,
+   "seg": "dia70"
+  },
+  {
+   "texto": "pra",
+   "pont": "",
+   "t0": 70.14,
+   "t1": 70.32,
+   "seg": "dia70"
+  },
+  {
+   "texto": "fora",
+   "pont": "",
+   "t0": 70.32,
+   "t1": 70.68,
+   "seg": "dia70"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 70.68,
+   "t1": 70.82,
+   "seg": "dia70"
+  },
+  {
+   "texto": "órbita",
+   "pont": "!",
+   "t0": 70.82,
+   "t1": 71.18,
+   "seg": "dia70"
+  },
+  {
+   "texto": "Mas",
+   "pont": "",
+   "t0": 71.18,
+   "t1": 71.86,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "tem",
+   "pont": "",
+   "t0": 71.86,
+   "t1": 72.08,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "um",
+   "pont": "",
+   "t0": 72.08,
+   "t1": 72.16,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "detalhe",
+   "pont": "",
+   "t0": 72.16,
+   "t1": 72.56,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "absurdo",
+   "pont": "",
+   "t0": 72.56,
+   "t1": 73.2,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "que",
+   "pont": "",
+   "t0": 73.2,
+   "t1": 73.3,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "ninguém",
+   "pont": "",
+   "t0": 73.3,
+   "t1": 73.54,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "te",
+   "pont": "",
+   "t0": 73.54,
+   "t1": 73.7,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "contou",
+   "pont": ".",
+   "t0": 73.7,
+   "t1": 74.0,
+   "seg": "twist_a"
+  },
+  {
+   "texto": "Com",
+   "pont": "",
+   "t0": 74.48,
+   "t1": 74.68,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "tanta",
+   "pont": "",
+   "t0": 74.68,
+   "t1": 75.0,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "força",
+   "pont": ",",
+   "t0": 75.0,
+   "t1": 75.46,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "se",
+   "pont": "",
+   "t0": 75.76,
+   "t1": 75.82,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 75.82,
+   "t1": 75.96,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "bater",
+   "pont": "",
+   "t0": 75.96,
+   "t1": 76.2,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "palmas",
+   "pont": "",
+   "t0": 76.2,
+   "t1": 76.66,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "sem",
+   "pont": "",
+   "t0": 76.66,
+   "t1": 76.78,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "querer",
+   "pont": "...",
+   "t0": 76.78,
+   "t1": 77.04,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "a",
+   "pont": "",
+   "t0": 77.46,
+   "t1": 77.52,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "onda",
+   "pont": "",
+   "t0": 77.52,
+   "t1": 77.7,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "de",
+   "pont": "",
+   "t0": 77.7,
+   "t1": 77.86,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "choque",
+   "pont": "",
+   "t0": 77.86,
+   "t1": 78.2,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "parte",
+   "pont": "",
+   "t0": 78.2,
+   "t1": 78.44,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "o",
+   "pont": "",
+   "t0": 78.44,
+   "t1": 78.56,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "planeta",
+   "pont": "",
+   "t0": 78.56,
+   "t1": 78.82,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "no",
+   "pont": "",
+   "t0": 78.82,
+   "t1": 79.08,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "meio",
+   "pont": "!",
+   "t0": 79.08,
+   "t1": 79.42,
+   "seg": "twist_b"
+  },
+  {
+   "texto": "Até",
+   "pont": "",
+   "t0": 80.0,
+   "t1": 80.18,
+   "seg": "loop"
+  },
+  {
+   "texto": "qual",
+   "pont": "",
+   "t0": 80.18,
+   "t1": 80.4,
+   "seg": "loop"
+  },
+  {
+   "texto": "dia",
+   "pont": "",
+   "t0": 80.4,
+   "t1": 80.7,
+   "seg": "loop"
+  },
+  {
+   "texto": "você",
+   "pont": "",
+   "t0": 80.7,
+   "t1": 80.88,
+   "seg": "loop"
+  },
+  {
+   "texto": "conseguiria",
+   "pont": "",
+   "t0": 80.88,
+   "t1": 81.4,
+   "seg": "loop"
+  },
+  {
+   "texto": "controlar",
+   "pont": "",
+   "t0": 81.4,
+   "t1": 81.74,
+   "seg": "loop"
+  },
+  {
+   "texto": "essa",
+   "pont": "",
+   "t0": 81.74,
+   "t1": 82.1,
+   "seg": "loop"
+  },
+  {
+   "texto": "força",
+   "pont": "?",
+   "t0": 82.1,
+   "t1": 82.4,
+   "seg": "loop"
+  },
+  {
+   "texto": "Comenta",
+   "pont": "",
+   "t0": 82.66,
+   "t1": 82.9,
+   "seg": "loop"
+  },
+  {
+   "texto": "aí",
+   "pont": "!",
+   "t0": 82.9,
+   "t1": 83.06,
+   "seg": "loop"
+  }
+ ],
+ "sfx": [
+  {
+   "tipo": "boom",
+   "t": 0.0,
+   "seg": "hook"
+  },
+  {
+   "tipo": "stamp",
+   "t": 1.09,
+   "seg": "hook"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 2.62,
+   "seg": "hook"
+  },
+  {
+   "tipo": "sonic_boom",
+   "t": 3.63,
+   "seg": "hook"
+  },
+  {
+   "tipo": "badge",
+   "t": 5.03,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "stamp",
+   "t": 7.03,
+   "seg": "premissa"
+  },
+  {
+   "tipo": "badge",
+   "t": 8.8,
+   "seg": "dia1"
+  },
+  {
+   "tipo": "whoosh_curto",
+   "t": 10.86,
+   "seg": "dia1"
+  },
+  {
+   "tipo": "pouso",
+   "t": 11.32,
+   "seg": "dia1"
+  },
+  {
+   "tipo": "badge",
+   "t": 13.59,
+   "seg": "dia3"
+  },
+  {
+   "tipo": "whoosh_curto",
+   "t": 16.17,
+   "seg": "dia3"
+  },
+  {
+   "tipo": "ding",
+   "t": 18.32,
+   "seg": "dia3"
+  },
+  {
+   "tipo": "badge",
+   "t": 19.06,
+   "seg": "dia5"
+  },
+  {
+   "tipo": "whoosh",
+   "t": 22.26,
+   "seg": "dia5"
+  },
+  {
+   "tipo": "flashes",
+   "t": 23.96,
+   "seg": "dia5"
+  },
+  {
+   "tipo": "badge",
+   "t": 25.39,
+   "seg": "dia7"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 28.14,
+   "seg": "dia7"
+  },
+  {
+   "tipo": "stamp",
+   "t": 29.8,
+   "seg": "dia7"
+  },
+  {
+   "tipo": "badge",
+   "t": 31.1,
+   "seg": "dia9"
+  },
+  {
+   "tipo": "whoosh",
+   "t": 34.08,
+   "seg": "dia9"
+  },
+  {
+   "tipo": "boom",
+   "t": 34.77,
+   "seg": "dia9"
+  },
+  {
+   "tipo": "badge",
+   "t": 36.72,
+   "seg": "dia12"
+  },
+  {
+   "tipo": "jato",
+   "t": 39.66,
+   "seg": "dia12"
+  },
+  {
+   "tipo": "ding",
+   "t": 41.82,
+   "seg": "dia12"
+  },
+  {
+   "tipo": "badge",
+   "t": 42.35,
+   "seg": "dia16"
+  },
+  {
+   "tipo": "fogo",
+   "t": 45.96,
+   "seg": "dia16"
+  },
+  {
+   "tipo": "alarme_curto",
+   "t": 47.59,
+   "seg": "dia16"
+  },
+  {
+   "tipo": "badge",
+   "t": 48.11,
+   "seg": "dia20"
+  },
+  {
+   "tipo": "drone",
+   "t": 48.16,
+   "seg": "dia20"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 52.23,
+   "seg": "dia20"
+  },
+  {
+   "tipo": "badge",
+   "t": 54.23,
+   "seg": "dia27"
+  },
+  {
+   "tipo": "trovao",
+   "t": 57.76,
+   "seg": "dia27"
+  },
+  {
+   "tipo": "boom",
+   "t": 58.23,
+   "seg": "dia27"
+  },
+  {
+   "tipo": "badge",
+   "t": 60.23,
+   "seg": "dia40"
+  },
+  {
+   "tipo": "drone",
+   "t": 60.28,
+   "seg": "dia40"
+  },
+  {
+   "tipo": "boom",
+   "t": 63.93,
+   "seg": "dia40"
+  },
+  {
+   "tipo": "badge",
+   "t": 66.6,
+   "seg": "dia70"
+  },
+  {
+   "tipo": "drone",
+   "t": 66.65,
+   "seg": "dia70"
+  },
+  {
+   "tipo": "whoosh",
+   "t": 69.46,
+   "seg": "dia70"
+  },
+  {
+   "tipo": "cristal",
+   "t": 70.78,
+   "seg": "dia70"
+  },
+  {
+   "tipo": "riser",
+   "t": 72.16,
+   "seg": "twist_a"
+  },
+  {
+   "tipo": "drop",
+   "t": 74.14,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "sonic_boom",
+   "t": 76.14,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "explosao",
+   "t": 78.12,
+   "seg": "twist_b"
+  },
+  {
+   "tipo": "boom_leve",
+   "t": 79.66,
+   "seg": "loop"
+  },
+  {
+   "tipo": "tique",
+   "t": 80.4,
+   "seg": "loop"
+  }
+ ]
+}

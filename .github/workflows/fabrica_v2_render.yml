@@ -1,4 +1,4 @@
-name: Fabrica V2 - Render e Telegram
+name: Fabrica V2 - Render, Telegram e YouTube
 
 on:
   workflow_dispatch:
@@ -13,6 +13,20 @@ on:
         required: false
         default: true
         type: boolean
+      enviar_youtube:
+        description: "Publicar automaticamente no YouTube Shorts"
+        required: false
+        default: true
+        type: boolean
+      youtube_privacidade:
+        description: "Privacidade do video no YouTube"
+        required: false
+        default: "public"
+        type: choice
+        options:
+          - public
+          - unlisted
+          - private
 
 permissions:
   contents: read
@@ -23,7 +37,7 @@ concurrency:
 
 jobs:
   render:
-    name: Render Fabrica V2 e Entrega Telegram
+    name: Render Fabrica V2, YouTube Shorts e Telegram
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
@@ -106,14 +120,15 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.cache/huggingface
-          key: fabrica-v2-py312-v1-${{ hashFiles('fabrica_v2/engine/gerar_audio.py', 'fabrica_v2/engine/render.py') }}
+          key: fabrica-v2-py312-v2-${{ hashFiles('fabrica_v2/engine/gerar_audio.py', 'fabrica_v2/engine/render.py', 'fabrica_v2/engine/enviar_youtube.py') }}
           restore-keys: |
+            fabrica-v2-py312-v2-
             fabrica-v2-py312-v1-
 
-      - name: Instalar dependencias Python do motor fabrica_v2
+      - name: Instalar dependencias Python (motor fabrica_v2 + YouTube API)
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy google-genai faster-whisper websocket-client
+          python3 -m pip install numpy google-genai faster-whisper websocket-client google-api-python-client google-auth google-auth-oauthlib
 
       - name: Preflight de sintaxe e arquivos do episodio
         run: |
@@ -121,7 +136,8 @@ jobs:
           python3 -m py_compile \
             fabrica_v2/engine/gerar_audio.py \
             fabrica_v2/engine/render.py \
-            fabrica_v2/engine/enviar_telegram.py
+            fabrica_v2/engine/enviar_telegram.py \
+            fabrica_v2/engine/enviar_youtube.py
           python3 -c 'import json, os; from pathlib import Path; d = json.loads((Path(os.environ["EP_DIR"]) / "roteiro.json").read_text(encoding="utf-8")); assert d.get("segmentos"), "roteiro sem segmentos"; print("Preflight OK:", d.get("titulo"), "| segmentos:", len(d["segmentos"]))'
 
       - name: Gerar audio em 1 chamada batch (Gemini TTS + Whisper + -14 LUFS)
@@ -200,6 +216,19 @@ jobs:
           path: |
             ${{ steps.resolver.outputs.ep_dir }}/video_final.mp4
             ${{ steps.resolver.outputs.ep_dir }}/video_leve.mp4
+
+      - name: Publicar automaticamente no YouTube Shorts
+        id: upload_youtube
+        if: ${{ inputs.enviar_youtube == true }}
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_PRIVACY: ${{ inputs.youtube_privacidade }}
+        run: |
+          python3 fabrica_v2/engine/enviar_youtube.py \
+            --ep "$EP_DIR" \
+            --privacidade "$YOUTUBE_PRIVACY"
 
       - name: Enviar video pronto para o Telegram
         if: ${{ inputs.enviar_telegram == true }}
