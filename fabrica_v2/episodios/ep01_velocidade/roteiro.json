@@ -1,0 +1,172 @@
+{
+  "titulo": "E se sua velocidade dobrasse todo dia?",
+  "voz": "pt-BR-AntonioNeural",
+  "rate": "+12%",
+  "pitch": "+0Hz",
+  "pausa_max_interna": 0.15,
+  "pausa_entre_segmentos": 0.15,
+  "cauda_final": 0.9,
+  "zona_climax_seg": "dia28",
+  "pronuncias_tts": {
+    "Usain Bolt": "Iussein Bôut",
+    "Fórmula 1": "Fórmula Um"
+  },
+  "segmentos": [
+    {
+      "id": "hook",
+      "fala": "Ei! Você mesmo! A polícia te confundiu com um míssil no radar!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "boom", "ancora": "inicio", "offset": 0.0, "ganho": 1.0 },
+        { "tipo": "sirene", "palavra": "polícia", "offset": -0.15, "ganho": 0.8 },
+        { "tipo": "alarme_curto", "palavra": "míssil", "offset": -0.08, "ganho": 0.65 }
+      ]
+    },
+    {
+      "id": "premissa",
+      "fala": "A sua velocidade agora dobra todo dia.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "stamp", "palavra": "dobra", "offset": -0.05, "ganho": 0.9 }
+      ]
+    },
+    {
+      "id": "dia1",
+      "fala": "Dia 1: 10 quilômetros por hora. Trote leve na calçada.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh_curto", "palavra": "Trote", "offset": -0.06, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "dia2",
+      "fala": "Dia 2: 20 por hora. Você passa um ciclista na subida.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "passa", "offset": -0.1, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia3",
+      "fala": "Dia 3: 40 por hora. Você dá tchauzinho para Usain Bolt!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "tchauzinho", "offset": -0.15, "ganho": 0.75 },
+        { "tipo": "flashes", "palavra": "Usain", "offset": -0.05, "ganho": 0.55 },
+        { "tipo": "ding", "palavra": "Bolt", "offset": 0.0, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "dia5",
+      "fala": "Dia 5: 160 por hora. Os radares travam e soltam fumaça.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "flashes", "palavra": "radares", "offset": -0.08, "ganho": 0.7 },
+        { "tipo": "susto", "palavra": "travam", "offset": 0.0, "ganho": 0.6 }
+      ]
+    },
+    {
+      "id": "dia6",
+      "fala": "Dia 6: 320 por hora. Você deixa um carro de Fórmula 1 comendo poeira.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "motor_f1", "palavra": "Fórmula", "offset": -0.45, "ganho": 0.95 },
+        { "tipo": "whoosh", "palavra": "poeira", "offset": -0.12, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia8",
+      "fala": "Dia 8: 1.280 por hora. Você quebra a barreira do som e estilhaça todas as janelas!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "sonic_boom", "palavra": "quebra", "offset": -0.06, "ganho": 1.0 },
+        { "tipo": "susto", "palavra": "estilhaça", "offset": 0.0, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "dia10",
+      "fala": "Dia 10: 5.120 por hora. Um caça supersônico fica para trás.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "jato", "palavra": "caça", "offset": -0.5, "ganho": 0.95 },
+        { "tipo": "whoosh", "palavra": "trás", "offset": -0.15, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia12",
+      "fala": "Dia 12: 20 mil quilômetros por hora. Volta completa na Terra em duas horas!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "vento", "ancora": "inicio", "offset": 0.0, "ganho": 0.55, "ate_fim": true },
+        { "tipo": "whoosh", "palavra": "Volta", "offset": -0.1, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "dia15",
+      "fala": "Dia 15: 160 mil por hora. Seu tênis vira cinza e o ar pega fogo!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "fogo", "palavra": "cinza", "offset": -0.15, "ganho": 0.85, "ate_fim": true },
+        { "tipo": "boom_leve", "palavra": "fogo", "offset": -0.04, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "dia18",
+      "fala": "Dia 18: mais de 1 milhão por hora. Até um raio parece congelado no céu!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "trovao", "palavra": "raio", "offset": -0.12, "ganho": 0.9 },
+        { "tipo": "cristal", "palavra": "congelado", "offset": -0.05, "ganho": 0.65 }
+      ]
+    },
+    {
+      "id": "dia28",
+      "fala": "Dia 28: velocidade da luz. O tempo simplesmente para!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.75, "ate_fim": true },
+        { "tipo": "cristal", "palavra": "luz", "offset": -0.06, "ganho": 0.65 },
+        { "tipo": "stamp", "palavra": "para", "offset": -0.04, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "twist_a",
+      "fala": "Mas tem um detalhe que ninguém te contou.",
+      "pausa_depois": 0.45,
+      "sfx": [
+        { "tipo": "riser", "palavra": "detalhe", "offset": 0.0, "ganho": 0.75, "ate_fim": true }
+      ]
+    },
+    {
+      "id": "twist_b",
+      "fala": "Tropeçar em uma única pedrinha gera uma explosão nuclear!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "drop", "ancora": "inicio", "offset": -0.1, "ganho": 1.0 },
+        { "tipo": "explosao", "palavra": "explosão", "offset": -0.12, "ganho": 1.0 },
+        { "tipo": "alarme", "palavra": "nuclear", "offset": -0.05, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "loop",
+      "fala": "Até qual dia você teria coragem de correr?",
+      "pausa_depois": 0.0,
+      "sfx": [
+        { "tipo": "boom_leve", "ancora": "inicio", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "tique", "palavra": "dia", "offset": 0.0, "ganho": 0.55 }
+      ]
+    }
+  ]
+}

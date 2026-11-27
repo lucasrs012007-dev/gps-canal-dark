@@ -122,3 +122,14 @@ preview_teste_2d.mp4
 *.key
 client_secret*.json
 gerar_token.py
+
+# Fabrica v2, cofre sandbox_opus, midias pesadas, cache e Python
+sandbox_opus/
+*.mp4
+*.wav
+*.mp3
+fabrica_v2/episodios/*/build/
+**/tts_cache/
+*.env
+__pycache__/
+*.pyc

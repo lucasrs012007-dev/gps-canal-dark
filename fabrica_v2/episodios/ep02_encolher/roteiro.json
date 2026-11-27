@@ -1,0 +1,170 @@
+{
+  "titulo": "E se você encolhesse pela metade todo dia?",
+  "voz": "pt-BR-AntonioNeural",
+  "rate": "+12%",
+  "pitch": "+0Hz",
+  "pausa_max_interna": 0.15,
+  "pausa_entre_segmentos": 0.15,
+  "cauda_final": 0.9,
+  "zona_climax_seg": "dia34",
+  "pronuncias_tts": {},
+  "segmentos": [
+    {
+      "id": "hook",
+      "fala": "Você! É, você mesmo! Uma formiga acabou de achar que você é o almoço dela!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "boom", "ancora": "inicio", "offset": 0.0, "ganho": 1.0 },
+        { "tipo": "stamp", "palavra": "mesmo", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "susto", "palavra": "formiga", "offset": -0.08, "ganho": 0.85 },
+        { "tipo": "alarme_curto", "palavra": "almoço", "offset": -0.05, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "premissa",
+      "fala": "A partir de hoje, a sua altura cai pela metade todos os dias.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "stamp", "palavra": "metade", "offset": -0.05, "ganho": 0.9 }
+      ]
+    },
+    {
+      "id": "dia1",
+      "fala": "Dia 1: 90 centímetros. Você mal consegue alcançar a maçaneta da porta.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh_curto", "palavra": "alcançar", "offset": -0.06, "ganho": 0.6 },
+        { "tipo": "pouso", "palavra": "maçaneta", "offset": 0.0, "ganho": 0.65 }
+      ]
+    },
+    {
+      "id": "dia2",
+      "fala": "Dia 2: 45 centímetros. Seu tênis agora parece uma lancha gigante.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh_curto", "palavra": "tênis", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "ding", "palavra": "lancha", "offset": -0.04, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia4",
+      "fala": "Dia 4: 11 centímetros. Subir um único degrau da escada vira escalada extrema.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "Subir", "offset": -0.08, "ganho": 0.65 },
+        { "tipo": "stamp", "palavra": "extrema", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia6",
+      "fala": "Dia 6: 2 centímetros. A grama do quintal virou uma floresta assustadora!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "vento", "ancora": "inicio", "offset": 0.0, "ganho": 0.55, "ate_fim": true },
+        { "tipo": "susto", "palavra": "floresta", "offset": -0.05, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia8",
+      "fala": "Dia 8: 7 milímetros. Uma formiga comum agora tem o tamanho de um cavalo furioso!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "boom_leve", "palavra": "formiga", "offset": -0.06, "ganho": 0.9 },
+        { "tipo": "alarme_curto", "palavra": "furioso", "offset": -0.05, "ganho": 0.55 }
+      ]
+    },
+    {
+      "id": "dia10",
+      "fala": "Dia 10: 1 milímetro. Uma única gota de chuva pode te esmagar na hora.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "gota", "offset": -0.15, "ganho": 0.85 },
+        { "tipo": "boom", "palavra": "esmagar", "offset": -0.05, "ganho": 1.0 }
+      ]
+    },
+    {
+      "id": "dia13",
+      "fala": "Dia 13: 200 micrômetros. Você está do tamanho de um grão de poeira flutuando no ar.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "vento", "ancora": "inicio", "offset": 0.0, "ganho": 0.5, "ate_fim": true },
+        { "tipo": "cristal", "palavra": "poeira", "offset": -0.05, "ganho": 0.65 }
+      ]
+    },
+    {
+      "id": "dia16",
+      "fala": "Dia 16: 25 micrômetros. Uma bactéria comum parece um monstro gigante do seu lado!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.65, "ate_fim": true },
+        { "tipo": "susto", "palavra": "monstro", "offset": -0.05, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "dia20",
+      "fala": "Dia 20: 1 micrômetro. Os vírus ao seu redor parecem naves alienígenas.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.7, "ate_fim": true },
+        { "tipo": "cristal", "palavra": "alienígenas", "offset": -0.05, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "dia26",
+      "fala": "Dia 26: 25 nanômetros. Você enxerga a hélice do DNA como um arranha-céu.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh", "palavra": "DNA", "offset": -0.08, "ganho": 0.7 },
+        { "tipo": "ding", "palavra": "arranha-céu", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "dia34",
+      "fala": "Dia 34: 1 décimo de nanômetro. Você encolheu até o tamanho de um único átomo.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.75, "ate_fim": true },
+        { "tipo": "cristal", "palavra": "átomo", "offset": -0.05, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "twist_a",
+      "fala": "Mas tem um detalhe assustador que ninguém te contou.",
+      "pausa_depois": 0.45,
+      "sfx": [
+        { "tipo": "riser", "palavra": "detalhe", "offset": 0.0, "ganho": 0.8, "ate_fim": true }
+      ]
+    },
+    {
+      "id": "twist_b",
+      "fala": "Nesse tamanho, o ar não entra mais no seu pulmão... e você cai no vazio quântico!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "drop", "ancora": "inicio", "offset": -0.1, "ganho": 1.0 },
+        { "tipo": "alarme", "palavra": "ar", "offset": -0.04, "ganho": 0.55 },
+        { "tipo": "explosao", "palavra": "quântico", "offset": -0.12, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "loop",
+      "fala": "Até qual dia você conseguiria sobreviver encolhendo?",
+      "pausa_depois": 0.0,
+      "sfx": [
+        { "tipo": "boom_leve", "ancora": "inicio", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "tique", "palavra": "dia", "offset": 0.0, "ganho": 0.55 }
+      ]
+    }
+  ]
+}
