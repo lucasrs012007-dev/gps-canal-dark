@@ -3,7 +3,7 @@
 Checklist tecnico e editorial para manter o padrao da `fabrica_v2`:
 
 - [ ] **Voz em 1 chamada unica:** rodar `python3 fabrica_v2/engine/gerar_audio.py --ep fabrica_v2/episodios/<ep> --engine gemini --mode batch` (modelo `gemini-3.8-flash-tts`, voz `Mako`). Nunca rodar modo segmento por padrao.
-- [ ] **Duracao e formato:** alvo de `65s` a `85s`, resolucao `1080x1920`, `30fps`, mixagem normalizada em `-14 LUFS` (True Peak maximo `-1.5 dBTP`).
+- [ ] **Duracao, ritmo e formato:** alvo obrigatorio de `61s` a `65s` com `11` a `12` cenas de ritmo ultra-rapido (cortar qualquer repeticao ou barriga no meio para maximizar retencao no YouTube Shorts e manter elegibilidade de monetizacao acima de 1 minuto no TikTok), resolucao `1080x1920`, `30fps`, mixagem normalizada em `-14 LUFS` (True Peak maximo `-1.5 dBTP`).
 - [ ] **CTA falada no loop final:** o segmento `loop` DEVE conter uma chamada curta falada convidando o espectador a comentar (ex.: "Comenta ai!" ou "Comenta o dia aqui embaixo!").
 - [ ] **Corte seco no final (`0.25s`):** configurar `"cauda_final": 0.25` no `roteiro.json` (ou omitir para herdar o padrao `0.25s` do motor) para loop imediato sem silencio morto e sem cortar a ultima silaba.
 - [ ] **Duas entregas obrigatorias:** gerar `video_final.mp4` (master de alta qualidade) e `video_leve.mp4` (mobile `< 18 MB`, `-movflags +faststart`, `1080x1920`, `30fps`, `aac 128k`).
