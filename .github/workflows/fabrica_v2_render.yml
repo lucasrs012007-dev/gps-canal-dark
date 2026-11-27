@@ -1,0 +1,215 @@
+name: Fabrica V2 - Render e Telegram
+
+on:
+  workflow_dispatch:
+    inputs:
+      episodio:
+        description: 'Nome da pasta em fabrica_v2/episodios/ ou "auto" para o mais recente'
+        required: false
+        default: "auto"
+        type: string
+      enviar_telegram:
+        description: "Enviar o video pronto para o Telegram"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fabrica-v2-render-${{ inputs.episodio || 'auto' }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Render Fabrica V2 e Entrega Telegram
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Resolver episodio alvo
+        id: resolver
+        env:
+          INPUT_EPISODIO: ${{ inputs.episodio }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          base = Path("fabrica_v2/episodios")
+          req = (os.environ.get("INPUT_EPISODIO") or "auto").strip()
+          if not req or req.lower() == "auto":
+              candidatos = sorted(
+                  [
+                      p for p in base.iterdir()
+                      if p.is_dir()
+                      and p.name.startswith("ep")
+                      and (p / "roteiro.json").is_file()
+                      and (p / "scenes.js").is_file()
+                  ],
+                  key=lambda p: p.name,
+                  reverse=True,
+              )
+              if not candidatos:
+                  raise SystemExit("ERRO: nenhum episodio valido (ep* com roteiro.json e scenes.js) em fabrica_v2/episodios/.")
+              alvo = candidatos[0]
+          else:
+              if not re.fullmatch(r"[A-Za-z0-9._-]+", req) or req in (".", ".."):
+                  raise SystemExit(f"ERRO: nome de episodio invalido: {req!r}")
+              alvo = base / req
+              if not alvo.is_dir():
+                  raise SystemExit(f"ERRO: pasta do episodio nao encontrada: {alvo}")
+              if not (alvo / "roteiro.json").is_file() or not (alvo / "scenes.js").is_file():
+                  raise SystemExit(f"ERRO: {alvo} precisa conter roteiro.json e scenes.js.")
+
+          ep_dir = alvo.as_posix()
+          ep_name = alvo.name
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"ep_dir={ep_dir}\n")
+              fh.write(f"ep_name={ep_name}\n")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write(f"EP_DIR={ep_dir}\n")
+              fh.write(f"EP_NAME={ep_name}\n")
+          print(f"Episodio selecionado: {ep_name} ({ep_dir})")
+          PY
+
+      - name: Garantir FFmpeg, Chrome headless e fontes
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1 || ! command -v fc-cache >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg fontconfig fonts-dejavu-core fonts-liberation
+          fi
+          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v google-chrome-stable >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
+            curl -fsSL -o /tmp/google-chrome-stable.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq /tmp/google-chrome-stable.deb
+            rm -f /tmp/google-chrome-stable.deb
+          fi
+          mkdir -p "$HOME/.local/share/fonts"
+          cp -f fabrica_v2/engine/fonts/*.ttf "$HOME/.local/share/fonts/"
+          fc-cache -f
+          ffmpeg -version | head -n 1
+          (google-chrome --version || google-chrome-stable --version || chromium --version || chromium-browser --version)
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache de pacotes pip e modelo Whisper
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: fabrica-v2-py312-v1-${{ hashFiles('fabrica_v2/engine/gerar_audio.py', 'fabrica_v2/engine/render.py') }}
+          restore-keys: |
+            fabrica-v2-py312-v1-
+
+      - name: Instalar dependencias Python do motor fabrica_v2
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy google-genai faster-whisper websocket-client
+
+      - name: Preflight de sintaxe e arquivos do episodio
+        run: |
+          node --check "$EP_DIR/scenes.js"
+          python3 -m py_compile \
+            fabrica_v2/engine/gerar_audio.py \
+            fabrica_v2/engine/render.py \
+            fabrica_v2/engine/enviar_telegram.py
+          python3 -c 'import json, os; from pathlib import Path; d = json.loads((Path(os.environ["EP_DIR"]) / "roteiro.json").read_text(encoding="utf-8")); assert d.get("segmentos"), "roteiro sem segmentos"; print("Preflight OK:", d.get("titulo"), "| segmentos:", len(d["segmentos"]))'
+
+      - name: Gerar audio em 1 chamada batch (Gemini TTS + Whisper + -14 LUFS)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "ERRO: Secret GEMINI_API_KEY nao configurado em Repository Secrets." >&2
+            exit 1
+          fi
+          python3 fabrica_v2/engine/gerar_audio.py --ep "$EP_DIR" --engine gemini --mode batch
+
+      - name: Renderizar video_final.mp4 (1080x1920 @ 30fps)
+        run: |
+          python3 fabrica_v2/engine/render.py --ep "$EP_DIR"
+
+      - name: Validar video_final.mp4 e gerar backup mobile video_leve.mp4 (< 18 MB)
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+
+          ep_dir = Path(os.environ["EP_DIR"])
+          vf = ep_dir / "video_final.mp4"
+          vl = ep_dir / "video_leve.mp4"
+          assert vf.is_file(), f"video_final.mp4 nao encontrado em {ep_dir}"
+
+          def probe(p: Path) -> dict:
+              out = subprocess.check_output([
+                  "ffprobe", "-v", "error",
+                  "-show_entries", "format=duration,size",
+                  "-show_entries", "stream=codec_type,codec_name,width,height,r_frame_rate,sample_rate,channels",
+                  "-of", "json", str(p),
+              ], text=True)
+              return json.loads(out)
+
+          info = probe(vf)
+          streams = info.get("streams") or []
+          v_st = next((s for s in streams if s.get("codec_type") == "video"), None)
+          a_st = next((s for s in streams if s.get("codec_type") == "audio"), None)
+          dur = float((info.get("format") or {}).get("duration") or 0.0)
+          size_f = int((info.get("format") or {}).get("size") or vf.stat().st_size)
+
+          assert v_st is not None, "Stream de video ausente em video_final.mp4"
+          assert a_st is not None, "Stream de audio ausente em video_final.mp4"
+          assert int(v_st["width"]) == 1080 and int(v_st["height"]) == 1920, f"Resolucao inesperada: {v_st}"
+          assert v_st["r_frame_rate"] == "30/1", f"FPS inesperado: {v_st['r_frame_rate']}"
+          assert dur > 1.0, f"Duracao invalida: {dur}"
+          print(f"video_final.mp4 OK: {v_st['width']}x{v_st['height']} {v_st['r_frame_rate']} | {dur:.3f}s | {size_f / (1024 * 1024):.2f} MiB | audio={a_st['codec_name']}")
+
+          # Gera video_leve.mp4 < 18 MB em passagem unica com bitrate calculado pela duracao
+          total_kbps = int((16.0 * 8000.0) / max(dur, 1.0))
+          v_kbps = max(600, min(1600, total_kbps - 136))
+          maxrate = int(v_kbps * 1.12)
+          bufsize = v_kbps * 2
+          subprocess.run([
+              "ffmpeg", "-y", "-v", "error",
+              "-i", str(vf),
+              "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p", "-r", "30",
+              "-b:v", f"{v_kbps}k", "-maxrate", f"{maxrate}k", "-bufsize", f"{bufsize}k",
+              "-c:a", "aac", "-b:a", "128k",
+              "-movflags", "+faststart",
+              str(vl),
+          ], check=True)
+          size_l = vl.stat().st_size
+          assert size_l < 18_000_000, f"video_leve.mp4 acima de 18 MB: {size_l} bytes"
+          print(f"video_leve.mp4 OK: {size_l} bytes ({size_l / (1024 * 1024):.2f} MiB | {v_kbps}k video + 128k audio)")
+          PY
+
+      - name: Publicar MP4s como Artifact (7 dias)
+        id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabrica-v2-${{ steps.resolver.outputs.ep_name }}-run-${{ github.run_number }}
+          retention-days: 7
+          path: |
+            ${{ steps.resolver.outputs.ep_dir }}/video_final.mp4
+            ${{ steps.resolver.outputs.ep_dir }}/video_leve.mp4
+
+      - name: Enviar video pronto para o Telegram
+        if: ${{ inputs.enviar_telegram == true }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT_URL: ${{ steps.upload_artifact.outputs.artifact-url }}
+        run: |
+          python3 fabrica_v2/engine/enviar_telegram.py \
+            --ep "$EP_DIR" \
+            --run-url "$RUN_URL" \
+            --artifact-url "$ARTIFACT_URL"
