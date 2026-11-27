@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudioStick IA: Estúdio de Animação 2D Vertical</title>
+  <meta name="description" content="Transforme ideias no formato E se em prévias animadas 2D verticais 9:16 direto no navegador.">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Pular para o estúdio</a>
+
+  <div id="appShell">
+    <header class="studio-header">
+      <div class="studio-header-inner">
+        <div class="brand-group">
+          <a class="brand-mark" href="#main-content" aria-label="StudioStick IA, início do estúdio">
+            <svg class="brand-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="4" y="2" width="16" height="20" rx="2.5" stroke="currentColor" stroke-width="1.75"/>
+              <circle class="brand-stick-fill" cx="12" cy="8.25" r="2"/>
+              <path class="brand-stick-stroke" d="M12 10.75V15.25M12 12.25L9 14.25M12 12.25L15 10.75M12 15.25L9.5 19M12 15.25L14.75 19" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="brand-name">StudioStick <span class="brand-accent">IA</span></span>
+          </a>
+          <span class="badge badge-free">Prévia Grátis</span>
+        </div>
+
+        <button
+          type="button"
+          id="btnOpenPlans"
+          class="btn btn-quiet"
+          aria-haspopup="dialog"
+          aria-controls="upgradeModalDialog"
+        >
+          Ver Planos
+        </button>
+      </div>
+    </header>
+
+    <main id="main-content" class="studio-main">
+      <div class="workbench-grid">
+        <div class="controls-column">
+          <section class="studio-intro" aria-labelledby="studioTitle">
+            <p class="studio-eyebrow">Ilha de Criação Vertical 9:16</p>
+            <h1 id="studioTitle" class="studio-title">Sua ideia vira cena 2D.</h1>
+            <p class="studio-subtitle">
+              Digite um gancho "E se...", escolha o estilo visual e assista à prévia animada de 10 segundos ganhar forma no monitor.
+            </p>
+          </section>
+
+          <section class="panel" aria-label="Controles de geração da animação">
+            <div class="panel-section">
+              <div class="section-header-row">
+                <label for="temaInput" class="field-label">Qual é a sua ideia "E se..."?</label>
+                <span id="temaCounter" class="field-meta">44 / 140</span>
+              </div>
+
+              <div class="field-group">
+                <textarea
+                  id="temaInput"
+                  name="tema"
+                  class="tema-textarea"
+                  rows="3"
+                  maxlength="140"
+                  aria-describedby="temaCounter temaError"
+                  aria-invalid="false"
+                  placeholder="Ex.: E se você ganhasse 1 real dobrado todo dia?"
+                >E se você ganhasse 1 real dobrado todo dia?</textarea>
+
+                <div id="temaError" class="field-error" role="alert" hidden>
+                  <svg class="field-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 8v4"/>
+                    <path d="M12 16h.01"/>
+                  </svg>
+                  <span id="temaErrorText">Digite uma ideia "E se..." antes de gerar a animação.</span>
+                </div>
+              </div>
+
+              <div class="chips-block">
+                <p id="chipsLabel" class="chips-label">Sugestões rápidas</p>
+                <div class="chips-list" role="group" aria-labelledby="chipsLabel">
+                  <button
+                    type="button"
+                    class="chip-btn"
+                    data-tema="E se você ganhasse 1 real dobrado todo dia?"
+                    aria-pressed="true"
+                  >
+                    E se você ganhasse 1 real dobrado todo dia?
+                  </button>
+                  <button
+                    type="button"
+                    class="chip-btn"
+                    data-tema="E se sua velocidade dobrasse todo dia?"
+                    aria-pressed="false"
+                  >
+                    E se sua velocidade dobrasse todo dia?
+                  </button>
+                  <button
+                    type="button"
+                    class="chip-btn"
+                    data-tema="E se cada 'JÁ TÔ INDO!' ficasse 2x mais alto?"
+                    aria-pressed="false"
+                  >
+                    E se cada 'JÁ TÔ INDO!' ficasse 2x mais alto?
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <hr class="panel-divider">
+
+            <div class="panel-section">
+              <div class="section-header-row">
+                <h2 id="estiloHeading" class="field-label">Estilo da animação</h2>
+                <span class="field-meta">1 grátis / 2 Pro</span>
+              </div>
+
+              <div id="styleGroup" class="style-grid" role="group" aria-labelledby="estiloHeading">
+                <button
+                  type="button"
+                  class="style-card style-card-primary"
+                  data-preset-id="escala_viral"
+                  data-preset-pro="false"
+                  data-preset-name="Escala Viral 2D"
+                  aria-pressed="true"
+                >
+                  <span class="style-card-top">
+                    <span class="style-card-title-wrap">
+                      <svg class="style-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 6L9 17l-5-5"/>
+                      </svg>
+                      <span class="style-card-name">Escala Viral 2D</span>
+                    </span>
+                    <span class="badge badge-free">Grátis</span>
+                  </span>
+                  <span class="style-card-desc">
+                    Ritmo vertical acelerado com alto contraste e progressão visual clara para retenção.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="style-card style-card-locked"
+                  data-preset-id="caos_sonoro"
+                  data-preset-pro="true"
+                  data-preset-name="Onda de Choque"
+                  aria-pressed="false"
+                  aria-haspopup="dialog"
+                  aria-controls="upgradeModalDialog"
+                >
+                  <span class="style-card-top">
+                    <span class="style-card-title-wrap">
+                      <svg class="style-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="4" y="11" width="16" height="10" rx="2"/>
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                      </svg>
+                      <span class="style-card-name">Onda de Choque</span>
+                    </span>
+                    <span class="badge badge-pro">Pro</span>
+                  </span>
+                  <span class="style-card-desc">
+                    Ondas de impacto, tremores de câmera e escalada visual para viradas intensas.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="style-card style-card-locked"
+                  data-preset-id="suspense_noir"
+                  data-preset-pro="true"
+                  data-preset-name="Suspense Noir"
+                  aria-pressed="false"
+                  aria-haspopup="dialog"
+                  aria-controls="upgradeModalDialog"
+                >
+                  <span class="style-card-top">
+                    <span class="style-card-title-wrap">
+                      <svg class="style-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="4" y="11" width="16" height="10" rx="2"/>
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                      </svg>
+                      <span class="style-card-name">Suspense Noir</span>
+                    </span>
+                    <span class="badge badge-pro">Pro</span>
+                  </span>
+                  <span class="style-card-desc">
+                    Sombras marcadas, vinheta fechada e clima de tensão psicológica quadro a quadro.
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <hr class="panel-divider">
+
+            <div class="generate-footer">
+              <button
+                type="button"
+                id="btnGenerate"
+                class="btn btn-primary btn-generate btn-block"
+                aria-busy="false"
+              >
+                <svg class="btn-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                <svg class="btn-icon btn-icon-default" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/>
+                </svg>
+                <span id="btnGenerateLabel">Gerar Animação Agora</span>
+              </button>
+              <p class="generate-hint">Prévia instantânea de 10.0s (540x960) renderizada localmente no Canvas.</p>
+            </div>
+          </section>
+
+          <section class="pro-section" aria-labelledby="proFeaturesHeading">
+            <div class="pro-section-heading">
+              <h2 id="proFeaturesHeading" class="section-title">Recursos bloqueados na versão prévia</h2>
+              <p class="section-subtitle">
+                Clique em qualquer recurso abaixo para ver os detalhes de desbloqueio nos planos pagos.
+              </p>
+            </div>
+
+            <div class="pro-features-grid">
+              <button
+                type="button"
+                class="pro-feature-btn"
+                data-modal-feature="Remover Marca D'água"
+                data-modal-desc="Exporte suas animações limpas e prontas para publicação sem o selo da versão prévia."
+                aria-haspopup="dialog"
+                aria-controls="upgradeModalDialog"
+              >
+                <span class="pro-lock-box" aria-hidden="true">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                  </svg>
+                </span>
+                <span class="pro-feature-copy">
+                  <span class="pro-feature-header">
+                    <span class="pro-feature-title">Remover Marca D'água</span>
+                    <span class="badge badge-pro">Pro</span>
+                  </span>
+                  <span class="pro-feature-desc">Quadro limpo pronto para Shorts, Reels e TikTok.</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="pro-feature-btn"
+                data-modal-feature="Voz IA Realista"
+                data-modal-desc="Narração expressiva em português sincronizada automaticamente com cada virada da cena."
+                aria-haspopup="dialog"
+                aria-controls="upgradeModalDialog"
+              >
+                <span class="pro-lock-box" aria-hidden="true">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                  </svg>
+                </span>
+                <span class="pro-feature-copy">
+                  <span class="pro-feature-header">
+                    <span class="pro-feature-title">Voz IA Realista</span>
+                    <span class="badge badge-pro">Pro</span>
+                  </span>
+                  <span class="pro-feature-desc">Narração atuada sincronizada com o ritmo do roteiro.</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="pro-feature-btn"
+                data-modal-feature="Vídeo Completo 65s Full HD"
+                data-modal-desc="Produza episódios completos de até 65 segundos em Full HD 1080x1920 sem corte nos 10s."
+                aria-haspopup="dialog"
+                aria-controls="upgradeModalDialog"
+              >
+                <span class="pro-lock-box" aria-hidden="true">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                  </svg>
+                </span>
+                <span class="pro-feature-copy">
+                  <span class="pro-feature-header">
+                    <span class="pro-feature-title">Vídeo Completo 65s Full HD</span>
+                    <span class="badge badge-pro">Pro</span>
+                  </span>
+                  <span class="pro-feature-desc">Duração total de 65s em resolução 1080x1920 nativa.</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="pro-feature-btn"
+                data-modal-feature="HUD Viral + Legendas"
+                data-modal-desc="Adicione contadores dinâmicos, avisos de cena e legendas cinéticas calibradas para retenção."
+                aria-haspopup="dialog"
+                aria-controls="upgradeModalDialog"
+              >
+                <span class="pro-lock-box" aria-hidden="true">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                  </svg>
+                </span>
+                <span class="pro-feature-copy">
+                  <span class="pro-feature-header">
+                    <span class="pro-feature-title">HUD Viral + Legendas</span>
+                    <span class="badge badge-pro">Pro</span>
+                  </span>
+                  <span class="pro-feature-desc">Legendas cinéticas e indicadores visuais em tempo real.</span>
+                </span>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <aside id="monitorSection" class="monitor-column" aria-label="Monitor vertical 9 por 16 da prévia">
+          <div class="monitor-shell">
+            <div class="monitor-topbar">
+              <span class="monitor-meta">Monitor 9:16</span>
+              <span id="monitorStatus" class="monitor-status">
+                <svg class="monitor-status-icon" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="5" r="4"/>
+                </svg>
+                <span id="monitorStatusText">Pronto</span>
+              </span>
+            </div>
+
+            <div class="monitor-viewport">
+              <canvas
+                id="stageCanvas"
+                class="stage-canvas"
+                width="540"
+                height="960"
+                role="img"
+                aria-label="Monitor de prévia vertical 9 por 16 do StudioStick IA"
+              ></canvas>
+            </div>
+
+            <div class="timeline-block">
+              <div class="timeline-meta">
+                <span>Linha do tempo</span>
+                <span id="timeReadout">0.0s / 10.0s</span>
+              </div>
+              <div
+                id="timelineProgress"
+                class="timeline-track"
+                role="progressbar"
+                aria-label="Progresso da prévia de animação"
+                aria-valuemin="0"
+                aria-valuemax="10"
+                aria-valuenow="0"
+                aria-valuetext="0.0 segundos de 10.0 segundos"
+              >
+                <div id="timelineFill" class="timeline-fill"></div>
+              </div>
+            </div>
+
+            <div class="transport-row">
+              <button
+                type="button"
+                id="btnTogglePlay"
+                class="btn btn-secondary"
+                aria-pressed="false"
+              >
+                <svg id="iconPlay" class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <polygon points="7 4 20 12 7 20 7 4"/>
+                </svg>
+                <svg id="iconPause" class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden>
+                  <rect x="6" y="4" width="4" height="16" rx="1"/>
+                  <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+                <span id="btnTogglePlayLabel">Reproduzir</span>
+              </button>
+
+              <button
+                type="button"
+                id="btnReplay"
+                class="btn btn-secondary"
+              >
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                <span>Repetir 10s</span>
+              </button>
+
+              <button
+                type="button"
+                id="btnDownloadMp4"
+                class="btn btn-secondary transport-download"
+                aria-haspopup="dialog"
+                aria-controls="upgradeModalDialog"
+              >
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3v11"/>
+                  <path d="M8 10l4 4 4-4"/>
+                  <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                </svg>
+                <span>Baixar MP4</span>
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="4" y="11" width="16" height="10" rx="2"/>
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="studio-footer">
+      <div class="studio-footer-inner">
+        <span>StudioStick IA: ilha local de animação 2D vertical.</span>
+        <span>Modo prévia gratuito (10s em 540x960) 100% offline no navegador.</span>
+      </div>
+    </footer>
+  </div>
+
+  <div id="studioLiveRegion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="upgradeModalBackdrop" class="modal-backdrop" hidden>
+    <div
+      id="upgradeModalDialog"
+      class="modal-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="upgradeModalTitle"
+      aria-describedby="upgradeModalSubtitle"
+    >
+      <div class="modal-header">
+        <div class="modal-heading-group">
+          <span id="upgradeModalBadge" class="badge badge-free">Planos StudioStick IA</span>
+          <h2 id="upgradeModalTitle" class="modal-title">Escolha o plano ideal para publicar sem limites</h2>
+          <p id="upgradeModalSubtitle" class="modal-subtitle">
+            Compare o acesso inicial e o estúdio completo para liberar exportação MP4, voz IA realista e vídeos de 65s em Full HD.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          id="btnCloseModal"
+          class="modal-close-btn"
+          aria-label="Fechar janela de planos"
+        >
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6L6 18"/>
+            <path d="M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="plans-grid">
+        <article class="plan-card" aria-labelledby="planBasicName">
+          <div class="plan-top">
+            <div class="plan-header-row">
+              <h3 id="planBasicName" class="plan-name">Plano Básico</h3>
+              <span class="badge">Acesso inicial</span>
+            </div>
+
+            <div class="plan-price-row">
+              <span class="plan-price">R$ 37</span>
+              <span class="plan-term">pagamento único / acesso inicial</span>
+            </div>
+
+            <ul class="plan-list">
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>Sem marca d'água nas animações</span>
+              </li>
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>Até 10 animações por mês em HD</span>
+              </li>
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>1 estilo viral liberado (Escala Viral 2D)</span>
+              </li>
+            </ul>
+          </div>
+
+          <a href="#CHECKOUT_CAKTO" class="btn btn-secondary btn-block">
+            Escolher Plano Básico
+          </a>
+        </article>
+
+        <article class="plan-card plan-card-pro" aria-labelledby="planProName">
+          <div class="plan-top">
+            <div class="plan-header-row">
+              <h3 id="planProName" class="plan-name">Plano Pro</h3>
+              <span class="badge badge-recommended">Recomendado</span>
+            </div>
+
+            <div class="plan-price-row">
+              <span class="plan-price">R$ 67</span>
+              <span class="plan-term">pagamento único / completo</span>
+            </div>
+
+            <ul class="plan-list">
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>Tudo liberado sem marca d'água</span>
+              </li>
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>Vídeos completos de 65s em Full HD 1080x1920</span>
+              </li>
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>Voz IA Realista sincronizada por cena</span>
+              </li>
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>Todos os 3 estilos + HUD Viral e legendas cinéticas</span>
+              </li>
+              <li class="plan-item">
+                <svg class="plan-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                <span>Exportação MP4 ilimitada</span>
+              </li>
+            </ul>
+          </div>
+
+          <a href="#CHECKOUT_CAKTO" class="btn btn-primary btn-block">
+            Desbloquear Plano Pro
+          </a>
+        </article>
+      </div>
+
+      <p class="modal-footnote">
+        Os botões acima direcionam para a etapa segura de pagamento (#CHECKOUT_CAKTO). Pressione Escape para retornar à edição.
+      </p>
+    </div>
+  </div>
+
+  <script src="./animacao.js"></script>
+  <script>
+    (function initStudioStickUI() {
+      'use strict';
+
+      var appShell = document.getElementById('appShell');
+      var temaInput = document.getElementById('temaInput');
+      var temaCounter = document.getElementById('temaCounter');
+      var temaError = document.getElementById('temaError');
+      var temaErrorText = document.getElementById('temaErrorText');
+      var chipButtons = Array.prototype.slice.call(document.querySelectorAll('.chip-btn'));
+      var styleButtons = Array.prototype.slice.call(document.querySelectorAll('.style-card'));
+      var proFeatureButtons = Array.prototype.slice.call(document.querySelectorAll('.pro-feature-btn'));
+
+      var btnGenerate = document.getElementById('btnGenerate');
+      var btnGenerateLabel = document.getElementById('btnGenerateLabel');
+      var btnOpenPlans = document.getElementById('btnOpenPlans');
+      var btnTogglePlay = document.getElementById('btnTogglePlay');
+      var btnTogglePlayLabel = document.getElementById('btnTogglePlayLabel');
+      var iconPlay = document.getElementById('iconPlay');
+      var iconPause = document.getElementById('iconPause');
+      var btnReplay = document.getElementById('btnReplay');
+      var btnDownloadMp4 = document.getElementById('btnDownloadMp4');
+
+      var monitorSection = document.getElementById('monitorSection');
+      var stageCanvas = document.getElementById('stageCanvas');
+      var monitorStatus = document.getElementById('monitorStatus');
+      var monitorStatusText = document.getElementById('monitorStatusText');
+      var timeReadout = document.getElementById('timeReadout');
+      var timelineProgress = document.getElementById('timelineProgress');
+      var timelineFill = document.getElementById('timelineFill');
+      var liveRegion = document.getElementById('studioLiveRegion');
+
+      var modalBackdrop = document.getElementById('upgradeModalBackdrop');
+      var modalDialog = document.getElementById('upgradeModalDialog');
+      var modalBadge = document.getElementById('upgradeModalBadge');
+      var modalTitle = document.getElementById('upgradeModalTitle');
+      var modalSubtitle = document.getElementById('upgradeModalSubtitle');
+      var btnCloseModal = document.getElementById('btnCloseModal');
+
+      var selectedPresetId = 'escala_viral';
+      var isGenerating = false;
+      var hasStartedOnce = false;
+      var currentDuration = 10.0;
+      var player = null;
+      var lastFocusedElement = null;
+      var generateTimerId = null;
+
+      var prefersReducedMotion = function () {
+        return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      };
+
+      function announce(message) {
+        if (!liveRegion) return;
+        liveRegion.textContent = '';
+        window.setTimeout(function () {
+          liveRegion.textContent = message;
+        }, 20);
+      }
+
+      function updateCounter() {
+        var len = temaInput.value.length;
+        var max = temaInput.getAttribute('maxlength') || '140';
+        temaCounter.textContent = len + ' / ' + max;
+      }
+
+      function syncChipSelection() {
+        var trimmed = temaInput.value.trim();
+        chipButtons.forEach(function (chip) {
+          var isMatch = chip.getAttribute('data-tema') === trimmed;
+          chip.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+      }
+
+      function showInputError(message) {
+        temaInput.setAttribute('aria-invalid', 'true');
+        temaErrorText.textContent = message;
+        temaError.hidden = false;
+      }
+
+      function clearInputError() {
+        temaInput.setAttribute('aria-invalid', 'false');
+        temaError.hidden = true;
+      }
+
+      function setMonitorStatus(label, isLive) {
+        monitorStatusText.textContent = label;
+        if (isLive) {
+          monitorStatus.classList.add('is-live');
+        } else {
+          monitorStatus.classList.remove('is-live');
+        }
+      }
+
+      function updateTimeline(sec, dur) {
+        var safeDur = typeof dur === 'number' && dur > 0 ? dur : 10.0;
+        var safeSec = Math.max(0, Math.min(safeDur, typeof sec === 'number' ? sec : 0));
+        currentDuration = safeDur;
+
+        var ratio = safeDur > 0 ? safeSec / safeDur : 0;
+        timeReadout.textContent = safeSec.toFixed(1) + 's / ' + safeDur.toFixed(1) + 's';
+        timelineFill.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
+        timelineProgress.setAttribute('aria-valuemax', safeDur.toFixed(1));
+        timelineProgress.setAttribute('aria-valuenow', safeSec.toFixed(1));
+        timelineProgress.setAttribute(
+          'aria-valuetext',
+          safeSec.toFixed(1) + ' segundos de ' + safeDur.toFixed(1) + ' segundos'
+        );
+      }
+
+      function updatePlayButton(isPlaying) {
+        btnTogglePlay.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+        btnTogglePlayLabel.textContent = isPlaying ? 'Pausar' : 'Reproduzir';
+        iconPlay.toggleAttribute('hidden', Boolean(isPlaying));
+        iconPause.toggleAttribute('hidden', !isPlaying);
+
+        if (isPlaying) {
+          setMonitorStatus('Reproduzindo', true);
+        } else if (hasStartedOnce) {
+          var st = player && typeof player.getState === 'function' ? player.getState() : null;
+          var currentSec = st && typeof st.currentTime === 'number' ? st.currentTime : 0;
+          var atEnd = currentSec >= currentDuration - 0.05;
+          setMonitorStatus(atEnd ? 'Concluído' : 'Pausado', false);
+        } else {
+          setMonitorStatus('Pronto', false);
+        }
+      }
+
+      function readToken(name, fallback) {
+        var val = window.getComputedStyle(document.documentElement).getPropertyValue(name);
+        return val ? val.trim() : fallback;
+      }
+
+      function drawFallbackFrame(tema) {
+        if (!stageCanvas || !stageCanvas.getContext) return;
+        var ctx = stageCanvas.getContext('2d');
+        if (!ctx) return;
+
+        var w = stageCanvas.width;
+        var h = stageCanvas.height;
+        var bgCanvas = readToken('--color-bg-canvas', 'rgb(11, 13, 18)');
+        var borderHairline = readToken('--color-border', 'rgba(244, 241, 234, 0.14)');
+        var accent = readToken('--color-accent', 'rgb(245, 197, 24)');
+        var textPrimary = readToken('--color-text-primary', 'rgb(244, 241, 234)');
+        var textSecondary = readToken('--color-text-secondary', 'rgb(163, 174, 191)');
+
+        ctx.fillStyle = bgCanvas;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = borderHairline;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(24, 24, w - 48, h - 48);
+
+        ctx.fillStyle = accent;
+        ctx.font = '700 22px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('STUDIOSTICK IA: PRÉVIA 9:16', w / 2, 110);
+
+        ctx.fillStyle = textPrimary;
+        ctx.font = '700 32px system-ui, sans-serif';
+        var words = (tema || 'Sua ideia E se...').split(' ');
+        var lines = [];
+        var line = '';
+        for (var i = 0; i < words.length; i++) {
+          var test = line ? line + ' ' + words[i] : words[i];
+          if (ctx.measureText(test).width > w - 104 && line) {
+            lines.push(line);
+            line = words[i];
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+
+        var startY = h / 2 - (lines.length * 42) / 2;
+        lines.slice(0, 5).forEach(function (textLine, idx) {
+          ctx.fillText(textLine, w / 2, startY + idx * 44);
+        });
+
+        ctx.fillStyle = textSecondary;
+        ctx.font = '500 20px ui-monospace, monospace';
+        ctx.fillText('Aguardando módulo ./animacao.js', w / 2, h - 96);
+      }
+
+      function initCanvasEngine() {
+        var api = window.StudioStickCanvas;
+        if (api && Array.isArray(api.PRESETS) && api.PRESETS.length > 0) {
+          var firstFree = api.PRESETS.find(function (p) { return !p.pro; });
+          if (firstFree && firstFree.id) {
+            selectedPresetId = firstFree.id;
+          }
+        }
+
+        if (api && typeof api.createPlayer === 'function') {
+          player = api.createPlayer(stageCanvas, {
+            onTimeUpdate: function (sec, dur) {
+              updateTimeline(sec, dur);
+            },
+            onStateChange: function (isPlaying) {
+              updatePlayButton(Boolean(isPlaying));
+            },
+            onFinish: function () {
+              updatePlayButton(false);
+              setMonitorStatus('Concluído', false);
+              updateTimeline(currentDuration, currentDuration);
+              announce('Prévia de 10 segundos concluída no monitor.');
+            }
+          });
+
+          if (player && typeof player.setPreviewStatic === 'function') {
+            player.setPreviewStatic({
+              tema: temaInput.value.trim(),
+              presetId: selectedPresetId
+            });
+          }
+        } else {
+          drawFallbackFrame(temaInput.value.trim());
+        }
+
+        updateTimeline(0, 10.0);
+        updatePlayButton(false);
+      }
+
+      function refreshStaticPreviewIfIdle() {
+        var tema = temaInput.value.trim();
+        if (!tema) return;
+
+        if (player && typeof player.setPreviewStatic === 'function') {
+          var st = typeof player.getState === 'function' ? player.getState() : null;
+          var isPlaying = Boolean(st && st.playing);
+          if (!isPlaying) {
+            hasStartedOnce = false;
+            player.setPreviewStatic({ tema: tema, presetId: selectedPresetId });
+            updateTimeline(0, currentDuration);
+            setMonitorStatus('Pronto', false);
+          }
+        } else {
+          drawFallbackFrame(tema);
+        }
+      }
+
+      function setGeneratingState(loading) {
+        isGenerating = loading;
+        btnGenerate.disabled = loading;
+        btnGenerate.setAttribute('aria-busy', loading ? 'true' : 'false');
+        if (loading) {
+          btnGenerate.classList.add('is-loading');
+          btnGenerateLabel.textContent = 'Montando cenas...';
+        } else {
+          btnGenerate.classList.remove('is-loading');
+          btnGenerateLabel.textContent = 'Gerar Animação Agora';
+        }
+      }
+
+      function triggerGeneration() {
+        if (isGenerating) return;
+
+        var tema = temaInput.value.trim();
+        if (!tema) {
+          showInputError('Digite uma ideia "E se..." antes de gerar a animação.');
+          temaInput.focus();
+          announce('Campo de ideia vazio. Digite uma ideia antes de gerar.');
+          return;
+        }
+
+        clearInputError();
+        setGeneratingState(true);
+        setMonitorStatus('Preparando', false);
+
+        if (generateTimerId) {
+          window.clearTimeout(generateTimerId);
+        }
+
+        generateTimerId = window.setTimeout(function () {
+          setGeneratingState(false);
+          hasStartedOnce = true;
+
+          if (player && typeof player.start === 'function') {
+            player.start({ tema: tema, presetId: selectedPresetId });
+          } else {
+            drawFallbackFrame(tema);
+            setMonitorStatus('Reproduzindo', true);
+          }
+
+          announce('Animação iniciada para: ' + tema);
+
+          if (window.innerWidth < 900 && monitorSection && typeof monitorSection.scrollIntoView === 'function') {
+            monitorSection.scrollIntoView({
+              behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+              block: 'center'
+            });
+          }
+        }, 350);
+      }
+
+      /* ======================================================================
+       * Accessible Modal Focus Trap & Lifecycle
+       * ====================================================================== */
+      function getFocusableElements(container) {
+        var selectors = [
+          'a[href]',
+          'button:not([disabled])',
+          'textarea:not([disabled])',
+          'input:not([disabled])',
+          '[tabindex]:not([tabindex="-1"])'
+        ].join(',');
+
+        return Array.prototype.slice.call(container.querySelectorAll(selectors)).filter(function (el) {
+          return !el.hidden && el.offsetParent !== null;
+        });
+      }
+
+      function openUpgradeModal(options) {
+        var opts = options || {};
+        lastFocusedElement = document.activeElement;
+
+        modalBadge.textContent = opts.badge || 'Planos StudioStick IA';
+        modalTitle.textContent = opts.title || 'Escolha o plano ideal para publicar sem limites';
+        modalSubtitle.textContent =
+          opts.subtitle ||
+          'Compare o acesso inicial e o estúdio completo para liberar exportação MP4, voz IA realista e vídeos de 65s em Full HD.';
+
+        modalBackdrop.hidden = false;
+        document.body.classList.add('modal-open');
+        if (appShell) {
+          appShell.setAttribute('aria-hidden', 'true');
+          if ('inert' in appShell) {
+            appShell.inert = true;
+          }
+        }
+
+        window.requestAnimationFrame(function () {
+          modalBackdrop.classList.add('is-open');
+          btnCloseModal.focus();
+        });
+      }
+
+      function closeUpgradeModal() {
+        if (modalBackdrop.hidden) return;
+
+        modalBackdrop.classList.remove('is-open');
+        modalBackdrop.hidden = true;
+        document.body.classList.remove('modal-open');
+
+        if (appShell) {
+          appShell.removeAttribute('aria-hidden');
+          if ('inert' in appShell) {
+            appShell.inert = false;
+          }
+        }
+
+        if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+          lastFocusedElement.focus();
+        }
+        lastFocusedElement = null;
+      }
+
+      function handleModalKeydown(event) {
+        if (modalBackdrop.hidden) return;
+
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeUpgradeModal();
+          return;
+        }
+
+        if (event.key === 'Tab') {
+          var focusables = getFocusableElements(modalDialog);
+          if (focusables.length === 0) return;
+
+          var first = focusables[0];
+          var last = focusables[focusables.length - 1];
+
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
+
+      /* ======================================================================
+       * Event Wiring
+       * ====================================================================== */
+      temaInput.addEventListener('input', function () {
+        updateCounter();
+        syncChipSelection();
+        if (temaInput.value.trim().length > 0) {
+          clearInputError();
+          refreshStaticPreviewIfIdle();
+        }
+      });
+
+      temaInput.addEventListener('keydown', function (event) {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          event.preventDefault();
+          triggerGeneration();
+        }
+      });
+
+      chipButtons.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          var idea = chip.getAttribute('data-tema') || '';
+          temaInput.value = idea;
+          clearInputError();
+          updateCounter();
+          syncChipSelection();
+          refreshStaticPreviewIfIdle();
+          announce('Sugestão aplicada: ' + idea);
+        });
+      });
+
+      styleButtons.forEach(function (card, index) {
+        card.addEventListener('click', function () {
+          var isPro = card.getAttribute('data-preset-pro') === 'true';
+          var presetId = card.getAttribute('data-preset-id') || 'escala_viral';
+          var presetName = card.getAttribute('data-preset-name') || 'Estilo Pro';
+
+          if (isPro) {
+            openUpgradeModal({
+              badge: 'Estilo Exclusivo Pro',
+              title: 'Desbloqueie o estilo: ' + presetName,
+              subtitle:
+                'O estilo ' +
+                presetName +
+                ' faz parte do Plano Pro e libera efeitos visuais exclusivos junto com exportação Full HD 65s.'
+            });
+            return;
+          }
+
+          selectedPresetId = presetId;
+          styleButtons.forEach(function (btn) {
+            btn.setAttribute('aria-pressed', btn === card ? 'true' : 'false');
+          });
+          refreshStaticPreviewIfIdle();
+          announce('Estilo selecionado: ' + presetName);
+        });
+
+        card.addEventListener('keydown', function (event) {
+          var nextIdx = -1;
+          if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+            nextIdx = (index + 1) % styleButtons.length;
+          } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+            nextIdx = (index - 1 + styleButtons.length) % styleButtons.length;
+          }
+          if (nextIdx !== -1) {
+            event.preventDefault();
+            styleButtons[nextIdx].focus();
+          }
+        });
+      });
+
+      btnGenerate.addEventListener('click', triggerGeneration);
+
+      btnTogglePlay.addEventListener('click', function () {
+        var tema = temaInput.value.trim();
+        if (!hasStartedOnce) {
+          if (!tema) {
+            showInputError('Digite uma ideia "E se..." antes de reproduzir.');
+            temaInput.focus();
+            return;
+          }
+          clearInputError();
+          hasStartedOnce = true;
+          if (player && typeof player.start === 'function') {
+            player.start({ tema: tema, presetId: selectedPresetId });
+          } else {
+            drawFallbackFrame(tema);
+          }
+          return;
+        }
+
+        if (player && typeof player.togglePlay === 'function') {
+          player.togglePlay();
+        }
+      });
+
+      btnReplay.addEventListener('click', function () {
+        var tema = temaInput.value.trim();
+        if (!tema) {
+          showInputError('Digite uma ideia "E se..." antes de repetir a prévia.');
+          temaInput.focus();
+          return;
+        }
+        clearInputError();
+        hasStartedOnce = true;
+        var st = player && typeof player.getState === 'function' ? player.getState() : null;
+        if (player && typeof player.replay === 'function' && st && st.tema === tema) {
+          player.replay();
+        } else if (player && typeof player.start === 'function') {
+          player.start({ tema: tema, presetId: selectedPresetId });
+        } else {
+          drawFallbackFrame(tema);
+        }
+        announce('Repetindo prévia de 10 segundos.');
+      });
+
+      btnDownloadMp4.addEventListener('click', function () {
+        openUpgradeModal({
+          badge: 'Exportação MP4',
+          title: 'Desbloqueie: Exportação MP4',
+          subtitle:
+            'Baixe vídeos em MP4 prontos para postar no YouTube Shorts, TikTok e Reels escolhendo o Plano Básico ou Plano Pro.'
+        });
+      });
+
+      btnOpenPlans.addEventListener('click', function () {
+        openUpgradeModal();
+      });
+
+      proFeatureButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var featureName = btn.getAttribute('data-modal-feature') || 'Recurso Pro';
+          var featureDesc = btn.getAttribute('data-modal-desc') || '';
+          openUpgradeModal({
+            badge: 'Recurso Pro',
+            title: 'Desbloqueie: ' + featureName,
+            subtitle: featureDesc
+          });
+        });
+      });
+
+      btnCloseModal.addEventListener('click', closeUpgradeModal);
+
+      modalBackdrop.addEventListener('click', function (event) {
+        if (event.target === modalBackdrop) {
+          closeUpgradeModal();
+        }
+      });
+
+      document.addEventListener('keydown', handleModalKeydown);
+
+      window.addEventListener('beforeunload', function () {
+        if (player && typeof player.destroy === 'function') {
+          player.destroy();
+        }
+      });
+
+      updateCounter();
+      syncChipSelection();
+      initCanvasEngine();
+    })();
+  </script>
+</body>
+</html>
