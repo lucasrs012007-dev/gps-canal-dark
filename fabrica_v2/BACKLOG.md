@@ -9,3 +9,6 @@ Pautas aprovadas a partir da varredura ao vivo do `radar-viral-youtube`, calibra
 | 3 | `ep07_cura_100x` | E se seu corpo se curasse 100x mais rapido? | https://www.youtube.com/shorts/AjufHZ6atpY | Estilo #5 (Aviso / contagem) | 61s-65s | `PENDENTE` |
 | 4 | `ep08_espirro_teletransporte` | E se cada espirro te teletransportasse para um lugar aleatorio? | https://www.youtube.com/shorts/3d7DVpNDmO4 | Estilo #2 (No meio do caos) | 61s-65s | `PENDENTE` |
 | 5 | `ep09_epidemia_riso` | E se voce comecasse a rir e nao conseguisse parar nunca mais? | https://www.youtube.com/shorts/g5FlPZd0nbw | Estilo #3 (Desafio de ego) | 61s-65s | `PENDENTE` |
+| 6 | `ep10_corpo_esticado` | E se voce esticasse tudo que existe dentro do seu corpo? | https://www.youtube.com/shorts/GZVdZBEZyzs | Estilo #1 (Choque de numero absurdo) | 61s-65s | `PENDENTE` |
+| 7 | `ep11_coracao_dobrasse` | E se o seu coracao dobrasse de velocidade todo minuto? | https://www.youtube.com/shorts/kRMl-NZJFi4 | Estilo #2 (No meio do caos) | 61s-65s | `PENDENTE` |
+| 8 | `ep12_limites_corpo` | Quanto tempo seu corpo aguenta antes de desligar? | https://www.youtube.com/shorts/-k7o2Ik506Y | Estilo #5 (Contagem regressiva / aviso) | 61s-65s | `PENDENTE` |
