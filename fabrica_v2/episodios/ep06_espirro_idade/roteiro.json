@@ -1,0 +1,152 @@
+{
+  "titulo": "E se cada espirro te deixasse 1 ano mais jovem?",
+  "voz": "pt-BR-AntonioNeural",
+  "rate": "+12%",
+  "pitch": "+0Hz",
+  "pausa_max_interna": 0.15,
+  "pausa_entre_segmentos": 0.15,
+  "cauda_final": 0.25,
+  "zona_climax_seg": "espirro28",
+  "pronuncias_tts": {},
+  "youtube": {
+    "titulo": "E se cada espirro te deixasse 1 ano mais jovem? #Shorts",
+    "descricao": "Parece o sonho da juventude eterna, mas o que acontece quando você tem 30 anos e cada espirro tira 1 ano da sua idade biológica? Da dor nas costas sumindo e pimenta de propósito até a rinite da primavera te derrubar para zero anos.\n\nVocê cheiraria pimenta pra rejuvenescer ou travaria o nariz? Comenta aí!\n\n#Shorts #curiosidades #ese #humor #ciencia",
+    "tags": [
+      "shorts",
+      "e se voce",
+      "espirro",
+      "juventude",
+      "rinite",
+      "curiosidades",
+      "humor",
+      "youtube shorts"
+    ],
+    "categoria_id": "24"
+  },
+  "segmentos": [
+    {
+      "id": "hook",
+      "fala": "Parece o sonho da juventude eterna... até a rinite atacar e você sumir!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "ding", "palavra": "sonho", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "susto", "palavra": "rinite", "offset": -0.05, "ganho": 0.8 },
+        { "tipo": "whoosh", "palavra": "atacar", "offset": -0.05, "ganho": 0.85 },
+        { "tipo": "explosao", "palavra": "sumir", "offset": -0.05, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "premissa",
+      "fala": "Você tem 30 anos e uma regra: cada espirro te deixa 1 ano mais jovem.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "stamp", "palavra": "regra", "offset": -0.05, "ganho": 0.85 },
+        { "tipo": "whoosh_curto", "palavra": "espirro", "offset": -0.04, "ganho": 0.7 },
+        { "tipo": "ding", "palavra": "jovem", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "espirro1",
+      "fala": "Espirro 1: 29 anos. A dor nas costas some na hora e você vibra!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh_curto", "palavra": "some", "offset": -0.04, "ganho": 0.75 },
+        { "tipo": "ding", "palavra": "vibra", "offset": -0.04, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "espirro5",
+      "fala": "Espirro 5: 25 anos. Você até cheira pimenta pra voltar ao auge da beleza.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "tique", "palavra": "cheira", "offset": -0.04, "ganho": 0.65 },
+        { "tipo": "whoosh", "palavra": "pimenta", "offset": -0.05, "ganho": 0.75 },
+        { "tipo": "flashes", "palavra": "beleza", "offset": -0.05, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "espirro12",
+      "fala": "Espirro 12: 18 anos. Pele perfeita! Mas a primavera chega e a rinite ataca.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "passaros", "palavra": "perfeita", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "vento", "palavra": "primavera", "offset": -0.06, "ganho": 0.75 },
+        { "tipo": "susto", "palavra": "ataca", "offset": -0.05, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "espirro18",
+      "fala": "Espirro 18: 12 anos. A roupa fica gigante e o chefe te manda estudar!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "whoosh_curto", "palavra": "gigante", "offset": -0.05, "ganho": 0.8 },
+        { "tipo": "stamp", "palavra": "estudar", "offset": -0.05, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "espirro24",
+      "fala": "Espirro 24: 6 anos. Você mal alcança a mesa e tenta tapar o nariz!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "pouso", "palavra": "mesa", "offset": -0.04, "ganho": 0.7 },
+        { "tipo": "alarme_curto", "palavra": "tapar", "offset": -0.05, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "espirro28",
+      "fala": "Espirro 28: 2 anos. Bebê no berço, faltando só dois espirros pro fim!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.7, "ate_fim": true },
+        { "tipo": "alarme", "palavra": "berço", "offset": -0.05, "ganho": 0.75 },
+        { "tipo": "boom_leve", "palavra": "fim", "offset": -0.05, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "bolha",
+      "fala": "Em pânico, você bota pregador no nariz e se tranca numa bolha estéril.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "susto", "palavra": "pânico", "offset": -0.05, "ganho": 0.7 },
+        { "tipo": "stamp", "palavra": "pregador", "offset": -0.04, "ganho": 0.75 },
+        { "tipo": "cristal", "palavra": "bolha", "offset": -0.05, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "twist_a",
+      "fala": "Parece salvo... até um único grão de pólen passar pelo filtro.",
+      "pausa_depois": 0.35,
+      "sfx": [
+        { "tipo": "riser", "palavra": "pólen", "offset": 0.0, "ganho": 0.85, "ate_fim": true },
+        { "tipo": "tique", "palavra": "filtro", "offset": -0.04, "ganho": 0.7 }
+      ]
+    },
+    {
+      "id": "twist_b",
+      "fala": "Você puxa o ar... e solta dois espirros! Espirro 30: zero anos. Você sumiu!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "drop", "ancora": "inicio", "offset": -0.1, "ganho": 1.0 },
+        { "tipo": "sonic_boom", "palavra": "solta", "offset": -0.05, "ganho": 0.95 },
+        { "tipo": "boom", "palavra": "zero", "offset": -0.05, "ganho": 0.95 },
+        { "tipo": "explosao", "palavra": "sumiu", "offset": -0.05, "ganho": 1.0 }
+      ]
+    },
+    {
+      "id": "loop",
+      "fala": "Você cheiraria pimenta pra rejuvenescer ou travaria o nariz? Comenta aí!",
+      "pausa_depois": 0.0,
+      "sfx": [
+        { "tipo": "boom_leve", "ancora": "inicio", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "tique", "palavra": "nariz", "offset": -0.03, "ganho": 0.6 }
+      ]
+    }
+  ]
+}
