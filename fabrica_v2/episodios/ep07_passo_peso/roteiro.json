@@ -1,0 +1,152 @@
+{
+  "titulo": "E se cada passo do Zeca dobrasse o peso dele?",
+  "voz": "pt-BR-AntonioNeural",
+  "rate": "+12%",
+  "pitch": "+0Hz",
+  "pausa_max_interna": 0.15,
+  "pausa_entre_segmentos": 0.15,
+  "cauda_final": 0.25,
+  "zona_climax_seg": "passo18",
+  "pronuncias_tts": {},
+  "youtube": {
+    "titulo": "E se cada passo do Zeca dobrasse o peso dele? #Shorts",
+    "descricao": "Um passo inocente e o Zeca quase afunda a Terra inteira! Acompanhe o peso do Zeca dobrar de 70 quilos até 2 milhões de toneladas, trincando piso, dobrando ônibus no meio, abrindo cratera na rua e fugindo de uma barata voadora até rasgar o núcleo da Terra.\n\nCoitado do Zeca! Deixa nos comentários o que o Zeca tem que fazer no próximo vídeo!\n\n#Shorts #zeca #curiosidades #ese #humor #ciencia",
+    "tags": [
+      "shorts",
+      "zeca",
+      "e se voce",
+      "peso dobrando",
+      "curiosidades",
+      "ciencia",
+      "humor",
+      "youtube shorts"
+    ],
+    "categoria_id": "24"
+  },
+  "segmentos": [
+    {
+      "id": "hook",
+      "fala": "Um passo inocente... e o Zeca quase afunda a Terra inteira!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "pouso", "palavra": "passo", "offset": -0.04, "ganho": 0.7 },
+        { "tipo": "susto", "palavra": "Zeca", "offset": -0.05, "ganho": 0.7 },
+        { "tipo": "boom", "palavra": "afunda", "offset": -0.05, "ganho": 0.95 },
+        { "tipo": "explosao", "palavra": "Terra", "offset": -0.05, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "regra",
+      "fala": "Esse é o Zeca. Ele pesa 70 quilos, mas hoje cada passo dobra o peso.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "ding", "palavra": "Zeca", "offset": -0.04, "ganho": 0.7 },
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "stamp", "palavra": "dobra", "offset": -0.05, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "passo1",
+      "fala": "Passo 1: 140 quilos. Ele sai da cama e o chinelo trinca o piso.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "pouso", "palavra": "chinelo", "offset": -0.04, "ganho": 0.75 },
+        { "tipo": "cristal", "palavra": "trinca", "offset": -0.04, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "passo3",
+      "fala": "Passo 3: 560 quilos. O chão racha e ele cai no vizinho de baixo!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "cristal", "palavra": "racha", "offset": -0.05, "ganho": 0.85 },
+        { "tipo": "whoosh", "palavra": "cai", "offset": -0.05, "ganho": 0.8 },
+        { "tipo": "boom_leve", "palavra": "baixo", "offset": -0.04, "ganho": 0.9 }
+      ]
+    },
+    {
+      "id": "passo6",
+      "fala": "Passo 6: 4 toneladas e meia. O pé dele afunda no asfalto feito manteiga.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "boom_leve", "palavra": "afunda", "offset": -0.05, "ganho": 0.85 },
+        { "tipo": "pouso", "palavra": "asfalto", "offset": -0.04, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "passo10",
+      "fala": "Passo 10: 71 toneladas. Ele sobe no ônibus e o busão dobra no meio!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "pouso", "palavra": "sobe", "offset": -0.04, "ganho": 0.75 },
+        { "tipo": "boom", "palavra": "dobra", "offset": -0.05, "ganho": 0.95 },
+        { "tipo": "cristal", "palavra": "meio", "offset": -0.04, "ganho": 0.85 }
+      ]
+    },
+    {
+      "id": "passo15",
+      "fala": "Passo 15: 2.300 toneladas. Um passo causa terremoto e dispara os alarmes.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "trovao", "palavra": "terremoto", "offset": -0.08, "ganho": 0.95 },
+        { "tipo": "alarme", "palavra": "alarmes", "offset": -0.05, "ganho": 0.8 }
+      ]
+    },
+    {
+      "id": "passo18",
+      "fala": "Passo 18: 18 mil toneladas. A rua vira cratera e os carros deslizam até ele!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "badge", "ancora": "inicio", "offset": -0.05, "ganho": 0.6 },
+        { "tipo": "drone", "ancora": "inicio", "offset": 0.0, "ganho": 0.7, "ate_fim": true },
+        { "tipo": "boom", "palavra": "cratera", "offset": -0.06, "ganho": 0.95 },
+        { "tipo": "sirene", "palavra": "carros", "offset": -0.05, "ganho": 0.75 }
+      ]
+    },
+    {
+      "id": "estatua",
+      "fala": "Em pânico, o Zeca vira estátua e jura nunca mais andar.",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "susto", "palavra": "pânico", "offset": -0.05, "ganho": 0.75 },
+        { "tipo": "stamp", "palavra": "estátua", "offset": -0.04, "ganho": 0.8 },
+        { "tipo": "tique", "palavra": "andar", "offset": -0.04, "ganho": 0.6 }
+      ]
+    },
+    {
+      "id": "barata",
+      "fala": "Parece salvo... até uma barata voadora pousar bem no nariz dele!",
+      "pausa_depois": 0.30,
+      "sfx": [
+        { "tipo": "riser", "palavra": "barata", "offset": 0.0, "ganho": 0.85, "ate_fim": true },
+        { "tipo": "whoosh_curto", "palavra": "voadora", "offset": -0.04, "ganho": 0.8 },
+        { "tipo": "susto", "palavra": "nariz", "offset": -0.04, "ganho": 0.95 }
+      ]
+    },
+    {
+      "id": "nucleo",
+      "fala": "Ele surta e corre sete passos! Passo 25: 2 milhões de toneladas, rasgando até o núcleo!",
+      "pausa_depois": 0.15,
+      "sfx": [
+        { "tipo": "drop", "ancora": "inicio", "offset": -0.1, "ganho": 1.0 },
+        { "tipo": "sonic_boom", "palavra": "corre", "offset": -0.05, "ganho": 0.95 },
+        { "tipo": "fogo", "palavra": "rasgando", "offset": -0.05, "ganho": 0.9 },
+        { "tipo": "explosao", "palavra": "núcleo", "offset": -0.06, "ganho": 1.0 }
+      ]
+    },
+    {
+      "id": "cta_zeca",
+      "fala": "Coitado do Zeca! Deixa nos comentários o que o Zeca tem que fazer no próximo vídeo!",
+      "pausa_depois": 0.0,
+      "sfx": [
+        { "tipo": "boom_leve", "ancora": "inicio", "offset": -0.05, "ganho": 0.65 },
+        { "tipo": "ding", "palavra": "comentários", "offset": -0.04, "ganho": 0.75 }
+      ]
+    }
+  ]
+}
